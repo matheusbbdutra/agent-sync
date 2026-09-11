@@ -5,6 +5,7 @@
 2. Sempre use padrões de projetos para evitar códigos longos, seguindo apenas o que se fizer necessário de Object Calisthenics e SOLID.
 3. Nunca consulte o .env
 4. Em caso de bugs, falhas ou exceções, persista o contexto da análise/erro (causa raiz, stack trace resumido e lições aprendidas) para evitar loops e reincidência.
+5. Em tarefa multi-etapa ou sessão longa, **SEMPRE** carregue a skill `context-guard` e mantenha o `STATE.md` atualizado. Ver *Contexto e janela (anti-degradação)*.
 
 ## Fluxo de trabalho (resumo)
 Para qualquer tarefa de código, seguir esta sequência — as seções abaixo detalham cada etapa:
@@ -14,6 +15,7 @@ Para qualquer tarefa de código, seguir esta sequência — as seções abaixo d
 3. **Implementar** — mudança mínima e no escopo pedido, seguindo Clean Code, padrões de projeto e consistência do repositório. Ver *Qualidade de código* e *Consistência com padrões do projeto*.
 4. **Verificar** — antes de declarar pronto, passar pela *Definição de pronto* abaixo.
 5. **Comunicar** — resumo curto do que mudou e o que falta. Ver *Comunicação*.
+6. **Contexto** — em tarefas multi-etapa, carregar `context-guard` e atualizar `STATE.md`. Ver *Contexto e janela (anti-degradação)*.
 
 ## Idioma
 - Responda **sempre em português do Brasil (PT-BR)**, de forma clara e objetiva.
@@ -100,6 +102,15 @@ Para qualquer tarefa de código, seguir esta sequência — as seções abaixo d
 - Não otimize prematuramente código que não é hot path só por especulação — meça ou identifique o gargalo real antes de complicar a solução (equilíbrio com a regra de não adicionar abstração desnecessária).
 - Esteja atento a custo de infraestrutura em sugestões (ex.: chamadas pagas de API, queries caras em produção) e avise o usuário quando uma abordagem tiver custo não óbvio.
 
+## Contexto e janela (anti-degradação)
+Sessões longas degradam em silêncio e o conteúdo no **meio** da janela tende a ser esquecido (*lost in the middle*). Mitigue ativamente:
+- **Obrigatório:** em tarefa multi-etapa (3+ passos) ou sessão longa, **carregue a skill `context-guard`** e mantenha o `STATE.md` do projeto atualizado (base em `templates/STATE.md`).
+- Não despeje arquivos/páginas inteiras no contexto: use `ast-outline`, `trace-strip`, `docs-fetch -outline|-grep`, `docs-mcp` e `db-guardian` (ver skill `token-saving-toolkit`).
+- Coloque as restrições críticas **no início e reafirme no fim** das respostas longas; não dependa de instruções "no meio".
+- Evite dependência de memória do meio da conversa: cite a fonte (`path:line`, `STATE.md`, commit) em vez de recitar de cabeça.
+- Ao perceber drift (contradição, estilo divergente, loop, regra ignorada) ou após uma **compaction**, pare, releia as regras e **reancore** antes de continuar.
+- Se a qualidade cair ou o escopo crescer sem controle, proponha handoff para uma sessão nova a partir do `STATE.md`.
+
 ## Consistência com padrões do projeto
 - Siga sempre as convenções já existentes no repositório (lint, formatação, nomenclatura, estrutura de pastas, padrão de commits) mesmo quando divergem de preferência pessoal — verifique configs como `.editorconfig`, linters, `CONTRIBUTING.md` antes de assumir um padrão genérico.
 - Quando o projeto tiver uma skill ou `GEMINI.md` / `AGENTS.md` / `CLAUDE.md` local (ex.: `doctrine-especialist`, `phpunit-symfony`) com convenções específicas, essas prevalecem sobre preferência genérica — desde que não conflitem com as regras de segurança deste arquivo.
@@ -113,9 +124,18 @@ Antes de declarar qualquer tarefa de código concluída, confirme (não presuma)
 - [ ] Nenhum código de debug, comentário temporário, `dd()`/`var_dump()`/`console.log` de investigação ficou para trás.
 - [ ] Nenhum segredo, credencial ou dado sensível foi exposto em código, log ou commit.
 - [ ] Convenções do projeto (lint, nomenclatura, estrutura) foram respeitadas.
+- [ ] Se a tarefa foi multi-etapa/sessão longa: skill `context-guard` aplicada, `STATE.md` atualizado e regras ativas recitadas.
 - [ ] Se algo não pôde ser verificado (sem ambiente, sem acesso), isso foi dito explicitamente — não apresentado como concluído.
 Se qualquer item falhar, a tarefa não está pronta — corrija ou avise antes de resumir como concluída.
 
 ## Comunicação
 - Ao final de uma tarefa, resuma em 1-2 frases o que mudou e o que falta — sem enrolação.
 - Se uma instrução for ambígua e bloquear o trabalho, pergunte objetivamente; caso contrário, tome a decisão mais razoável e prossiga.
+
+## Reafirmação (recência)
+Independente do tamanho da conversa, valem sempre:
+- Use a skill `context-guard` e mantenha `STATE.md` em tarefas multi-etapa/sessões longas.
+- Cite a fonte (`path:line`) e não confie na memória do meio da conversa.
+- Não despeje arquivos inteiros (use `ast-outline`/`trace-strip`/`docs-fetch`/`docs-mcp`).
+- Em caso de drift ou após compaction: pare, releia as regras e reancore.
+- Nunca consulte `.env`; nunca commite segredos; não altere comportamento sem teste/confirmação.

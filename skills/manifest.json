@@ -25,6 +25,8 @@
     { "id": "openapi-spec-generation", "domain": "api-docs" },
     { "id": "api-documenter", "domain": "api-docs" },
     { "id": "search-specialist", "domain": "web-research" },
+    { "id": "context-manager", "domain": "context-management" },
+    { "id": "context-management-context-save", "domain": "context-management" },
     { "id": "php-pro", "domain": "language" },
     { "id": "python-pro", "domain": "language" },
     { "id": "golang-pro", "domain": "language" },

@@ -18,7 +18,7 @@ agent-sync/
 │   ├── manifest.json       # Curadoria: IDs + origem (rmyndharis/antigravity-skills, MIT) usada por `-vendor`
 │   ├── token-saving-toolkit/ # Instruções para leitura concisa via AST e poda de logs
 │   ├── mcp-advisor/          # Avaliação de uso de MCPs
-│   └── <39 skills>/          # Vendorizadas do catálogo (backend, segurança, banco, API, linguagens, testes, ops)
+│   └── <41 skills>/          # Vendorizadas do catálogo (backend, segurança, banco, API, linguagens, testes, ops, contexto)
 ├── agents/                 # Agentes especialistas autorais (canônicos), gerados por CLI no `-apply`
 │   ├── spec-planner.md, code-reviewer.md, security-auditor.md, debugger.md
 │   └── architecture-reviewer.md, test-engineer.md, refactor-specialist.md, db-guardian.md, token-optimizer.md
@@ -29,6 +29,7 @@ agent-sync/
 │   └── cmd/docs-fetch/     # Baixa/cacheia docs e extrai texto ou outline de títulos (baixo token)
 │   └── cmd/docs-mcp/       # Servidor MCP local (offline) sobre o cache de docs
 ├── mirror/sources.json     # Fontes oficiais curadas para sincronizar no cache local
+├── templates/STATE.md      # Template de handoff de sessão (checkpoint/retomada)
 ├── cmd/agent-sync/         # Orquestrador de sincronização CLI (+ vendor de skills + gerador de agentes)
 ├── scripts/setup-go.sh     # Bootstrap do Go (>= 1.24) via mise ou tarball oficial
 ├── scripts/setup-mcp.sh    # Configura Context7 (remoto ou local) + MCP local de docs
@@ -71,9 +72,16 @@ Curadas por domínio no `skills/manifest.json` e importadas de [rmyndharis/antig
 | Testes | `python-testing-patterns`, `javascript-testing-patterns`, `e2e-testing-patterns`, `tdd-orchestrator` |
 | Ops/Infra | `incident-response-smart-fix`, `postmortem-writing` |
 | Pesquisa web | `search-specialist` |
+| Contexto | `context-manager`, `context-management-context-save` |
 
-Além das vendorizadas, há **7 skills autorais em PT-BR** (não existem no catálogo):
-`ddd`, `design-patterns`, `object-calisthenics`, `symfony`, `doctrine`, `phpunit-symfony` e `docs-research`.
+Além das vendorizadas, há **8 skills autorais em PT-BR** (não existem no catálogo):
+`ddd`, `design-patterns`, `object-calisthenics`, `symfony`, `doctrine`, `phpunit-symfony`, `docs-research` e `context-guard`.
+
+### Contexto e sessões longas
+
+- **`context-guard`** (skill): zonas de saúde, sinais de drift, reancoragem após compaction e checkpoint. **Obrigatória por padrão** em tarefas multi-etapa/sessões longas (referenciada nas `global-rules`, no topo e na reafirmação final).
+- **`STATE.md`**: fonte de verdade para retomar sessões. Base em `templates/STATE.md`; mantenha no projeto.
+- Ferramentas de baixo token: `ast-outline`, `trace-strip`, `docs-fetch`, `docs-mcp`, `db-guardian` (ver `token-saving-toolkit`).
 
 ### Pesquisa e documentação
 
