@@ -7,11 +7,21 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 )
+
+type outlineLine struct {
+	Line int
+	Text string
+}
+
+func (l outlineLine) String() string {
+	return fmt.Sprintf("L%-4d: %s", l.Line, l.Text)
+}
 
 func main() {
 	flag.Parse()
@@ -38,23 +48,19 @@ func main() {
 	}
 }
 
-func outlineGo(filePath string) {
+func goOutlineLines(src []byte) ([]outlineLine, string, error) {
 	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
+	node, err := parser.ParseFile(fset, "", src, parser.ParseComments)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Erro ao analisar Go: %v\n", err)
-		outlineFallback(filePath)
-		return
+		return nil, "", err
 	}
 
-	fmt.Printf("📦 Arquivo: %s (Go - Pacote: %s)\n", filePath, node.Name.Name)
-
+	var out []outlineLine
 	for _, decl := range node.Decls {
 		switch d := decl.(type) {
 		case *ast.GenDecl:
 			for _, spec := range d.Specs {
 				if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-					pos := fset.Position(typeSpec.Pos())
 					kind := "type"
 					switch typeSpec.Type.(type) {
 					case *ast.StructType:
@@ -62,27 +68,67 @@ func outlineGo(filePath string) {
 					case *ast.InterfaceType:
 						kind = "interface"
 					}
-					fmt.Printf("L%-4d: %s %s\n", pos.Line, kind, typeSpec.Name.Name)
+					out = append(out, outlineLine{
+						Line: fset.Position(typeSpec.Pos()).Line,
+						Text: fmt.Sprintf("%s %s", kind, typeSpec.Name.Name),
+					})
 				}
 			}
 		case *ast.FuncDecl:
-			pos := fset.Position(d.Pos())
 			var recv string
 			if d.Recv != nil && len(d.Recv.List) > 0 {
 				r := d.Recv.List[0]
-				recvType := ""
-				if star, ok := r.Type.(*ast.StarExpr); ok {
-					if id, ok := star.X.(*ast.Ident); ok {
-						recvType = "*" + id.Name
+				switch t := r.Type.(type) {
+				case *ast.StarExpr:
+					if id, ok := t.X.(*ast.Ident); ok {
+						recv = fmt.Sprintf("(%s) ", "*"+id.Name)
 					}
-				} else if id, ok := r.Type.(*ast.Ident); ok {
-					recvType = id.Name
+				case *ast.Ident:
+					recv = fmt.Sprintf("(%s) ", t.Name)
 				}
-				recv = fmt.Sprintf("(%s) ", recvType)
 			}
-			fmt.Printf("L%-4d: func %s%s(...)\n", pos.Line, recv, d.Name.Name)
+			out = append(out, outlineLine{
+				Line: fset.Position(d.Pos()).Line,
+				Text: fmt.Sprintf("func %s%s(...)", recv, d.Name.Name),
+			})
 		}
 	}
+	return out, node.Name.Name, nil
+}
+
+func outlineGo(filePath string) {
+	src, err := os.ReadFile(filePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Erro ao abrir arquivo: %v\n", err)
+		return
+	}
+
+	lines, pkg, err := goOutlineLines(src)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Erro ao analisar Go: %v\n", err)
+		outlineFallback(filePath)
+		return
+	}
+
+	fmt.Printf("📦 Arquivo: %s (Go - Pacote: %s)\n", filePath, pkg)
+	for _, l := range lines {
+		fmt.Println(l.String())
+	}
+}
+
+// regexOutline extrai linhas de outline casadas pelo padrão, preservando a numeração.
+func regexOutline(r io.Reader, re *regexp.Regexp) []outlineLine {
+	var out []outlineLine
+	scanner := bufio.NewScanner(r)
+	lineNum := 1
+	for scanner.Scan() {
+		line := scanner.Text()
+		if re.MatchString(line) {
+			out = append(out, outlineLine{Line: lineNum, Text: strings.TrimSpace(line)})
+		}
+		lineNum++
+	}
+	return out
 }
 
 func outlineRegex(filePath, pattern string) {
@@ -93,17 +139,11 @@ func outlineRegex(filePath, pattern string) {
 	}
 	defer file.Close()
 
-	re := regexp.MustCompile(pattern)
-	scanner := bufio.NewScanner(file)
-	lineNum := 1
+	out := regexOutline(file, regexp.MustCompile(pattern))
 
 	fmt.Printf("📄 Arquivo: %s\n", filePath)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if re.MatchString(line) {
-			fmt.Printf("L%-4d: %s\n", lineNum, strings.TrimSpace(line))
-		}
-		lineNum++
+	for _, l := range out {
+		fmt.Println(l.String())
 	}
 }
 

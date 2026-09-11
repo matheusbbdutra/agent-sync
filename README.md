@@ -1,6 +1,6 @@
 # Agent-Sync 🚀
 
-Repositório unificado para versionar, manter e sincronizar **Regras Globais**, **Skills** e **Ferramentas de Baixo Consumo de Tokens** em múltiplos ecossistemas de agentes de IA:
+Repositório unificado para versionar, manter e sincronizar **Regras Globais**, **Skills**, **Agentes Especialistas** e **Ferramentas de Baixo Consumo de Tokens** em múltiplos ecossistemas de agentes de IA:
 - **Claude Code** (`~/.claude`)
 - **Codex / OpenAI** (`~/.codex`)
 - **Google Antigravity / Gemini** (`~/.gemini`)
@@ -15,16 +15,92 @@ agent-sync/
 ├── rules/
 │   └── global-rules.md     # Regras globais (Clean Code, OWASP, Anti-Alucinação, Data Guardians)
 ├── skills/
+│   ├── manifest.json       # Curadoria: IDs + origem (rmyndharis/antigravity-skills, MIT) usada por `-vendor`
 │   ├── token-saving-toolkit/ # Instruções para leitura concisa via AST e poda de logs
-│   └── mcp-advisor/          # Avaliação de uso de MCPs
+│   ├── mcp-advisor/          # Avaliação de uso de MCPs
+│   └── <39 skills>/          # Vendorizadas do catálogo (backend, segurança, banco, API, linguagens, testes, ops)
+├── agents/                 # Agentes especialistas autorais (canônicos), gerados por CLI no `-apply`
+│   ├── spec-planner.md, code-reviewer.md, security-auditor.md, debugger.md
+│   └── architecture-reviewer.md, test-engineer.md, refactor-specialist.md, db-guardian.md, token-optimizer.md
 ├── tools/                  # Binários utilitários de alta velocidade em Go
 │   ├── cmd/ast-outline/    # Extrai classes/métodos em vez de ler arquivos inteiros (Go, Python, TS, PHP)
 │   ├── cmd/trace-strip/    # Remove ruídos de frameworks em logs de erro
-│   └── cmd/db-guardian/    # Proxy seguro de SQL (Read-Only por default, bloqueia mutações, injeta LIMIT)
-├── cmd/agent-sync/         # Orquestrador de sincronização CLI
+│   ├── cmd/db-guardian/    # Valida SQL read-only (bloqueia mutações, injeta LIMIT); NÃO executa queries
+│   └── cmd/docs-fetch/     # Baixa/cacheia docs e extrai texto ou outline de títulos (baixo token)
+│   └── cmd/docs-mcp/       # Servidor MCP local (offline) sobre o cache de docs
+├── mirror/sources.json     # Fontes oficiais curadas para sincronizar no cache local
+├── cmd/agent-sync/         # Orquestrador de sincronização CLI (+ vendor de skills + gerador de agentes)
+├── scripts/setup-go.sh     # Bootstrap do Go (>= 1.24) via mise ou tarball oficial
+├── scripts/setup-mcp.sh    # Configura Context7 (remoto ou local) + MCP local de docs
+├── LICENSE / NOTICE        # Licença MIT e atribuição das skills de terceiros
 ├── Makefile                # Comandos de automação
 └── README.md
 ```
+
+### Agentes especialistas
+
+Definidos uma vez em `agents/*.md` (frontmatter `name`, `description` e `readonly` opcional) e **gerados no formato nativo** de cada CLI durante o `-apply`:
+
+| Agente | Papel | Read-only |
+| --- | --- | --- |
+| `spec-planner` | Entende o pedido e planeja antes de codar | ✅ |
+| `code-reviewer` | Clean Code, SOLID, Calisthenics e segurança | ✅ |
+| `security-auditor` | OWASP, injeção, XSS, segredos | ✅ |
+| `debugger` | Causa raiz com hipóteses e evidências | ❌ |
+| `architecture-reviewer` | Fronteiras, DDD, acoplamento, ADRs | ✅ |
+| `test-engineer` | TDD red-green-refactor | ❌ |
+| `refactor-specialist` | Refatoração incremental guiada por testes | ❌ |
+| `db-guardian` | SQL read-only, LIMIT, PII | ✅ |
+| `token-optimizer` | Inspeção de baixo token (ast-outline/trace-strip) | ✅ |
+
+> "Read-only" vira `permission.edit=deny` no OpenCode e `sandbox_mode=read-only` no Codex; nos demais, é reforçado pelo prompt.
+
+### Skills vendorizadas do catálogo
+
+Curadas por domínio no `skills/manifest.json` e importadas de [rmyndharis/antigravity-skills](https://github.com/rmyndharis/antigravity-skills) (MIT):
+
+| Domínio | Skills |
+| --- | --- |
+| Backend/qualidade | `error-handling-patterns`, `code-refactoring-refactor-clean`, `dependency-management-deps-audit`, `codebase-cleanup-tech-debt`, `legacy-modernizer`, `nodejs-backend-patterns`, `code-reviewer`, `debugging-strategies` |
+| Arquitetura | `architecture-patterns`, `architect-review`, `architecture-decision-records` |
+| Arq. distribuída | `microservices-patterns`, `cqrs-implementation`, `event-sourcing-architect` |
+| Segurança | `auth-implementation-patterns`, `security-auditor`, `sast-configuration`, `backend-security-coder`, `frontend-security-coder` |
+| Banco de dados | `sql-optimization-patterns`, `database-optimizer`, `database-migrations-sql-migrations`, `postgresql` |
+| API/Docs | `openapi-spec-generation`, `api-documenter`, `api-design-principles` |
+| Linguagens | `php-pro`, `python-pro`, `golang-pro`, `go-concurrency-patterns`, `javascript-pro`, `typescript-pro` |
+| Testes | `python-testing-patterns`, `javascript-testing-patterns`, `e2e-testing-patterns`, `tdd-orchestrator` |
+| Ops/Infra | `incident-response-smart-fix`, `postmortem-writing` |
+| Pesquisa web | `search-specialist` |
+
+Além das vendorizadas, há **7 skills autorais em PT-BR** (não existem no catálogo):
+`ddd`, `design-patterns`, `object-calisthenics`, `symfony`, `doctrine`, `phpunit-symfony` e `docs-research`.
+
+### Pesquisa e documentação
+
+- **`docs-research`** (skill): padrão de pesquisa em fontes oficiais (Symfony, Doctrine, PHP, Go, JS/TS…) com citação e baixo token.
+- **`docs-fetch`** (tool): baixa e cacheia docs; consulta online ou offline.
+  ```bash
+  make mirror                    # sincroniza mirror/sources.json (~65 fontes oficiais) no cache
+  docs-fetch -outline https://www.doctrine-project.org/projects/doctrine-orm/en/current/reference/basic-mapping.html
+  docs-fetch -search "lazy loading"   # busca offline no cache
+  docs-fetch -list                    # docs cacheadas
+  ```
+  Fontes curadas em `mirror/sources.json`: Symfony, Doctrine (ORM/DBAL/Collections/Migrations), PHP, PSR, PHPUnit, Composer, Go, TypeScript, JavaScript/MDN, Node, React, Vue, Next.js, Tailwind, Vite, Laravel, Rails, Python, Django, FastAPI, Spring Boot, .NET/C#, Rust, Elixir, Vitest, Jest, Playwright, PostgreSQL, SQLite, MariaDB, MongoDB, Redis, Kafka, Elasticsearch, RabbitMQ, Docker, Kubernetes, Terraform, Nginx, Git, ESLint, OWASP.
+- **MCPs** nos 4 CLIs:
+  - `context7` — docs atualizadas de bibliotecas. Padrão **remoto**; **local/stdio** com `CONTEXT7_LOCAL=1`.
+    ```bash
+    make mcp                                   # remoto
+    CONTEXT7_LOCAL=1 make mcp                  # local (stdio, via npx — ainda precisa de internet)
+    CONTEXT7_API_KEY=xxx make mcp              # limites maiores (não fica no repo)
+    ```
+  - `docs` — **MCP local offline** (`docs-mcp`) que busca no cache do `docs-fetch`. Funciona sem internet após o `make mirror`.
+
+> Context7 é hospedado: mesmo em modo local (stdio) o servidor consulta a API do context7.com — não é offline. Para offline de verdade, use o MCP `docs` + `make mirror`.
+
+
+
+
+
 
 ---
 
@@ -36,28 +112,50 @@ git clone <seu-repo-url> ~/Documentos/agent-sync
 cd ~/Documentos/agent-sync
 ```
 
-### 2. Compilar e Instalar tudo
+### 2. Garantir o Go (>= 1.24)
+```bash
+make setup
+```
+Verifica o `go` disponível e, se ausente/antigo, instala a versão exigida pelos `go.mod` via `mise` (se disponível) ou pelo tarball oficial em `~/.local` — sem `sudo`. O `toolchain` em `go.mod` fixa a versão mínima sugerida (`go1.24.13`).
+
+### 3. Compilar e Instalar tudo
 ```bash
 make install
 ```
-Isso compilará os binários em Go (`agent-sync`, `ast-outline`, `trace-strip`, `db-guardian`) e os colocará em `~/.local/bin/`.
+Isso compilará os binários em Go (`agent-sync`, `ast-outline`, `trace-strip`, `db-guardian`, `docs-fetch`, `docs-mcp`) e os colocará em `~/.local/bin/`.
 
-### 3. Sincronizar com todas as CLIs
+### 4. Sincronizar com todas as CLIs
 ```bash
 make sync
 # ou diretamente:
 agent-sync -apply
 ```
 
-### 4. Verificar Status das CLIs
+### 5. MCPs de documentação (opcional)
+```bash
+make mirror                    # baixa docs oficiais para o cache offline
+make mcp                       # Context7 (remoto) + MCP local offline 'docs'
+CONTEXT7_LOCAL=1 make mcp      # Context7 em modo local (stdio)
+```
+
+### 6. Verificar Status das CLIs
 ```bash
 agent-sync -status
 ```
+
+### 7. Reimportar as skills curadas do catálogo
+```bash
+make vendor
+# ou diretamente (origem configurável com -source):
+agent-sync -vendor
+```
+
+> A resolução da raiz do repositório pode ser forçada com a variável `AGENT_SYNC_HOME`.
 
 ---
 
 ## 🛡️ Ferramentas Inclusas
 - **`ast-outline <arquivo>`**: Gera a estrutura de classes e funções com linhas correspondentes, economizando até 90% dos tokens de contexto.
 - **`trace-strip <arquivo_ou_pipe>`**: Oculta frames irrelevantes de stack traces de bibliotecas externas.
-- **`db-guardian -list`** / **`-profile <banco> -query "<sql>"`**: Consulta bancos protegendo dados sensíveis e prevenindo mutações acidentais.
-- **`psr-check <arquivo.php> [--fix]`**: Validação e correção direta de regras PSR-12 e PER-CS 2.0.
+- **`db-guardian -list`** / **`-profile <banco> -query "<sql>"`**: Valida queries em modo read-only (bloqueia mutações, avisa sobre `SELECT *` e injeta `LIMIT`). **Não abre conexão nem executa a query**; o perfil serve apenas para contexto. Credenciais aceitam indireção por ambiente (`${DB_PASSWORD}`).
+- **`docs-fetch <url>`**: Baixa e cacheia uma página de docs e extrai texto (`-outline`, `-grep`, `-raw`, `-refresh`) para consulta de baixo token.

@@ -1,5 +1,6 @@
 # Binários compilados
 bin/
+/agent-sync
 *.exe
 *.dll
 *.so

@@ -30,6 +30,27 @@ var (
 	limitRegex       = regexp.MustCompile(`(?i)\bLIMIT\s+\d+`)
 )
 
+// sanitizeQuery aplica os guardrails de leitura: bloqueia mutações, avisa sobre
+// SELECT * e injeta um LIMIT defensivo quando ausente. Não executa a query.
+func sanitizeQuery(query string, maxLimit int) (string, []string, error) {
+	if match := destructiveRegex.FindString(query); match != "" {
+		return "", nil, fmt.Errorf("comando '%s' detectado; acesso padrão é estritamente Read-Only", strings.ToUpper(match))
+	}
+
+	var notices []string
+	if strings.Contains(strings.ToUpper(query), "SELECT *") {
+		notices = append(notices, "AVISO: 'SELECT *' detectado. Projete colunas explícitas para economizar tokens.")
+	}
+
+	sanitized := query
+	if !limitRegex.MatchString(sanitized) {
+		sanitized = strings.TrimRight(sanitized, ";")
+		sanitized = fmt.Sprintf("%s LIMIT %d;", sanitized, maxLimit)
+		notices = append(notices, fmt.Sprintf("LIMIT INJETADO: limite seguro de %d linhas adicionado automaticamente.", maxLimit))
+	}
+	return sanitized, notices, nil
+}
+
 func loadConfig() (*Config, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -44,6 +65,11 @@ func loadConfig() (*Config, error) {
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("erro ao ler %s: %w", cfgPath, err)
+	}
+	// Permite credenciais por indireção de ambiente (ex.: "${DB_PASSWORD}").
+	for name, p := range cfg.Profiles {
+		p.Password = os.ExpandEnv(p.Password)
+		cfg.Profiles[name] = p
 	}
 	return &cfg, nil
 }
@@ -102,29 +128,18 @@ func main() {
 			fmt.Fprintf(os.Stderr, "❌ Perfil '%s' não encontrado em ~/.config/db-guardian/profiles.json\n", selectedProfile)
 			os.Exit(1)
 		}
-		fmt.Printf("🔌 [BANCO CONECTADO]: Perfil '%s' (%s - %s:%d/%s)\n", selectedProfile, p.Driver, p.Host, p.Port, p.Database)
+		fmt.Printf("📋 [PERFIL SELECIONADO]: '%s' (%s - %s:%d/%s)\n", selectedProfile, p.Driver, p.Host, p.Port, p.Database)
 	}
 
-	// 1. Guardrail: Bloqueio de mutação
-	if destructiveRegex.MatchString(query) {
-		match := destructiveRegex.FindString(query)
-		fmt.Fprintf(os.Stderr, "❌ [DB-GUARDIAN BLOQUEIO]: Comando '%s' detectado. Acesso padrão é estritamente Read-Only.\n", strings.ToUpper(match))
+	sanitizedQuery, notices, err := sanitizeQuery(query, *maxLimit)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "❌ [DB-GUARDIAN BLOQUEIO]: %v.\n", err)
 		os.Exit(2)
 	}
-
-	// 2. Guardrail: Verificação de SELECT *
-	if strings.Contains(strings.ToUpper(query), "SELECT *") {
-		fmt.Println("⚠️  [AVISO]: 'SELECT *' detectado. Projete colunas explícitas para economizar tokens.")
+	for _, notice := range notices {
+		fmt.Printf("🛡️  [%s]\n", notice)
 	}
 
-	// 3. Guardrail: Injeção de LIMIT de proteção
-	sanitizedQuery := query
-	if !limitRegex.MatchString(sanitizedQuery) {
-		sanitizedQuery = strings.TrimRight(sanitizedQuery, ";")
-		sanitizedQuery = fmt.Sprintf("%s LIMIT %d;", sanitizedQuery, *maxLimit)
-		fmt.Printf("🛡️  [LIMIT INJETADO]: Limite seguro de %d linhas adicionado automaticamente.\n", *maxLimit)
-	}
-
-	fmt.Println("✅ Query aprovada para execução:")
+	fmt.Println("✅ Query validada (NÃO executada — este binário não abre conexão):")
 	fmt.Println(sanitizedQuery)
 }

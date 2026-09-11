@@ -16,6 +16,33 @@ var ignoredPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)(org\.springframework|jakarta\.|javax\.)`),
 }
 
+func shouldIgnore(line string) bool {
+	for _, re := range ignoredPatterns {
+		if re.MatchString(line) {
+			return true
+		}
+	}
+	return false
+}
+
+// filterLines remove ruído de bibliotecas/vendor e limita a saída a maxLines.
+func filterLines(lines []string, maxLines int) (kept []string, omitted int) {
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		if shouldIgnore(line) {
+			omitted++
+			continue
+		}
+		kept = append(kept, line)
+		if len(kept) >= maxLines {
+			break
+		}
+	}
+	return kept, omitted
+}
+
 func main() {
 	maxLines := flag.Int("max", 25, "Número máximo de linhas de stack trace a exibir")
 	flag.Parse()
@@ -33,35 +60,12 @@ func main() {
 	}
 
 	scanner := bufio.NewScanner(reader)
-	var keptLines []string
-	omittedCount := 0
-
+	var lines []string
 	for scanner.Scan() {
-		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
-
-		if trimmed == "" {
-			continue
-		}
-
-		shouldIgnore := false
-		for _, re := range ignoredPatterns {
-			if re.MatchString(line) {
-				shouldIgnore = true
-				break
-			}
-		}
-
-		if shouldIgnore {
-			omittedCount++
-			continue
-		}
-
-		keptLines = append(keptLines, line)
-		if len(keptLines) >= *maxLines {
-			break
-		}
+		lines = append(lines, scanner.Text())
 	}
+
+	keptLines, omittedCount := filterLines(lines, *maxLines)
 
 	fmt.Println("🔍 --- STACK TRACE RELEVANTE (Filtrado para economia de tokens) ---")
 	for _, l := range keptLines {

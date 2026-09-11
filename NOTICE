@@ -1,0 +1,13 @@
+# NOTICE
+
+Este repositório inclui skills de terceiros vendorizadas em `skills/`.
+
+## rmyndharis/antigravity-skills
+
+- Fonte: https://github.com/rmyndharis/antigravity-skills
+- Licença: MIT
+- Copyright (c) 2026 Yudhi Armyndharis
+- Commit de referência do catálogo: 3eff4af
+- Skills importadas e seus metadados ficam registrados em `skills/manifest.json`.
+
+O texto integral da licença MIT original está disponível no repositório de origem.

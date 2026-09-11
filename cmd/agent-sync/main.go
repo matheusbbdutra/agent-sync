@@ -6,12 +6,16 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type TargetCLI struct {
 	Name      string
 	RulesPath string
 	SkillsDir string
+	AgentsDir string
+	AgentKind string
+	PluginDir string
 }
 
 func getHome() string {
@@ -30,21 +34,30 @@ func getTargets() []TargetCLI {
 			Name:      "claude",
 			RulesPath: filepath.Join(home, ".claude", "CLAUDE.md"),
 			SkillsDir: filepath.Join(home, ".claude", "skills"),
+			AgentsDir: filepath.Join(home, ".claude", "agents"),
+			AgentKind: "claude",
 		},
 		{
 			Name:      "codex",
 			RulesPath: filepath.Join(home, ".codex", "AGENTS.md"),
 			SkillsDir: filepath.Join(home, ".codex", "skills"),
+			AgentsDir: filepath.Join(home, ".codex", "agents"),
+			AgentKind: "codex",
 		},
 		{
 			Name:      "gemini",
 			RulesPath: filepath.Join(home, ".gemini", "GEMINI.md"),
-			SkillsDir: filepath.Join(home, ".gemini", "config", "plugins", "antigravity-skills-manager", "skills"),
+			SkillsDir: filepath.Join(home, ".gemini", "antigravity", "skills"),
+			AgentsDir: filepath.Join(home, ".gemini", "antigravity-cli", "plugins", "agent-sync", "agents"),
+			AgentKind: "antigravity",
+			PluginDir: filepath.Join(home, ".gemini", "antigravity-cli", "plugins", "agent-sync"),
 		},
 		{
 			Name:      "opencode",
 			RulesPath: filepath.Join(home, ".config", "opencode", "AGENTS.md"),
 			SkillsDir: filepath.Join(home, ".config", "opencode", "skills"),
+			AgentsDir: filepath.Join(home, ".config", "opencode", "agents"),
+			AgentKind: "opencode",
 		},
 	}
 }
@@ -119,32 +132,95 @@ func copyDir(src, dst string) error {
 	})
 }
 
+// findBaseDir busca, a partir de cada diretório inicial, um ancestral que
+// contenha rules/global-rules.md.
+func findBaseDir(starts []string) (string, bool) {
+	for _, start := range starts {
+		if start == "" {
+			continue
+		}
+		dir, err := filepath.Abs(start)
+		if err != nil {
+			continue
+		}
+		for {
+			if _, err := os.Stat(filepath.Join(dir, "rules", "global-rules.md")); err == nil {
+				return dir, true
+			}
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+			dir = parent
+		}
+	}
+	return "", false
+}
+
+// resolveBaseDir determina a raiz do repositório na ordem: AGENT_SYNC_HOME,
+// diretório do executável e diretório de trabalho atual.
+func resolveBaseDir(exePath, cwd, envHome string) string {
+	var starts []string
+	if envHome != "" {
+		starts = append(starts, envHome)
+	}
+	if exePath != "" {
+		starts = append(starts, filepath.Dir(exePath))
+	}
+	if cwd != "" {
+		starts = append(starts, cwd)
+	}
+	if dir, ok := findBaseDir(starts); ok {
+		return dir
+	}
+	if cwd != "" {
+		return cwd
+	}
+	return "."
+}
+
+// isProtectedSkillsDir evita sobrescrever a árvore git de plugins de terceiros
+// (qualquer caminho que contenha o par de segmentos "config/plugins").
+func isProtectedSkillsDir(dir string) bool {
+	parts := strings.Split(filepath.ToSlash(filepath.Clean(dir)), "/")
+	for i := 0; i+1 < len(parts); i++ {
+		if (parts[i] == "config" || parts[i] == ".config") && parts[i+1] == "plugins" {
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
 	applyFlag := flag.Bool("apply", false, "Aplica as regras e skills para todas as CLIs configuradas")
 	targetFlag := flag.String("target", "", "Aplica para uma CLI específica (claude, codex, gemini, opencode)")
 	statusFlag := flag.Bool("status", false, "Exibe o status de sincronização com as CLIs")
+	vendorFlag := flag.Bool("vendor", false, "Importa as skills curadas do catálogo definido em skills/manifest.json")
+	sourceFlag := flag.String("source", "", "Diretório de origem das skills para -vendor (default: skillsDir do manifest)")
 	flag.Parse()
 
-	exePath, err := os.Executable()
-	baseDir := "."
-	if err == nil {
-		baseDir = filepath.Dir(filepath.Dir(filepath.Dir(exePath)))
-	}
-	// Fallback para diretório de trabalho se estiver rodando via go run
-	if _, err := os.Stat(filepath.Join(baseDir, "rules", "global-rules.md")); os.IsNotExist(err) {
-		cwd, _ := os.Getwd()
-		baseDir = cwd
-	}
+	exePath, _ := os.Executable()
+	cwd, _ := os.Getwd()
+	baseDir := resolveBaseDir(exePath, cwd, os.Getenv("AGENT_SYNC_HOME"))
 
 	rulesSource := filepath.Join(baseDir, "rules", "global-rules.md")
 	skillsSource := filepath.Join(baseDir, "skills")
 
-	if !*applyFlag && !*statusFlag && *targetFlag == "" {
+	if !*applyFlag && !*statusFlag && !*vendorFlag && *targetFlag == "" {
 		fmt.Println("🚀 Agent-Sync: Gerenciador Unificado de Regras e Skills para Agentes AI")
 		fmt.Println("\nUso:")
 		fmt.Println("  agent-sync -apply              # Sincroniza em todas as CLIs instaladas")
 		fmt.Println("  agent-sync -target <cli>       # Sincroniza apenas para claude, codex, gemini ou opencode")
 		fmt.Println("  agent-sync -status             # Verifica o status atual de cada CLI")
+		fmt.Println("  agent-sync -vendor             # Importa as skills curadas do manifest")
+		return
+	}
+
+	if *vendorFlag {
+		if err := runVendor(baseDir, *sourceFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Falha no vendor: %v\n", err)
+			os.Exit(1)
+		}
 		return
 	}
 
@@ -165,7 +241,15 @@ func main() {
 					}
 				}
 			}
-			fmt.Printf(" - %-10s | Regras: %-16s | Skills: %d instaladas\n", t.Name, rulesStatus, skillsCount)
+			agentsCount := 0
+			if entries, err := os.ReadDir(t.AgentsDir); err == nil {
+				for _, e := range entries {
+					if !e.IsDir() {
+						agentsCount++
+					}
+				}
+			}
+			fmt.Printf(" - %-10s | Regras: %-16s | Skills: %d instaladas | Agentes: %d\n", t.Name, rulesStatus, skillsCount, agentsCount)
 		}
 		return
 	}
@@ -184,11 +268,20 @@ func main() {
 			fmt.Printf("✅ [%s] Regras atualizadas em: %s\n", t.Name, t.RulesPath)
 		}
 
-		// Sincroniza skills
-		if err := syncSkills(skillsSource, t.SkillsDir); err != nil {
+		// Sincroniza skills (protegendo a árvore git de plugins de terceiros)
+		if isProtectedSkillsDir(t.SkillsDir) {
+			fmt.Printf("⛔ [%s] Destino de skills protegido, ignorado: %s\n", t.Name, t.SkillsDir)
+		} else if err := syncSkills(skillsSource, t.SkillsDir); err != nil {
 			fmt.Printf("⚠️  [%s] Falha ao sincronizar skills: %v\n", t.Name, err)
 		} else {
 			fmt.Printf("✅ [%s] Skills sincronizadas em: %s\n", t.Name, t.SkillsDir)
+		}
+
+		// Gera os agentes especialistas no formato nativo da CLI
+		if agents, err := syncAgents(baseDir, t); err != nil {
+			fmt.Printf("⚠️  [%s] Falha ao sincronizar agentes: %v\n", t.Name, err)
+		} else if agents > 0 {
+			fmt.Printf("✅ [%s] %d agentes gerados em: %s\n", t.Name, agents, t.AgentsDir)
 		}
 		count++
 	}
