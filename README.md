@@ -21,7 +21,7 @@ agent-sync/
 │   └── <41 skills>/          # Vendorizadas do catálogo (backend, segurança, banco, API, linguagens, testes, ops, contexto)
 ├── agents/                 # Agentes especialistas autorais (canônicos), gerados por CLI no `-apply`
 │   ├── spec-planner.md, code-reviewer.md, security-auditor.md, debugger.md
-│   └── architecture-reviewer.md, test-engineer.md, refactor-specialist.md, db-guardian.md, token-optimizer.md
+│   └── architecture-reviewer.md, test-engineer.md, refactor-specialist.md, db-guardian.md, token-optimizer.md, sentry-debugger.md
 ├── tools/                  # Binários utilitários de alta velocidade em Go
 │   ├── cmd/ast-outline/    # Extrai classes/métodos em vez de ler arquivos inteiros (Go, Python, TS, PHP)
 │   ├── cmd/trace-strip/    # Remove ruídos de frameworks em logs de erro
@@ -32,7 +32,7 @@ agent-sync/
 ├── templates/STATE.md      # Template de handoff de sessão (checkpoint/retomada)
 ├── cmd/agent-sync/         # Orquestrador de sincronização CLI (+ vendor de skills + gerador de agentes)
 ├── scripts/setup-go.sh     # Bootstrap do Go (>= 1.24) via mise ou tarball oficial
-├── scripts/setup-mcp.sh    # Configura Context7 (remoto ou local) + MCP local de docs
+├── scripts/setup-mcp.sh    # Configura Context7, MCP local de docs e Sentry (opcional)
 ├── LICENSE / NOTICE        # Licença MIT e atribuição das skills de terceiros
 ├── Makefile                # Comandos de automação
 └── README.md
@@ -53,6 +53,7 @@ Definidos uma vez em `agents/*.md` (frontmatter `name`, `description` e `readonl
 | `refactor-specialist` | Refatoração incremental guiada por testes | ❌ |
 | `db-guardian` | SQL read-only, LIMIT, PII | ✅ |
 | `token-optimizer` | Inspeção de baixo token (ast-outline/trace-strip) | ✅ |
+| `sentry-debugger` | Triagem de issues/erros no Sentry e causa raiz | ✅ |
 
 > "Read-only" vira `permission.edit=deny` no OpenCode e `sandbox_mode=read-only` no Codex; nos demais, é reforçado pelo prompt.
 
@@ -74,8 +75,8 @@ Curadas por domínio no `skills/manifest.json` e importadas de [rmyndharis/antig
 | Pesquisa web | `search-specialist` |
 | Contexto | `context-manager`, `context-management-context-save` |
 
-Além das vendorizadas, há **8 skills autorais em PT-BR** (não existem no catálogo):
-`ddd`, `design-patterns`, `object-calisthenics`, `symfony`, `doctrine`, `phpunit-symfony`, `docs-research` e `context-guard`.
+Além das vendorizadas, há **9 skills autorais em PT-BR** (não existem no catálogo):
+`ddd`, `design-patterns`, `object-calisthenics`, `symfony`, `doctrine`, `phpunit-symfony`, `docs-research`, `context-guard` e `sentry`.
 
 ### Contexto e sessões longas
 
@@ -102,6 +103,10 @@ Além das vendorizadas, há **8 skills autorais em PT-BR** (não existem no cat�
     CONTEXT7_API_KEY=xxx make mcp              # limites maiores (não fica no repo)
     ```
   - `docs` — **MCP local offline** (`docs-mcp`) que busca no cache do `docs-fetch`. Funciona sem internet após o `make mirror`.
+  - `sentry` — erros/performance do Sentry (**opcional**, OAuth). Defina a URL com org/projeto:
+    ```bash
+    SENTRY_MCP_URL=https://mcp.sentry.dev/mcp/<org>/<proj> make mcp
+    ```
 
 > Context7 é hospedado: mesmo em modo local (stdio) o servidor consulta a API do context7.com — não é offline. Para offline de verdade, use o MCP `docs` + `make mirror`.
 

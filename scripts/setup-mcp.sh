@@ -2,11 +2,13 @@
 # Configura MCPs nos CLIs instalados:
 #   - context7 : docs atualizadas de bibliotecas (remoto por padrão; local/stdio com CONTEXT7_LOCAL=1)
 #   - docs     : MCP local offline sobre o cache do docs-fetch (~/.cache/agent-sync/docs)
+#   - sentry   : erros/performance do Sentry (opcional; defina SENTRY_MCP_URL)
 #
 # Uso:
 #   bash scripts/setup-mcp.sh
 #   CONTEXT7_LOCAL=1 bash scripts/setup-mcp.sh        # Context7 via npx (stdio, ainda precisa de internet)
 #   CONTEXT7_API_KEY=xxx bash scripts/setup-mcp.sh    # limites maiores (não fica no repo)
+#   SENTRY_MCP_URL=https://mcp.sentry.dev/mcp/org/proj bash scripts/setup-mcp.sh
 set -euo pipefail
 
 CONTEXT7_NAME="context7"
@@ -122,6 +124,34 @@ setup_docs() {
   echo "✅ docs configurado (offline)"
 }
 
+# ── Sentry (opcional) ───────────────────────────────────────────────────────
+setup_sentry() {
+  local url="${SENTRY_MCP_URL:-}"
+  if [ -z "$url" ]; then
+    echo "ℹ️  SENTRY_MCP_URL não definido; pulando Sentry MCP (ex.: https://mcp.sentry.dev/mcp/<org>/<proj>)."
+    return 0
+  fi
+  local name="sentry"
+  echo "→ Sentry MCP: $url"
+  if command -v claude >/dev/null 2>&1; then
+    remove_server claude "$name"
+    claude mcp add --transport http -s user "$name" "$url" >/dev/null
+  fi
+  if command -v codex >/dev/null 2>&1; then
+    remove_server codex "$name"
+    codex mcp add "$name" --url "$url" >/dev/null
+  fi
+  if command -v agy >/dev/null 2>&1; then
+    remove_server agy "$name"
+    agy mcp add --type http "$name" "$url" >/dev/null
+  fi
+  if command -v opencode >/dev/null 2>&1; then
+    upsert_opencode "$name" '{"type":"remote","url":"'"$url"'","enabled":true}'
+  fi
+  echo "✅ sentry configurado (OAuth no primeiro uso)"
+}
+
 setup_context7
 setup_docs
+setup_sentry
 echo "✨ MCPs configurados. Verifique com 'mcp list' de cada CLI."
