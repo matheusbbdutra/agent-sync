@@ -1,0 +1,16 @@
+# Binários compilados
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# IDE e sistema
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+
+# Logs temporários
+*.log
