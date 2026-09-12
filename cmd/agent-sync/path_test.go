@@ -86,7 +86,7 @@ func TestIsProtectedSkillsDir(t *testing.T) {
 	}
 
 	safe := []string{
-		"/home/u/.gemini/antigravity/skills",
+		"/home/u/.gemini/antigravity-cli/skills",
 		"/home/u/.config/opencode/skills",
 		"/home/u/.claude/skills",
 	}

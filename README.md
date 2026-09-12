@@ -1,174 +1,181 @@
 # Agent-Sync 🚀
 
-Repositório unificado para versionar, manter e sincronizar **Regras Globais**, **Skills**, **Agentes Especialistas** e **Ferramentas de Baixo Consumo de Tokens** em múltiplos ecossistemas de agentes de IA:
+> 🇺🇸 [English](README.md) · 🇧🇷 [Português](README.pt-BR.md)
+
+Unified repository to version, maintain, and synchronize **Global Rules**, **Skills**, **Specialist Agents**, and **Low-Token Tools** across multiple AI agent ecosystems:
 - **Claude Code** (`~/.claude`)
 - **Codex / OpenAI** (`~/.codex`)
-- **Google Antigravity / Gemini** (`~/.gemini`)
+- **Google Antigravity CLI** (`~/.gemini`) — successor to the now-deprecated standalone Gemini CLI (retired 2026-06-18 for non-enterprise accounts)
 - **OpenCode** (`~/.config/opencode`)
 
 ---
 
-## 📦 Estrutura do Repositório
+## 📦 Repository Structure
 
 ```text
 agent-sync/
 ├── rules/
-│   └── global-rules.md     # Regras globais (Clean Code, OWASP, Anti-Alucinação, Data Guardians)
+│   └── global-rules.md     # Global rules (Clean Code, OWASP, Anti-Hallucination, Data Guardians)
 ├── skills/
-│   ├── manifest.json       # Curadoria: IDs + origem (rmyndharis/antigravity-skills, MIT) usada por `-vendor`
-│   ├── token-saving-toolkit/ # Instruções para leitura concisa via AST e poda de logs
-│   ├── mcp-advisor/          # Avaliação de uso de MCPs
-│   └── <41 skills>/          # Vendorizadas do catálogo (backend, segurança, banco, API, linguagens, testes, ops, contexto)
-├── agents/                 # Agentes especialistas autorais (canônicos), gerados por CLI no `-apply`
+│   ├── manifest.json       # Curation: IDs + source (rmyndharis/antigravity-skills, MIT) used by `-vendor`
+│   ├── token-saving-toolkit/ # Guidance for concise reading via AST and log trimming
+│   ├── mcp-advisor/          # MCP adoption assessment
+│   └── <41 skills>/          # Vendored from the catalog (backend, security, DB, API, languages, tests, ops, context)
+├── agents/                 # Authored specialist agents (canonical), generated per CLI on `-apply`
 │   ├── spec-planner.md, code-reviewer.md, security-auditor.md, debugger.md
 │   └── architecture-reviewer.md, test-engineer.md, refactor-specialist.md, db-guardian.md, token-optimizer.md, sentry-debugger.md
-├── tools/                  # Binários utilitários de alta velocidade em Go
-│   ├── cmd/ast-outline/    # Extrai classes/métodos em vez de ler arquivos inteiros (Go, Python, TS, PHP)
-│   ├── cmd/trace-strip/    # Remove ruídos de frameworks em logs de erro
-│   ├── cmd/db-guardian/    # Valida SQL read-only (bloqueia mutações, injeta LIMIT); NÃO executa queries
-│   └── cmd/docs-fetch/     # Baixa/cacheia docs e extrai texto ou outline de títulos (baixo token)
-│   └── cmd/docs-mcp/       # Servidor MCP local (offline) sobre o cache de docs
-├── mirror/sources.json     # Fontes oficiais curadas para sincronizar no cache local
-├── templates/STATE.md      # Template de handoff de sessão (checkpoint/retomada)
-├── cmd/agent-sync/         # Orquestrador de sincronização CLI (+ vendor de skills + gerador de agentes)
-├── scripts/setup-go.sh     # Bootstrap do Go (>= 1.24) via mise ou tarball oficial
-├── scripts/setup-mcp.sh    # Configura Context7, MCP local de docs e Sentry (opcional)
-├── LICENSE / NOTICE        # Licença MIT e atribuição das skills de terceiros
-├── Makefile                # Comandos de automação
-└── README.md
+├── tools/                  # High-speed Go utility binaries
+│   ├── cmd/ast-outline/    # Extracts classes/methods instead of reading whole files (Go, Python, TS, PHP)
+│   ├── cmd/trace-strip/    # Removes framework noise from error logs
+│   ├── cmd/db-guardian/    # Validates read-only SQL (blocks mutations, injects LIMIT); does NOT run queries
+│   └── cmd/docs-fetch/     # Downloads/caches docs and extracts text or heading outline (low token)
+│   └── cmd/docs-mcp/       # Local (offline) MCP server over the docs cache
+├── mirror/sources.json     # Curated official sources to sync into the local cache
+├── templates/STATE.md      # Session handoff template (checkpoint/resume)
+├── cmd/agent-sync/         # CLI sync orchestrator (+ skill vendor + agent generator)
+├── scripts/setup-go.sh     # Go (>= 1.24) bootstrap via mise or official tarball
+├── scripts/setup-mcp.sh    # Configures Context7, local docs MCP, and Sentry (optional)
+├── LICENSE / NOTICE        # MIT license and third-party skill attribution
+├── Makefile                # Automation commands
+└── README.md / README.pt-BR.md  # docs (EN default, PT-BR)
 ```
 
-### Agentes especialistas
+### Specialist agents
 
-Definidos uma vez em `agents/*.md` (frontmatter `name`, `description` e `readonly` opcional) e **gerados no formato nativo** de cada CLI durante o `-apply`:
+Defined once in `agents/*.md` (frontmatter `name`, `description`, optional `readonly`) and **generated in each CLI's native format** during `-apply`:
 
-| Agente | Papel | Read-only |
+| Agent | Role | Read-only |
 | --- | --- | --- |
-| `spec-planner` | Entende o pedido e planeja antes de codar | ✅ |
-| `code-reviewer` | Clean Code, SOLID, Calisthenics e segurança | ✅ |
-| `security-auditor` | OWASP, injeção, XSS, segredos | ✅ |
-| `debugger` | Causa raiz com hipóteses e evidências | ❌ |
-| `architecture-reviewer` | Fronteiras, DDD, acoplamento, ADRs | ✅ |
+| `spec-planner` | Understands the request and plans before coding | ✅ |
+| `code-reviewer` | Clean Code, SOLID, Calisthenics, and security | ✅ |
+| `security-auditor` | OWASP, injection, XSS, secrets | ✅ |
+| `debugger` | Root cause with hypotheses and evidence | ❌ |
+| `architecture-reviewer` | Boundaries, DDD, coupling, ADRs | ✅ |
 | `test-engineer` | TDD red-green-refactor | ❌ |
-| `refactor-specialist` | Refatoração incremental guiada por testes | ❌ |
-| `db-guardian` | SQL read-only, LIMIT, PII | ✅ |
-| `token-optimizer` | Inspeção de baixo token (ast-outline/trace-strip) | ✅ |
-| `sentry-debugger` | Triagem de issues/erros no Sentry e causa raiz | ✅ |
+| `refactor-specialist` | Incremental, test-guided refactoring | ❌ |
+| `db-guardian` | Read-only SQL, LIMIT, PII | ✅ |
+| `token-optimizer` | Low-token inspection (ast-outline/trace-strip) | ✅ |
+| `sentry-debugger` | Sentry issue triage and root cause | ✅ |
 
-> "Read-only" vira `permission.edit=deny` no OpenCode e `sandbox_mode=read-only` no Codex; nos demais, é reforçado pelo prompt.
+> "Read-only" becomes `permission.edit=deny` in OpenCode and `sandbox_mode=read-only` in Codex; elsewhere it is enforced by the prompt.
 
-### Skills vendorizadas do catálogo
+### Skills vendored from the catalog
 
-Curadas por domínio no `skills/manifest.json` e importadas de [rmyndharis/antigravity-skills](https://github.com/rmyndharis/antigravity-skills) (MIT):
+Curated by domain in `skills/manifest.json` and imported from [rmyndharis/antigravity-skills](https://github.com/rmyndharis/antigravity-skills) (MIT):
 
-| Domínio | Skills |
+| Domain | Skills |
 | --- | --- |
-| Backend/qualidade | `error-handling-patterns`, `code-refactoring-refactor-clean`, `dependency-management-deps-audit`, `codebase-cleanup-tech-debt`, `legacy-modernizer`, `nodejs-backend-patterns`, `code-reviewer`, `debugging-strategies` |
-| Arquitetura | `architecture-patterns`, `architect-review`, `architecture-decision-records` |
-| Arq. distribuída | `microservices-patterns`, `cqrs-implementation`, `event-sourcing-architect` |
-| Segurança | `auth-implementation-patterns`, `security-auditor`, `sast-configuration`, `backend-security-coder`, `frontend-security-coder` |
-| Banco de dados | `sql-optimization-patterns`, `database-optimizer`, `database-migrations-sql-migrations`, `postgresql` |
+| Backend/quality | `error-handling-patterns`, `code-refactoring-refactor-clean`, `dependency-management-deps-audit`, `codebase-cleanup-tech-debt`, `legacy-modernizer`, `nodejs-backend-patterns`, `code-reviewer`, `debugging-strategies` |
+| Architecture | `architecture-patterns`, `architect-review`, `architecture-decision-records` |
+| Distributed arch. | `microservices-patterns`, `cqrs-implementation`, `event-sourcing-architect` |
+| Security | `auth-implementation-patterns`, `security-auditor`, `sast-configuration`, `backend-security-coder`, `frontend-security-coder` |
+| Database | `sql-optimization-patterns`, `database-optimizer`, `database-migrations-sql-migrations`, `postgresql` |
 | API/Docs | `openapi-spec-generation`, `api-documenter`, `api-design-principles` |
-| Linguagens | `php-pro`, `python-pro`, `golang-pro`, `go-concurrency-patterns`, `javascript-pro`, `typescript-pro` |
-| Testes | `python-testing-patterns`, `javascript-testing-patterns`, `e2e-testing-patterns`, `tdd-orchestrator` |
+| Languages | `php-pro`, `python-pro`, `golang-pro`, `go-concurrency-patterns`, `javascript-pro`, `typescript-pro` |
+| Testing | `python-testing-patterns`, `javascript-testing-patterns`, `e2e-testing-patterns`, `tdd-orchestrator` |
 | Ops/Infra | `incident-response-smart-fix`, `postmortem-writing` |
-| Pesquisa web | `search-specialist` |
-| Contexto | `context-manager`, `context-management-context-save` |
+| Web research | `search-specialist` |
+| Context | `context-manager`, `context-management-context-save` |
 
-Além das vendorizadas, há **9 skills autorais em PT-BR** (não existem no catálogo):
-`ddd`, `design-patterns`, `object-calisthenics`, `symfony`, `doctrine`, `phpunit-symfony`, `docs-research`, `context-guard` e `sentry`.
+In addition to the vendored ones, there are **9 authored skills in Portuguese (PT-BR)** (not present in the catalog):
+`ddd`, `design-patterns`, `object-calisthenics`, `symfony`, `doctrine`, `phpunit-symfony`, `docs-research`, `context-guard`, and `sentry`.
 
-### Contexto e sessões longas
+### Context and long sessions
 
-- **`context-guard`** (skill): zonas de saúde, sinais de drift, reancoragem após compaction e checkpoint. **Obrigatória por padrão** em tarefas multi-etapa/sessões longas (referenciada nas `global-rules`, no topo e na reafirmação final).
-- **`STATE.md`**: fonte de verdade para retomar sessões. Base em `templates/STATE.md`; mantenha no projeto.
-- Ferramentas de baixo token: `ast-outline`, `trace-strip`, `docs-fetch`, `docs-mcp`, `db-guardian` (ver `token-saving-toolkit`).
+- **`context-guard`** (skill): health zones, drift signals, post-compaction re-anchoring, and checkpointing. **Mandatory by default** on multi-step tasks/long sessions (referenced in `global-rules`, at the top and in the final reaffirmation).
+- **`STATE.md`**: source of truth to resume sessions. Base it on `templates/STATE.md`; keep it in the project.
+- Low-token tools: `ast-outline`, `trace-strip`, `docs-fetch`, `docs-mcp`, `db-guardian` (see `token-saving-toolkit`).
+- **`context-guard` hook** (`hooks/context-guard-nudge.sh`): since the skill above only relies on the model's self-discipline, `-apply` also installs a real harness-level nudge that fires every N tool calls (default 40, `AGENT_SYNC_NUDGE_THRESHOLD`) reminding to load `context-guard` and update `STATE.md`. Coverage per CLI:
+  - **Claude Code**: `PostToolUse` hook merged into `~/.claude/settings.json` (existing hooks/keys are preserved, idempotent re-apply).
+  - **Codex**: `PostToolUse` hook merged into `~/.codex/hooks.json`.
+  - **Antigravity CLI**: `PreInvocation` hook merged into `~/.gemini/config/hooks.json` — a different top-level shape (no `hooks` wrapper key: `{"<hook-name>": {"<Event>": [...]}}`) and a different payload than the old Gemini CLI. Uses the event's native `invocationNum` counter instead of keeping its own state file.
+  - **OpenCode**: `tool.execute.after` plugin copied to `~/.config/opencode/plugins/context-guard-nudge.ts`. **Best-effort**: OpenCode has an open upstream issue ([anomalyco/opencode#13574](https://github.com/anomalyco/opencode/issues/13574)) where output mutations from this hook aren't always reflected back to the model — the reminder may not reliably reach it.
+- **`bash-guardian`** (`hooks/bash-guardian-patterns.txt`): asks for confirmation before running commands matching known-risky patterns (`rm -rf`, `dd` to a device, `chmod -R 777`, `curl | sh`, `git push --force`, `git reset --hard`, `shutdown`, etc.). Default behavior is always **ask**, never a silent deny. Coverage per CLI:
+  - **Claude Code**: patterns added to the native `permissions.ask` list in `settings.json` (e.g. `Bash(rm -rf *)`).
+  - **OpenCode**: merged into `permission.bash` in `~/.config/opencode/opencode.json`, each set to `"ask"`. Since OpenCode resolves `permission.bash` by the **last matching rule** (order-sensitive), the merge preserves the original key order of anything already in the file and only appends/reorders the guard's own entries at the end — never re-sorts unrelated keys. **Note**: if a pattern already existed with a different value (e.g. a user-set `"allow"`), the guard overwrites it to `"ask"` — that's the point of the guardrail, but worth knowing before running `-apply` on an existing config.
+  - **Antigravity CLI**: `PreToolUse` hook (`hooks/bash-guardian.antigravity.sh`) returning `{"decision":"ask"}` on a match.
+  - **Codex**: **not implemented**. Its `PreToolUse` hook only supports binary `allow`/`deny` — `"ask"` is explicitly documented as "parsed but not supported yet." Rather than silently downgrade to `deny` (blocking real work) or `allow` (no protection), Codex is left out of the guard until upstream ships interactive confirmation from hooks.
 
-### Pesquisa e documentação
+### Research and documentation
 
-- **`docs-research`** (skill): padrão de pesquisa em fontes oficiais (Symfony, Doctrine, PHP, Go, JS/TS…) com citação e baixo token.
-- **`docs-fetch`** (tool): baixa e cacheia docs; consulta online ou offline.
+- **`docs-research`** (skill): standard for researching official sources (Symfony, Doctrine, PHP, Go, JS/TS…) with citations and low token usage.
+- **`docs-fetch`** (tool): downloads and caches docs; query online or offline.
   ```bash
-  make mirror                    # sincroniza mirror/sources.json (~65 fontes oficiais) no cache
+  make mirror                    # sync mirror/sources.json (~65 official sources) into the cache
   docs-fetch -outline https://www.doctrine-project.org/projects/doctrine-orm/en/current/reference/basic-mapping.html
-  docs-fetch -search "lazy loading"   # busca offline no cache
-  docs-fetch -list                    # docs cacheadas
+  docs-fetch -search "lazy loading"   # offline search in the cache
+  docs-fetch -list                    # cached docs
   ```
-  Fontes curadas em `mirror/sources.json`: Symfony, Doctrine (ORM/DBAL/Collections/Migrations), PHP, PSR, PHPUnit, Composer, Go, TypeScript, JavaScript/MDN, Node, React, Vue, Next.js, Tailwind, Vite, Laravel, Rails, Python, Django, FastAPI, Spring Boot, .NET/C#, Rust, Elixir, Vitest, Jest, Playwright, PostgreSQL, SQLite, MariaDB, MongoDB, Redis, Kafka, Elasticsearch, RabbitMQ, Docker, Kubernetes, Terraform, Nginx, Git, ESLint, OWASP.
-- **MCPs** nos 4 CLIs:
-  - `context7` — docs atualizadas de bibliotecas. Padrão **remoto**; **local/stdio** com `CONTEXT7_LOCAL=1`.
+  Sources curated in `mirror/sources.json`: Symfony, Doctrine (ORM/DBAL/Collections/Migrations), PHP, PSR, PHPUnit, Composer, Go, TypeScript, JavaScript/MDN, Node, React, Vue, Next.js, Tailwind, Vite, Laravel, Rails, Python, Django, FastAPI, Spring Boot, .NET/C#, Rust, Elixir, Vitest, Jest, Playwright, PostgreSQL, SQLite, MariaDB, MongoDB, Redis, Kafka, Elasticsearch, RabbitMQ, Docker, Kubernetes, Terraform, Nginx, Git, ESLint, OWASP.
+- **MCPs** in the 4 CLIs:
+  - `context7` — up-to-date library docs. **Remote** by default; **local/stdio** with `CONTEXT7_LOCAL=1`.
     ```bash
-    make mcp                                   # remoto
-    CONTEXT7_LOCAL=1 make mcp                  # local (stdio, via npx — ainda precisa de internet)
-    CONTEXT7_API_KEY=xxx make mcp              # limites maiores (não fica no repo)
+    make mcp                                   # remote
+    CONTEXT7_LOCAL=1 make mcp                  # local (stdio, via npx — still requires internet)
+    CONTEXT7_API_KEY=xxx make mcp              # higher limits (not stored in the repo)
     ```
-  - `docs` — **MCP local offline** (`docs-mcp`) que busca no cache do `docs-fetch`. Funciona sem internet após o `make mirror`.
-  - `sentry` — erros/performance do Sentry (**opcional**, OAuth). Defina a URL com org/projeto:
+  - `docs` — **local offline MCP** (`docs-mcp`) that searches the `docs-fetch` cache. Works without internet after `make mirror`.
+  - `sentry` — Sentry errors/performance (**optional**, OAuth). Set the URL with org/project:
     ```bash
     SENTRY_MCP_URL=https://mcp.sentry.dev/mcp/<org>/<proj> make mcp
     ```
 
-> Context7 é hospedado: mesmo em modo local (stdio) o servidor consulta a API do context7.com — não é offline. Para offline de verdade, use o MCP `docs` + `make mirror`.
-
-
-
-
-
+> Context7 is hosted: even in local mode (stdio) the server calls the context7.com API — it is not offline. For true offline, use the `docs` MCP + `make mirror`.
 
 ---
 
-## ⚡ Como Usar em Qualquer Máquina
+## ⚡ How to Use on Any Machine
 
-### 1. Clonar o repositório
+### 1. Clone the repository
 ```bash
-git clone <seu-repo-url> ~/Documentos/agent-sync
-cd ~/Documentos/agent-sync
+git clone <your-repo-url> ~/Documents/agent-sync
+cd ~/Documents/agent-sync
 ```
 
-### 2. Garantir o Go (>= 1.24)
+### 2. Ensure Go (>= 1.24)
 ```bash
 make setup
 ```
-Verifica o `go` disponível e, se ausente/antigo, instala a versão exigida pelos `go.mod` via `mise` (se disponível) ou pelo tarball oficial em `~/.local` — sem `sudo`. O `toolchain` em `go.mod` fixa a versão mínima sugerida (`go1.24.13`).
+Checks the available `go` and, if missing/outdated, installs the version required by the `go.mod` files via `mise` (if available) or the official tarball under `~/.local` — no `sudo`. The `toolchain` directive in `go.mod` pins the suggested minimum version (`go1.24.13`).
 
-### 3. Compilar e Instalar tudo
+### 3. Build and Install everything
 ```bash
 make install
 ```
-Isso compilará os binários em Go (`agent-sync`, `ast-outline`, `trace-strip`, `db-guardian`, `docs-fetch`, `docs-mcp`) e os colocará em `~/.local/bin/`.
+This builds the Go binaries (`agent-sync`, `ast-outline`, `trace-strip`, `db-guardian`, `docs-fetch`, `docs-mcp`) and places them in `~/.local/bin/`.
 
-### 4. Sincronizar com todas as CLIs
+### 4. Sync with all CLIs
 ```bash
 make sync
-# ou diretamente:
+# or directly:
 agent-sync -apply
 ```
 
-### 5. MCPs de documentação (opcional)
+### 5. Documentation MCPs (optional)
 ```bash
-make mirror                    # baixa docs oficiais para o cache offline
-make mcp                       # Context7 (remoto) + MCP local offline 'docs'
-CONTEXT7_LOCAL=1 make mcp      # Context7 em modo local (stdio)
+make mirror                    # download official docs into the offline cache
+make mcp                       # Context7 (remote) + local offline 'docs' MCP
+CONTEXT7_LOCAL=1 make mcp      # Context7 in local mode (stdio)
 ```
 
-### 6. Verificar Status das CLIs
+### 6. Check CLI status
 ```bash
 agent-sync -status
 ```
 
-### 7. Reimportar as skills curadas do catálogo
+### 7. Re-import the curated skills from the catalog
 ```bash
 make vendor
-# ou diretamente (origem configurável com -source):
+# or directly (source configurable with -source):
 agent-sync -vendor
 ```
 
-> A resolução da raiz do repositório pode ser forçada com a variável `AGENT_SYNC_HOME`.
+> Repository root resolution can be forced with the `AGENT_SYNC_HOME` variable.
 
 ---
 
-## 🛡️ Ferramentas Inclusas
-- **`ast-outline <arquivo>`**: Gera a estrutura de classes e funções com linhas correspondentes, economizando até 90% dos tokens de contexto.
-- **`trace-strip <arquivo_ou_pipe>`**: Oculta frames irrelevantes de stack traces de bibliotecas externas.
-- **`db-guardian -list`** / **`-profile <banco> -query "<sql>"`**: Valida queries em modo read-only (bloqueia mutações, avisa sobre `SELECT *` e injeta `LIMIT`). **Não abre conexão nem executa a query**; o perfil serve apenas para contexto. Credenciais aceitam indireção por ambiente (`${DB_PASSWORD}`).
-- **`docs-fetch <url>`**: Baixa e cacheia uma página de docs e extrai texto (`-outline`, `-grep`, `-raw`, `-refresh`) para consulta de baixo token.
+## 🛡️ Included Tools
+- **`ast-outline <file>`**: Generates the class/function structure with matching line numbers, saving up to 90% of context tokens.
+- **`trace-strip <file_or_pipe>`**: Hides irrelevant stack trace frames from external libraries.
+- **`db-guardian -list`** / **`-profile <db> -query "<sql>"`**: Validates queries in read-only mode (blocks mutations, warns about `SELECT *`, and injects `LIMIT`). **It does not open a connection or run the query**; the profile is only for context. Credentials support environment indirection (`${DB_PASSWORD}`).
+- **`docs-fetch <url>`**: Downloads and caches a docs page and extracts text (`-outline`, `-grep`, `-raw`, `-refresh`) for low-token lookups.

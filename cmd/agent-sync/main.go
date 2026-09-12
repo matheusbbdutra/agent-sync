@@ -10,12 +10,16 @@ import (
 )
 
 type TargetCLI struct {
-	Name      string
-	RulesPath string
-	SkillsDir string
-	AgentsDir string
-	AgentKind string
-	PluginDir string
+	Name              string
+	RulesPath         string
+	SkillsDir         string
+	AgentsDir         string
+	AgentKind         string
+	PluginDir         string
+	HooksSettingsPath string
+	HooksEvent        string
+	HooksFormat       string // "" (padrão Claude/Codex) ou "antigravity"
+	OpenCodePluginDir string
 }
 
 func getHome() string {
@@ -31,33 +35,44 @@ func getTargets() []TargetCLI {
 	home := getHome()
 	return []TargetCLI{
 		{
-			Name:      "claude",
-			RulesPath: filepath.Join(home, ".claude", "CLAUDE.md"),
-			SkillsDir: filepath.Join(home, ".claude", "skills"),
-			AgentsDir: filepath.Join(home, ".claude", "agents"),
-			AgentKind: "claude",
+			Name:              "claude",
+			RulesPath:         filepath.Join(home, ".claude", "CLAUDE.md"),
+			SkillsDir:         filepath.Join(home, ".claude", "skills"),
+			AgentsDir:         filepath.Join(home, ".claude", "agents"),
+			AgentKind:         "claude",
+			HooksSettingsPath: filepath.Join(home, ".claude", "settings.json"),
+			HooksEvent:        "PostToolUse",
 		},
 		{
-			Name:      "codex",
-			RulesPath: filepath.Join(home, ".codex", "AGENTS.md"),
-			SkillsDir: filepath.Join(home, ".codex", "skills"),
-			AgentsDir: filepath.Join(home, ".codex", "agents"),
-			AgentKind: "codex",
+			Name:              "codex",
+			RulesPath:         filepath.Join(home, ".codex", "AGENTS.md"),
+			SkillsDir:         filepath.Join(home, ".codex", "skills"),
+			AgentsDir:         filepath.Join(home, ".codex", "agents"),
+			AgentKind:         "codex",
+			HooksSettingsPath: filepath.Join(home, ".codex", "hooks.json"),
+			HooksEvent:        "PostToolUse",
 		},
 		{
-			Name:      "gemini",
-			RulesPath: filepath.Join(home, ".gemini", "GEMINI.md"),
-			SkillsDir: filepath.Join(home, ".gemini", "antigravity", "skills"),
-			AgentsDir: filepath.Join(home, ".gemini", "antigravity-cli", "plugins", "agent-sync", "agents"),
-			AgentKind: "antigravity",
-			PluginDir: filepath.Join(home, ".gemini", "antigravity-cli", "plugins", "agent-sync"),
+			// Gemini CLI standalone foi descontinuada (18/06/2026) para contas
+			// não-enterprise; sucessora é o Antigravity CLI (compatibilidade de
+			// regras mantida em ~/.gemini/GEMINI.md).
+			Name:              "antigravity",
+			RulesPath:         filepath.Join(home, ".gemini", "GEMINI.md"),
+			SkillsDir:         filepath.Join(home, ".gemini", "antigravity-cli", "skills"),
+			AgentsDir:         filepath.Join(home, ".gemini", "antigravity-cli", "plugins", "agent-sync", "agents"),
+			AgentKind:         "antigravity",
+			PluginDir:         filepath.Join(home, ".gemini", "antigravity-cli", "plugins", "agent-sync"),
+			HooksSettingsPath: filepath.Join(home, ".gemini", "config", "hooks.json"),
+			HooksEvent:        "PreInvocation",
+			HooksFormat:       "antigravity",
 		},
 		{
-			Name:      "opencode",
-			RulesPath: filepath.Join(home, ".config", "opencode", "AGENTS.md"),
-			SkillsDir: filepath.Join(home, ".config", "opencode", "skills"),
-			AgentsDir: filepath.Join(home, ".config", "opencode", "agents"),
-			AgentKind: "opencode",
+			Name:              "opencode",
+			RulesPath:         filepath.Join(home, ".config", "opencode", "AGENTS.md"),
+			SkillsDir:         filepath.Join(home, ".config", "opencode", "skills"),
+			AgentsDir:         filepath.Join(home, ".config", "opencode", "agents"),
+			AgentKind:         "opencode",
+			OpenCodePluginDir: filepath.Join(home, ".config", "opencode", "plugins"),
 		},
 	}
 }
@@ -193,7 +208,7 @@ func isProtectedSkillsDir(dir string) bool {
 
 func main() {
 	applyFlag := flag.Bool("apply", false, "Aplica as regras e skills para todas as CLIs configuradas")
-	targetFlag := flag.String("target", "", "Aplica para uma CLI específica (claude, codex, gemini, opencode)")
+	targetFlag := flag.String("target", "", "Aplica para uma CLI específica (claude, codex, antigravity, opencode)")
 	statusFlag := flag.Bool("status", false, "Exibe o status de sincronização com as CLIs")
 	vendorFlag := flag.Bool("vendor", false, "Importa as skills curadas do catálogo definido em skills/manifest.json")
 	sourceFlag := flag.String("source", "", "Diretório de origem das skills para -vendor (default: skillsDir do manifest)")
@@ -210,7 +225,7 @@ func main() {
 		fmt.Println("🚀 Agent-Sync: Gerenciador Unificado de Regras e Skills para Agentes AI")
 		fmt.Println("\nUso:")
 		fmt.Println("  agent-sync -apply              # Sincroniza em todas as CLIs instaladas")
-		fmt.Println("  agent-sync -target <cli>       # Sincroniza apenas para claude, codex, gemini ou opencode")
+		fmt.Println("  agent-sync -target <cli>       # Sincroniza apenas para claude, codex, antigravity ou opencode")
 		fmt.Println("  agent-sync -status             # Verifica o status atual de cada CLI")
 		fmt.Println("  agent-sync -vendor             # Importa as skills curadas do manifest")
 		return
@@ -249,7 +264,7 @@ func main() {
 					}
 				}
 			}
-			fmt.Printf(" - %-10s | Regras: %-16s | Skills: %d instaladas | Agentes: %d\n", t.Name, rulesStatus, skillsCount, agentsCount)
+			fmt.Printf(" - %-11s | Regras: %-16s | Skills: %d instaladas | Agentes: %d\n", t.Name, rulesStatus, skillsCount, agentsCount)
 		}
 		return
 	}
@@ -282,6 +297,43 @@ func main() {
 			fmt.Printf("⚠️  [%s] Falha ao sincronizar agentes: %v\n", t.Name, err)
 		} else if agents > 0 {
 			fmt.Printf("✅ [%s] %d agentes gerados em: %s\n", t.Name, agents, t.AgentsDir)
+		}
+
+		// Instala o hook de lembrete do context-guard (quando suportado pela CLI)
+		if err := syncHooks(baseDir, t); err != nil {
+			fmt.Printf("⚠️  [%s] Falha ao sincronizar hooks: %v\n", t.Name, err)
+		} else if t.HooksSettingsPath != "" {
+			fmt.Printf("✅ [%s] Hook de context-guard instalado em: %s\n", t.Name, t.HooksSettingsPath)
+		}
+
+		// OpenCode: plugin TS best-effort (ver limitação documentada no hooks.go)
+		if err := syncOpenCodePlugin(baseDir, t); err != nil {
+			fmt.Printf("⚠️  [%s] Falha ao sincronizar plugin: %v\n", t.Name, err)
+		} else if t.OpenCodePluginDir != "" {
+			fmt.Printf("✅ [%s] Plugin de context-guard instalado em: %s (best-effort, ver README)\n", t.Name, t.OpenCodePluginDir)
+		}
+
+		// bash-guardian: pede confirmação em comandos de risco conhecido.
+		// Codex fica de fora (PreToolUse não suporta "ask", só allow/deny binário).
+		switch t.AgentKind {
+		case "claude":
+			if err := syncBashGuardianClaude(baseDir, t); err != nil {
+				fmt.Printf("⚠️  [%s] Falha ao sincronizar bash-guardian: %v\n", t.Name, err)
+			} else {
+				fmt.Printf("✅ [%s] bash-guardian instalado em: %s\n", t.Name, t.HooksSettingsPath)
+			}
+		case "antigravity":
+			if err := syncBashGuardianAntigravity(baseDir, t); err != nil {
+				fmt.Printf("⚠️  [%s] Falha ao sincronizar bash-guardian: %v\n", t.Name, err)
+			} else {
+				fmt.Printf("✅ [%s] bash-guardian instalado em: %s\n", t.Name, t.HooksSettingsPath)
+			}
+		case "opencode":
+			if err := syncBashGuardianOpenCode(baseDir, t); err != nil {
+				fmt.Printf("⚠️  [%s] Falha ao sincronizar bash-guardian: %v\n", t.Name, err)
+			} else {
+				fmt.Printf("✅ [%s] bash-guardian instalado em: %s\n", t.Name, filepath.Join(filepath.Dir(t.OpenCodePluginDir), openCodeConfigFile))
+			}
 		}
 		count++
 	}

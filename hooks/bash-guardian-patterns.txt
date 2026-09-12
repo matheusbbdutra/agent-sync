@@ -1,0 +1,19 @@
+# Padrões (glob, "*" = qualquer coisa) de comandos potencialmente destrutivos.
+# Uma linha por padrão; linhas em branco e iniciadas com # são ignoradas.
+# Comportamento padrão: pedir confirmação (ask), nunca bloquear silenciosamente.
+rm -rf *
+rm -fr *
+sudo rm *
+dd if=* of=/dev/*
+mkfs*
+chmod -R 777 *
+chmod 777 /*
+curl * | sh*
+curl * | bash*
+wget * | sh*
+wget * | bash*
+git push --force*
+git reset --hard*
+git clean -f*
+shutdown*
+reboot*

@@ -73,6 +73,10 @@ Quando houver compaction (perda súbita de contexto anterior):
 - `db-guardian` — evita resultado gigante (`LIMIT`, colunas explícitas).
 - Ao investigar, **cite o trecho** (`path:line`) em vez de colar blocos.
 
+## Lembrete automático (hook)
+
+- Se aparecer uma mensagem começando com `[agent-sync]` cobrando `context-guard`/`STATE.md`, ela vem do hook `hooks/context-guard-nudge.sh` (ou do plugin equivalente do OpenCode), disparado a cada N chamadas de ferramenta — não é o usuário nem uma alucinação. Aja conforme pedido (carregue esta skill, atualize `STATE.md`); não precisa repetir o checklist inteiro em voz alta, só seguir.
+
 ## Checklist
 
 - [ ] Sei em que zona estou (verde/amarela/vermelha)?
