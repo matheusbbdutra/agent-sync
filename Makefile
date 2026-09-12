@@ -21,7 +21,10 @@ build: ## Compila agent-sync e as ferramentas em bin/
 
 install: build ## Compila e instala os binários em ~/.local/bin
 	mkdir -p ~/.local/bin
-	cp bin/* ~/.local/bin/
+	@for f in bin/*; do \
+		name="$$(basename "$$f")"; \
+		cp "$$f" ~/.local/bin/"$$name".tmp && chmod +x ~/.local/bin/"$$name".tmp && mv -f ~/.local/bin/"$$name".tmp ~/.local/bin/"$$name"; \
+	done
 	@echo "Binários instalados em ~/.local/bin com sucesso!"
 
 sync: install ## Instala e roda agent-sync -apply (sincroniza as 4 CLIs)
