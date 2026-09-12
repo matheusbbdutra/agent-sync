@@ -7,7 +7,9 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"unicode"
 )
 
 // DefaultDir devolve o diretório de cache padrão (~/.cache/agent-sync/docs).
@@ -99,13 +101,95 @@ func List(dir string) ([]Entry, error) {
 	return out, nil
 }
 
-// Match representa um resultado de busca offline.
-type Match struct {
-	URL   string
-	Lines []string
+// Section representa um bloco coeso de documentação delimitado por cabeçalhos.
+type Section struct {
+	Heading string
+	Anchor  string
+	Lines   []string
 }
 
-// Search procura um termo (case-insensitive) no texto das entradas do cache.
+var nonAlphaNum = regexp.MustCompile(`[^a-z0-9]+`)
+
+func normalizeDiacritics(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		switch r {
+		case 'á', 'à', 'ã', 'â', 'ä':
+			b.WriteRune('a')
+		case 'é', 'è', 'ê', 'ë':
+			b.WriteRune('e')
+		case 'í', 'ì', 'î', 'ï':
+			b.WriteRune('i')
+		case 'ó', 'ò', 'õ', 'ô', 'ö':
+			b.WriteRune('o')
+		case 'ú', 'ù', 'û', 'ü':
+			b.WriteRune('u')
+		case 'ç':
+			b.WriteRune('c')
+		case 'ñ':
+			b.WriteRune('n')
+		default:
+			if unicode.IsLetter(r) || unicode.IsDigit(r) || r == ' ' || r == '-' {
+				b.WriteRune(r)
+			}
+		}
+	}
+	return b.String()
+}
+
+// toAnchor converte um título em slug para âncora HTML (ex.: "## Mapeamento Básico" -> "mapeamento-basico").
+func toAnchor(heading string) string {
+	cleaned := strings.ToLower(strings.TrimLeft(heading, "# "))
+	normalized := normalizeDiacritics(cleaned)
+	slug := nonAlphaNum.ReplaceAllString(normalized, "-")
+	return strings.Trim(slug, "-")
+}
+
+// ExtractSections fragmenta um texto Markdown/texto plano em seções baseadas em títulos (#).
+func ExtractSections(text string) []Section {
+	var sections []Section
+	lines := strings.Split(text, "\n")
+
+	current := Section{
+		Heading: "Geral",
+		Anchor:  "",
+		Lines:   nil,
+	}
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			if len(current.Lines) > 0 {
+				sections = append(sections, current)
+			}
+			current = Section{
+				Heading: trimmed,
+				Anchor:  toAnchor(trimmed),
+				Lines:   nil,
+			}
+			continue
+		}
+		if trimmed != "" {
+			current.Lines = append(current.Lines, trimmed)
+		}
+	}
+
+	if len(current.Lines) > 0 {
+		sections = append(sections, current)
+	}
+
+	return sections
+}
+
+// Match representa um resultado de busca contextualizada offline.
+type Match struct {
+	URL     string
+	Heading string
+	Anchor  string
+	Lines   []string
+}
+
+// Search procura um termo (case-insensitive) nas entradas do cache, retornando o bloco de seção.
 func Search(dir, term string, limit int) ([]Match, error) {
 	entries, err := List(dir)
 	if err != nil {
@@ -116,24 +200,39 @@ func Search(dir, term string, limit int) ([]Match, error) {
 	}
 	needle := strings.ToLower(term)
 	var matches []Match
+
 	for _, entry := range entries {
-		var lines []string
-		for _, line := range strings.Split(entry.Text, "\n") {
-			if strings.Contains(strings.ToLower(line), needle) {
-				line = strings.TrimSpace(line)
-				if len(line) > 300 {
-					line = line[:300] + "…"
-				}
-				lines = append(lines, line)
-				if len(lines) >= 5 {
-					break
+		sections := ExtractSections(entry.Text)
+		for _, sec := range sections {
+			secMatchesHeading := strings.Contains(strings.ToLower(sec.Heading), needle)
+			var matchedLines []string
+
+			for _, line := range sec.Lines {
+				if secMatchesHeading || strings.Contains(strings.ToLower(line), needle) {
+					if len(line) > 300 {
+						line = line[:300] + "…"
+					}
+					matchedLines = append(matchedLines, line)
+					if len(matchedLines) >= 4 {
+						break
+					}
 				}
 			}
-		}
-		if len(lines) > 0 {
-			matches = append(matches, Match{URL: entry.URL, Lines: lines})
-			if len(matches) >= limit {
-				break
+
+			if secMatchesHeading || len(matchedLines) > 0 {
+				finalURL := entry.URL
+				if sec.Anchor != "" && !strings.Contains(finalURL, "#") {
+					finalURL = finalURL + "#" + sec.Anchor
+				}
+				matches = append(matches, Match{
+					URL:     finalURL,
+					Heading: sec.Heading,
+					Anchor:  sec.Anchor,
+					Lines:   matchedLines,
+				})
+				if len(matches) >= limit {
+					return matches, nil
+				}
 			}
 		}
 	}

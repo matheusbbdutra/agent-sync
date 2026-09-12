@@ -27,10 +27,15 @@ Guardião de consultas a banco de dados e APIs:
 - Bloqueia mutações destrutivas (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, etc.) a menos que expressamente autorizadas.
 - Adiciona limites defensivos (`LIMIT 20`) automaticamente se a query não tiver paginação.
 - Alerta contra `SELECT *`.
-- **Comando:** `db-guardian -query "<sua_query>" [-limit <qtd>]`
+### 4. `git-diff-summary`
+Resume diffs unificados do Git, extraindo arquivos modificados, adicionados ou deletados com status `[M]`/`[A]`/`[D]`, cabeçalho da função alterada e contagem de linhas adicionadas/removidas (`+`/`-`), evitando despejar diffs brutos gigantes no contexto.
+- **Quando usar:** Ao inspecionar mudanças antes de commits ou em revisões de código.
+- **Comando:** `git-diff-summary [arquivo_ou_pipe]` (ou sem argumentos para inspecionar o `git diff` atual).
+- **Exemplo:** `git-diff-summary` ou `git diff main | git-diff-summary`
 
 ## Fluxo Recomendado de Resolução com Baixo Consumo de Tokens
 
 1. **Mapeamento:** Use `ast-outline <arquivo>` para descobrir em que linhas a função desejada está.
 2. **Foco:** Use `view_file` especificando `StartLine` e `EndLine` no trecho identificado.
 3. **Debug:** Passe a saída de erros pelo `trace-strip` para persistir no contexto apenas a causa raiz e o stack trace útil.
+4. **Revisão:** Use `git-diff-summary` para validar o impacto das mudanças de código sem poluir o histórico.

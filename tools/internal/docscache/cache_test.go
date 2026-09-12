@@ -3,6 +3,7 @@ package docscache
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -18,10 +19,41 @@ func TestKeyDeterministic(t *testing.T) {
 	}
 }
 
+func TestExtractSections(t *testing.T) {
+	doc := `# Documentação Principal
+Introdução sobre a ferramenta.
+
+## Mapeamento Básico
+O ORM mapeia entidades para tabelas.
+Configurações adicionais aqui.
+
+### Lazy Loading
+Carregamento sob demanda economiza memória.`
+
+	sections := ExtractSections(doc)
+	if len(sections) != 3 {
+		t.Fatalf("esperava 3 seções, obteve %d", len(sections))
+	}
+
+	if sections[1].Heading != "## Mapeamento Básico" || sections[1].Anchor != "mapeamento-basico" {
+		t.Errorf("seção 1 incorreta: %+v", sections[1])
+	}
+	if sections[2].Heading != "### Lazy Loading" || sections[2].Anchor != "lazy-loading" {
+		t.Errorf("seção 2 incorreta: %+v", sections[2])
+	}
+}
+
 func TestSaveLoadListSearch(t *testing.T) {
 	dir := t.TempDir()
 	url := "https://example.com/docs"
-	if err := Save(dir, url, "text/html", "<html>corpo</html>", "O ORM usa lazy loading\noutra linha"); err != nil {
+	content := `# Exemplo de Doc
+Introdução geral.
+
+## Configurações do ORM
+O ORM usa lazy loading por padrão.
+Segunda linha explicativa.`
+
+	if err := Save(dir, url, "text/html", "<html>corpo</html>", content); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 
@@ -45,9 +77,16 @@ func TestSaveLoadListSearch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}
-	if len(matches) != 1 || matches[0].URL != url || len(matches[0].Lines) != 1 {
-		t.Fatalf("busca inesperada: %+v", matches)
+	if len(matches) != 1 {
+		t.Fatalf("esperava 1 match, obteve %d", len(matches))
 	}
+	if !strings.HasSuffix(matches[0].URL, "#configuracoes-do-orm") {
+		t.Errorf("esperava URL com âncora de seção, obteve: %s", matches[0].URL)
+	}
+	if matches[0].Heading != "## Configurações do ORM" {
+		t.Errorf("esperava heading de seção, obteve: %s", matches[0].Heading)
+	}
+
 	if _, err := Search(dir, "inexistente", 10); err != nil {
 		t.Fatalf("Search sem resultado não deveria errar: %v", err)
 	}

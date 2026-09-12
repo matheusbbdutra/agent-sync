@@ -1,5 +1,5 @@
-// docs-mcp expõe o cache local de docs (~/.cache/agent-sync/docs) como um
-// servidor MCP (stdio), permitindo busca offline por biblioteca/trecho.
+// docs-mcp expõe o cache local de docs e ferramentas de economia de tokens
+// (ast-outline, trace-strip) como um servidor MCP (stdio).
 package main
 
 import (
@@ -9,13 +9,15 @@ import (
 	"os"
 	"strings"
 
+	"github.com/matheusdutra/token-tools/internal/astoutline"
 	"github.com/matheusdutra/token-tools/internal/docscache"
+	"github.com/matheusdutra/token-tools/internal/tracestrip"
 )
 
 const (
 	protocolVersion = "2024-11-05"
 	serverName      = "agent-sync-docs"
-	serverVersion   = "1.0.0"
+	serverVersion   = "1.1.0"
 )
 
 type rpcRequest struct {
@@ -56,6 +58,30 @@ func toolDefinitions() []map[string]any {
 			"description": "Lista as documentações disponíveis no cache local.",
 			"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}},
 		},
+		{
+			"name":        "ast_outline",
+			"description": "Extrai o esqueleto estrutural (classes, métodos, interfaces, funções com números de linha) de um arquivo de código ou snippet, economizando tokens ao inspecionar arquivos grandes. Suporta Go, Python, JS/TS, PHP.",
+			"inputSchema": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"path":    map[string]any{"type": "string", "description": "Caminho do arquivo no sistema de arquivos local."},
+					"content": map[string]any{"type": "string", "description": "Conteúdo do código caso não queira ler diretamente do disco (opcional)."},
+				},
+				"required": []string{"path"},
+			},
+		},
+		{
+			"name":        "strip_trace",
+			"description": "Filtra stack traces e logs extensos, ocultando frames internos de runtime/frameworks/vendors (node_modules, vendor/, runtime Go, Spring, etc.) e mantendo apenas as linhas relevantes.",
+			"inputSchema": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"trace":     map[string]any{"type": "string", "description": "Texto do stack trace ou log a filtrar."},
+					"max_lines": map[string]any{"type": "integer", "description": "Máximo de linhas a exibir (default 25)."},
+				},
+				"required": []string{"trace"},
+			},
+		},
 	}
 }
 
@@ -91,6 +117,9 @@ func callTool(cacheDir, name string, args json.RawMessage) map[string]any {
 		fmt.Fprintf(&b, "%d fonte(s) com %q:\n", len(matches), in.Query)
 		for _, m := range matches {
 			fmt.Fprintf(&b, "\n%s\n", m.URL)
+			if m.Heading != "" && m.Heading != "Geral" {
+				fmt.Fprintf(&b, "  [%s]\n", m.Heading)
+			}
 			for _, line := range m.Lines {
 				fmt.Fprintf(&b, "  %s\n", line)
 			}
@@ -112,12 +141,43 @@ func callTool(cacheDir, name string, args json.RawMessage) map[string]any {
 		}
 		return textResult(strings.TrimRight(b.String(), "\n"))
 
+	case "ast_outline":
+		var in struct {
+			Path    string `json:"path"`
+			Content string `json:"content"`
+		}
+		if err := json.Unmarshal(args, &in); err != nil || strings.TrimSpace(in.Path) == "" {
+			return errorResult("parâmetro 'path' é obrigatório")
+		}
+		var src []byte
+		if in.Content != "" {
+			src = []byte(in.Content)
+		}
+		out, err := astoutline.Extract(in.Path, src)
+		if err != nil {
+			return errorResult(fmt.Sprintf("erro ao extrair outline: %v", err))
+		}
+		return textResult(out)
+
+	case "strip_trace":
+		var in struct {
+			Trace    string `json:"trace"`
+			MaxLines int    `json:"max_lines"`
+		}
+		if err := json.Unmarshal(args, &in); err != nil || strings.TrimSpace(in.Trace) == "" {
+			return errorResult("parâmetro 'trace' é obrigatório")
+		}
+		if in.MaxLines <= 0 {
+			in.MaxLines = 25
+		}
+		out := tracestrip.StripText(in.Trace, in.MaxLines)
+		return textResult(out)
+
 	default:
 		return errorResult("ferramenta desconhecida: " + name)
 	}
 }
 
-// handle processa uma requisição e informa se uma resposta deve ser enviada.
 func handle(req rpcRequest, cacheDir string) (rpcResponse, bool) {
 	switch req.Method {
 	case "initialize":

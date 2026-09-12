@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/matheusdutra/token-tools/internal/tracestrip"
 )
 
 func TestFilterLinesRemovesVendorNoise(t *testing.T) {
@@ -16,7 +18,7 @@ func TestFilterLinesRemovesVendorNoise(t *testing.T) {
 		"",
 		"    at main (/app/src/main.js:1:1)",
 	}
-	kept, omitted := filterLines(lines, 25)
+	kept, omitted := tracestrip.FilterLines(lines, 25)
 
 	if omitted != 4 {
 		t.Fatalf("esperava 4 linhas omitidas, got %d", omitted)
@@ -32,20 +34,11 @@ func TestFilterLinesRemovesVendorNoise(t *testing.T) {
 
 func TestFilterLinesRespectsMax(t *testing.T) {
 	lines := []string{"a", "b", "c", "d", "e"}
-	kept, omitted := filterLines(lines, 2)
+	kept, omitted := tracestrip.FilterLines(lines, 2)
 	if len(kept) != 2 {
 		t.Fatalf("esperava 2 linhas, got %d", len(kept))
 	}
 	if omitted != 0 {
 		t.Fatalf("esperava 0 omitidas, got %d", omitted)
-	}
-}
-
-func TestShouldIgnore(t *testing.T) {
-	if !shouldIgnore("at /x/node_modules/y/z.js:1:1") {
-		t.Fatal("esperava ignorar node_modules")
-	}
-	if shouldIgnore("at main (/app/src/main.js:1:1)") {
-		t.Fatal("não deveria ignorar código do projeto")
 	}
 }

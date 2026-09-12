@@ -2,7 +2,15 @@
 
 > Fonte de verdade para retomar o trabalho entre sessões/compactions.
 
-## Meta atual
+## Tarefa atual — Economia de tokens, skills e modularizacao Go (todas 4 propostas concluídas)
+
+- **Proposta 1 (`git-diff-summary`)**: Implementada via OpenCode em `tools/cmd/git-diff-summary/main.go` + `main_test.go` (10 testes). Resume diffs em `[M]/[A]/[D]`, cabeçalho do hunk e contagem +/-. Integrada no `Makefile` e documentada na skill `token-saving-toolkit`.
+- **Proposta 2 (Checkpoints de sessão no `memory-mcp`)**: Integrada na skill `skills/context-guard/SKILL.md`. Permite restauração ultrarrápida pós-compaction sem reler o `STATE.md` completo via `get_memory(name="checkpoint-<projeto>")`.
+- **Proposta 3 (Ferramentas MCP de economia de contexto)**: Refatorado o core de `ast-outline` e `trace-strip` para pacotes limpos e reutilizáveis (`tools/internal/astoutline` e `tools/internal/tracestrip`). Expostas diretamente no `docs-mcp` (`ast_outline` e `strip_trace`), permitindo aos agentes inspecionar estruturas e filtrar traces sem sobrecarga de execução de shell/bash.
+- **Proposta 4 (Chunking de docs por seções no `docscache`)**: Implementado `ExtractSections`, normalização de diacríticos para geração de âncoras e busca contextualizada em `tools/internal/docscache/cache.go`. O `docs-mcp` (`search_docs`) e o `docs-fetch` agora retornam a URL com âncora `#secao` e o cabeçalho pai `[## Titulo]`, mantendo coesão sem despejar páginas completas.
+- **Suíte de testes**: Todos os pacotes Go na raiz e em `tools/` 100% passando (`make test`). Nada commitado ainda.
+
+## Meta anterior — memory-mcp
 
 - Implementar `memory-mcp`: memória compartilhada entre Claude Code, agy, OpenCode e Codex via libSQL local (CGO ok, uso pessoal confirmado).
 - Registrar skill `agent-delegate` com critérios de delegação de tarefas entre CLIs (any-to-any, via modos non-interactive: `claude -p`, `agy --print`, `opencode run`).

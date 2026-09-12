@@ -58,13 +58,16 @@ Quando houver compaction (perda súbita de contexto anterior):
 4. Para qualquer decisão anterior, **RELEIA a fonte** (`STATE.md`, código, commit) — não suponha.
 5. Reponha os fatos-chave no **fim** do raciocínio (recência), não no meio.
 
-## Checkpoint e handoff (STATE.md)
+## Checkpoint e handoff (STATE.md + memory-mcp)
 
 - A cada mudança relevante de estado, mantenha `STATE.md` no projeto (use `templates/STATE.md` como base).
+- **Integração com `memory-mcp` (Economia Máxima de Tokens):**
+  - Além do `STATE.md`, grave checkpoints concisos no `memory-mcp` usando `store_memory(type="project", name="checkpoint-<projeto>", description="Resumo de estado e decisões de <projeto>", content="...", scratch=true)`.
+  - Ao iniciar nova sessão ou reancorar após compaction, consulte primeiro `get_memory(name="checkpoint-<projeto>")` ou `search_memory(query="checkpoint <projeto>")` para restaurar o contexto em ~50-100 tokens, lendo o `STATE.md` completo apenas se detalhes adicionais forem estritamente necessários.
 - Formato do checkpoint: **estado atual**, **decisões tomadas**, **arquivos tocados**, **próximos passos**, **bloqueios**.
-- Ao atingir a zona vermelha: escreva o `STATE.md` e proponha **sessão nova** retomando por ele.
-- `STATE.md` é a fonte de verdade para retomar — não confie no histórico da conversa.
-- **Nunca copie segredos/credenciais pro `STATE.md`** (chaves de API, tokens, senhas) mesmo que apareçam na conversa — descreva o problema sem colar o valor. Diferente do `docs-cache` (que tem filtro automático de redação), a escrita do `STATE.md` é feita por você diretamente; a disciplina aqui é sua, não há guardrail de harness interceptando.
+- Ao atingir a zona vermelha: escreva o `STATE.md`, atualize o checkpoint no `memory-mcp` e proponha **sessão nova** retomando por ele.
+- `STATE.md` é a fonte de verdade em disco; o checkpoint no `memory-mcp` é a âncora rápida entre CLIs e compactions.
+- **Nunca copie segredos/credenciais pro `STATE.md` ou `memory-mcp`** (chaves de API, tokens, senhas) mesmo que apareçam na conversa — descreva o problema sem colar o valor. Diferente do `docs-cache` (que tem filtro automático de redação), a escrita do `STATE.md` e do `memory-mcp` é feita por você diretamente; a disciplina aqui é sua, não há guardrail de harness interceptando.
 
 ## Higiene de contexto (use estas ferramentas)
 

@@ -221,6 +221,9 @@ func runSearch(cacheDir, term string, maxLines int) error {
 	fmt.Printf("🔎 %d fonte(s) com %q:\n", len(matches), term)
 	for _, m := range matches {
 		fmt.Printf("\n📄 %s\n", m.URL)
+		if m.Heading != "" && m.Heading != "Geral" {
+			fmt.Printf("   [%s]\n", m.Heading)
+		}
 		for _, line := range m.Lines {
 			fmt.Printf("   %s\n", line)
 		}
