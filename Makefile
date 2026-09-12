@@ -1,9 +1,16 @@
-.PHONY: setup build install sync status vendor mcp mirror test clean
+.PHONY: help setup build install sync status vendor mcp mirror test clean
 
-setup:
+.DEFAULT_GOAL := help
+
+help: ## Lista os comandos disponíveis
+	@echo "Uso: make <alvo>"
+	@echo ""
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
+
+setup: ## Garante o Go (>= 1.24) via mise ou tarball oficial
 	bash scripts/setup-go.sh
 
-build:
+build: ## Compila agent-sync e as ferramentas em bin/
 	go build -o bin/agent-sync ./cmd/agent-sync
 	cd tools && go build -o ../bin/ast-outline ./cmd/ast-outline
 	cd tools && go build -o ../bin/trace-strip ./cmd/trace-strip
@@ -12,29 +19,29 @@ build:
 	cd tools && go build -o ../bin/docs-mcp ./cmd/docs-mcp
 	cd tools && go build -o ../bin/docs-cache-write ./cmd/docs-cache-write
 
-install: build
+install: build ## Compila e instala os binários em ~/.local/bin
 	mkdir -p ~/.local/bin
 	cp bin/* ~/.local/bin/
 	@echo "Binários instalados em ~/.local/bin com sucesso!"
 
-sync: install
+sync: install ## Instala e roda agent-sync -apply (sincroniza as 4 CLIs)
 	~/.local/bin/agent-sync -apply
 
-status:
+status: ## Mostra o status de sincronização de cada CLI
 	~/.local/bin/agent-sync -status
 
-vendor:
+vendor: ## Reimporta as skills curadas do catálogo (skills/manifest.json)
 	go run ./cmd/agent-sync -vendor
 
-mcp:
+mcp: ## Configura os MCPs (context7, docs, sentry) nos CLIs instalados
 	bash scripts/setup-mcp.sh
 
-mirror:
+mirror: ## Baixa/atualiza o cache offline de docs (mirror/sources.json)
 	cd tools && go run ./cmd/docs-fetch -mirror ../mirror/sources.json
 
-test:
+test: ## Roda os testes Go (raiz + tools)
 	go test ./...
 	cd tools && go test ./...
 
-clean:
+clean: ## Remove os binários compilados em bin/
 	rm -rf bin
