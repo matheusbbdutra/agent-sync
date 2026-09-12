@@ -313,6 +313,19 @@ func main() {
 			fmt.Printf("✅ [%s] Plugin de context-guard instalado em: %s (best-effort, ver README)\n", t.Name, t.OpenCodePluginDir)
 		}
 
+		// docs-cache: cacheia passivamente docs consultadas via WebFetch/
+		// read_url_content e context7 (query-docs), sem refazer requisição de rede.
+		if err := syncDocsCacheHook(baseDir, t); err != nil {
+			fmt.Printf("⚠️  [%s] Falha ao sincronizar docs-cache: %v\n", t.Name, err)
+		} else if t.HooksSettingsPath != "" {
+			fmt.Printf("✅ [%s] docs-cache instalado em: %s\n", t.Name, t.HooksSettingsPath)
+		}
+		if err := syncOpenCodeDocsCachePlugin(baseDir, t); err != nil {
+			fmt.Printf("⚠️  [%s] Falha ao sincronizar plugin docs-cache: %v\n", t.Name, err)
+		} else if t.OpenCodePluginDir != "" {
+			fmt.Printf("✅ [%s] Plugin docs-cache instalado em: %s (best-effort)\n", t.Name, t.OpenCodePluginDir)
+		}
+
 		// bash-guardian: pede confirmação em comandos de risco conhecido.
 		// Codex fica de fora (PreToolUse não suporta "ask", só allow/deny binário).
 		switch t.AgentKind {

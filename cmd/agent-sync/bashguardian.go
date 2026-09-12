@@ -97,46 +97,16 @@ func decodeStringSlice(raw interface{}) []string {
 	return out
 }
 
+const bashGuardianHookName = "agent-sync-bash-guardian"
+
 // syncBashGuardianAntigravity instala o hook PreToolUse que pede confirmação
 // (decision: ask) quando um comando bate um padrão de risco conhecido.
 func syncBashGuardianAntigravity(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" || target.HooksFormat != "antigravity" {
 		return nil
 	}
-	scriptPath := filepath.Join(baseDir, "hooks", "bash-guardian.antigravity.sh")
-	if _, err := os.Stat(scriptPath); err != nil {
-		return fmt.Errorf("script do bash-guardian não encontrado: %s", scriptPath)
-	}
-
-	const bashGuardianHookName = "agent-sync-bash-guardian"
-
-	root, err := readJSONObject(target.HooksSettingsPath)
-	if err != nil {
-		return err
-	}
-
-	hookGroup, _ := root[bashGuardianHookName].(map[string]interface{})
-	if hookGroup == nil {
-		hookGroup = map[string]interface{}{}
-	}
-
-	entries := decodeHookEntries(hookGroup["PreToolUse"])
-	filtered := entries[:0:0]
-	for _, e := range entries {
-		if !hasNamedHook(e, bashGuardianHookName) {
-			filtered = append(filtered, e)
-		}
-	}
-	filtered = append(filtered, hookEntry{
-		Matcher: "run_command",
-		Hooks: []hookCmd{
-			{Type: "command", Command: scriptPath, Name: bashGuardianHookName, Timeout: 10},
-		},
-	})
-	hookGroup["PreToolUse"] = filtered
-	root[bashGuardianHookName] = hookGroup
-
-	return writeJSONObject(target.HooksSettingsPath, root)
+	target.HooksEvent = "PreToolUse"
+	return syncAntigravityHook(baseDir, target, bashGuardianHookName, "bash-guardian.antigravity.sh", "run_command")
 }
 
 func hasNamedHook(e hookEntry, name string) bool {

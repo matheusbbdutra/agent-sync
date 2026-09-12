@@ -8,6 +8,7 @@ import (
 )
 
 const contextGuardHookName = "agent-sync-context-guard"
+const docsCacheHookName = "agent-sync-docs-cache"
 
 // hookEntry é o formato comum a Claude Code e Gemini CLI para um item de hooks.<Evento>[].
 type hookEntry struct {
@@ -29,16 +30,32 @@ func syncHooks(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" || target.HooksEvent == "" {
 		return nil
 	}
+	scriptName := "context-guard-nudge.sh"
 	if target.HooksFormat == "antigravity" {
-		return syncAntigravityHook(baseDir, target)
+		scriptName = "context-guard-nudge.antigravity.sh"
+		return syncAntigravityHook(baseDir, target, contextGuardHookName, scriptName, "*")
 	}
-	return syncStandardHook(baseDir, target)
+	return syncStandardHook(baseDir, target, contextGuardHookName, scriptName, "*")
+}
+
+// syncDocsCacheHook instala o hook que cacheia passivamente docs consultadas
+// via WebFetch/read_url_content e context7 (query-docs). Claude Code e Codex
+// compartilham o mesmo script (schema de PostToolUse equivalente); Antigravity
+// usa o seu próprio (lê o resultado do transcriptPath).
+func syncDocsCacheHook(baseDir string, target TargetCLI) error {
+	if target.HooksSettingsPath == "" || target.HooksEvent == "" {
+		return nil
+	}
+	if target.HooksFormat == "antigravity" {
+		return syncAntigravityHook(baseDir, target, docsCacheHookName, "docs-cache.antigravity.sh", "read_url_content|call_mcp_tool")
+	}
+	return syncStandardHook(baseDir, target, docsCacheHookName, "docs-cache.sh", "WebFetch|mcp__context7__.*")
 }
 
 // syncStandardHook cobre o formato compartilhado por Claude Code e Codex:
 // {"hooks": {"<Evento>": [{"matcher", "hooks": [...]}]}}.
-func syncStandardHook(baseDir string, target TargetCLI) error {
-	scriptPath := filepath.Join(baseDir, "hooks", "context-guard-nudge.sh")
+func syncStandardHook(baseDir string, target TargetCLI, hookName, scriptName, matcher string) error {
+	scriptPath := filepath.Join(baseDir, "hooks", scriptName)
 	if _, err := os.Stat(scriptPath); err != nil {
 		return fmt.Errorf("script do hook não encontrado: %s", scriptPath)
 	}
@@ -54,7 +71,7 @@ func syncStandardHook(baseDir string, target TargetCLI) error {
 	}
 
 	entries := decodeHookEntries(hooksRoot[target.HooksEvent])
-	hooksRoot[target.HooksEvent] = upsertContextGuardEntry(entries, scriptPath)
+	hooksRoot[target.HooksEvent] = upsertHookEntry(entries, scriptPath, hookName, matcher)
 	settings["hooks"] = hooksRoot
 
 	return writeJSONObject(target.HooksSettingsPath, settings)
@@ -62,8 +79,8 @@ func syncStandardHook(baseDir string, target TargetCLI) error {
 
 // syncAntigravityHook cobre o formato próprio do Antigravity CLI, sem chave
 // "hooks" de topo: {"<nome-do-hook>": {"<Evento>": [{"matcher", "hooks": [...]}]}}.
-func syncAntigravityHook(baseDir string, target TargetCLI) error {
-	scriptPath := filepath.Join(baseDir, "hooks", "context-guard-nudge.antigravity.sh")
+func syncAntigravityHook(baseDir string, target TargetCLI, hookName, scriptName, matcher string) error {
+	scriptPath := filepath.Join(baseDir, "hooks", scriptName)
 	if _, err := os.Stat(scriptPath); err != nil {
 		return fmt.Errorf("script do hook não encontrado: %s", scriptPath)
 	}
@@ -73,48 +90,39 @@ func syncAntigravityHook(baseDir string, target TargetCLI) error {
 		return err
 	}
 
-	hookGroup, _ := root[contextGuardHookName].(map[string]interface{})
+	hookGroup, _ := root[hookName].(map[string]interface{})
 	if hookGroup == nil {
 		hookGroup = map[string]interface{}{}
 	}
 
 	entries := decodeHookEntries(hookGroup[target.HooksEvent])
-	hookGroup[target.HooksEvent] = upsertContextGuardEntry(entries, scriptPath)
-	root[contextGuardHookName] = hookGroup
+	hookGroup[target.HooksEvent] = upsertHookEntry(entries, scriptPath, hookName, matcher)
+	root[hookName] = hookGroup
 
 	return writeJSONObject(target.HooksSettingsPath, root)
 }
 
-// upsertContextGuardEntry remove uma entrada anterior do agent-sync (se existir)
-// e adiciona a versão atual, mantendo entradas de outras origens intactas.
-func upsertContextGuardEntry(entries []hookEntry, scriptPath string) []hookEntry {
+// upsertHookEntry remove uma entrada anterior do hook nomeado (se existir) e
+// adiciona a versão atual, mantendo entradas de outras origens intactas.
+func upsertHookEntry(entries []hookEntry, scriptPath, hookName, matcher string) []hookEntry {
 	filtered := entries[:0:0]
 	for _, e := range entries {
-		if !hasContextGuardHook(e) {
+		if !hasNamedHook(e, hookName) {
 			filtered = append(filtered, e)
 		}
 	}
 	filtered = append(filtered, hookEntry{
-		Matcher: "*",
+		Matcher: matcher,
 		Hooks: []hookCmd{
 			{
 				Type:    "command",
 				Command: scriptPath,
-				Name:    contextGuardHookName,
+				Name:    hookName,
 				Timeout: 10,
 			},
 		},
 	})
 	return filtered
-}
-
-func hasContextGuardHook(e hookEntry) bool {
-	for _, h := range e.Hooks {
-		if h.Name == contextGuardHookName {
-			return true
-		}
-	}
-	return false
 }
 
 func decodeHookEntries(raw interface{}) []hookEntry {
@@ -161,6 +169,19 @@ func syncOpenCodePlugin(baseDir string, target TargetCLI) error {
 		return fmt.Errorf("plugin do hook não encontrado: %s", src)
 	}
 	return copyFile(src, filepath.Join(target.OpenCodePluginDir, "context-guard-nudge.ts"))
+}
+
+// syncOpenCodeDocsCachePlugin instala o plugin best-effort que cacheia
+// passivamente docs consultadas via webfetch/context7 no OpenCode.
+func syncOpenCodeDocsCachePlugin(baseDir string, target TargetCLI) error {
+	if target.OpenCodePluginDir == "" {
+		return nil
+	}
+	src := filepath.Join(baseDir, "hooks", "docs-cache.opencode.ts")
+	if _, err := os.Stat(src); err != nil {
+		return fmt.Errorf("plugin do docs-cache não encontrado: %s", src)
+	}
+	return copyFile(src, filepath.Join(target.OpenCodePluginDir, "docs-cache.ts"))
 }
 
 func writeJSONObject(path string, obj map[string]interface{}) error {
