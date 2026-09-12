@@ -13,6 +13,7 @@ import (
 	"os"
 
 	"github.com/matheusdutra/token-tools/internal/docscache"
+	"github.com/matheusdutra/token-tools/internal/secretscan"
 )
 
 type input struct {
@@ -50,7 +51,12 @@ func main() {
 		in.ContentType = "text/plain"
 	}
 
-	if err := docscache.Save(cacheDir, in.URL, in.ContentType, in.Text, in.Text); err != nil {
+	text, found := secretscan.Redact(in.Text)
+	if len(found) > 0 {
+		fmt.Fprintf(os.Stderr, "docs-cache-write: padrões de segredo redigidos antes de cachear (%s): %v\n", in.URL, found)
+	}
+
+	if err := docscache.Save(cacheDir, in.URL, in.ContentType, text, text); err != nil {
 		fmt.Fprintf(os.Stderr, "docs-cache-write: erro salvando cache: %v\n", err)
 		os.Exit(1)
 	}

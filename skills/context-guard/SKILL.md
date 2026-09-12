@@ -64,6 +64,7 @@ Quando houver compaction (perda súbita de contexto anterior):
 - Formato do checkpoint: **estado atual**, **decisões tomadas**, **arquivos tocados**, **próximos passos**, **bloqueios**.
 - Ao atingir a zona vermelha: escreva o `STATE.md` e proponha **sessão nova** retomando por ele.
 - `STATE.md` é a fonte de verdade para retomar — não confie no histórico da conversa.
+- **Nunca copie segredos/credenciais pro `STATE.md`** (chaves de API, tokens, senhas) mesmo que apareçam na conversa — descreva o problema sem colar o valor. Diferente do `docs-cache` (que tem filtro automático de redação), a escrita do `STATE.md` é feita por você diretamente; a disciplina aqui é sua, não há guardrail de harness interceptando.
 
 ## Higiene de contexto (use estas ferramentas)
 
