@@ -77,14 +77,21 @@ Curated by domain in `skills/manifest.json` and imported from [rmyndharis/antigr
 | Web research | `search-specialist` |
 | Context | `context-manager`, `context-management-context-save` |
 
-In addition to the vendored ones, there are **9 authored skills in Portuguese (PT-BR)** (not present in the catalog):
-`ddd`, `design-patterns`, `object-calisthenics`, `symfony`, `doctrine`, `phpunit-symfony`, `docs-research`, `context-guard`, and `sentry`.
+In addition to the vendored ones, there are **10 authored skills in Portuguese (PT-BR)** (not present in the catalog):
+`ddd`, `design-patterns`, `object-calisthenics`, `symfony`, `doctrine`, `phpunit-symfony`, `docs-research`, `context-guard`, `sentry`, and `agent-delegate`.
+
+### Shared memory across CLIs
+
+- **`memory-mcp`** (`tools/cmd/memory-mcp`): local MCP server over libSQL (`~/.cache/agent-sync/memory.db`, no remote sync) giving Claude Code, Codex, agy, and OpenCode access to the same history of decisions/feedback/project context. Requires CGO (`go-libsql`) — accepted as fine for personal use (gcc/clang is already a `make` prerequisite).
+- Search today is **FTS5/BM25** (text relevance), no real embeddings yet — the schema already reserves a vector column (`embedding_json`) for a future semantic-search phase.
+- Exposed MCP tools: `store_memory` (accepts `scratch: true|false`), `search_memory`, `get_memory`, `list_memories`, `delete_memory` (only removes memories stored with `scratch: true` — permanent ones are refused by design).
+- **`agent-delegate`** (skill): criteria for deciding whether/to which CLI-model to delegate a task (any CLI can call any other via its non-interactive mode: `claude -p`, `agy --print`, `opencode run`), always checking `memory-mcp` before building the delegated prompt.
 
 ### Context and long sessions
 
 - **`context-guard`** (skill): health zones, drift signals, post-compaction re-anchoring, and checkpointing. **Mandatory by default** on multi-step tasks/long sessions (referenced in `global-rules`, at the top and in the final reaffirmation).
 - **`STATE.md`**: source of truth to resume sessions. Base it on `templates/STATE.md`; keep it in the project.
-- Low-token tools: `ast-outline`, `trace-strip`, `docs-fetch`, `docs-mcp`, `db-guardian` (see `token-saving-toolkit`).
+- Low-token tools: `ast-outline`, `trace-strip`, `docs-fetch`, `docs-mcp`, `memory-mcp`, `db-guardian` (see `token-saving-toolkit`).
 - **`context-guard` hook** (`hooks/context-guard-nudge.sh`): since the skill above only relies on the model's self-discipline, `-apply` also installs a real harness-level nudge that fires every N tool calls (default 40, `AGENT_SYNC_NUDGE_THRESHOLD`) reminding to load `context-guard` and update `STATE.md`. Coverage per CLI:
   - **Claude Code**: `PostToolUse` hook merged into `~/.claude/settings.json` (existing hooks/keys are preserved, idempotent re-apply).
   - **Codex**: `PostToolUse` hook merged into `~/.codex/hooks.json`.
@@ -146,7 +153,7 @@ Checks the available `go` and, if missing/outdated, installs the version require
 ```bash
 make install
 ```
-This builds the Go binaries (`agent-sync`, `ast-outline`, `trace-strip`, `db-guardian`, `docs-fetch`, `docs-mcp`) and places them in `~/.local/bin/`.
+This builds the Go binaries (`agent-sync`, `ast-outline`, `trace-strip`, `db-guardian`, `docs-fetch`, `docs-mcp`, `memory-mcp`) and places them in `~/.local/bin/`.
 
 ### 4. Sync with all CLIs
 ```bash

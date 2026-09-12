@@ -2,6 +2,7 @@
 # Configura MCPs nos CLIs instalados:
 #   - context7 : docs atualizadas de bibliotecas (remoto por padrão; local/stdio com CONTEXT7_LOCAL=1)
 #   - docs     : MCP local offline sobre o cache do docs-fetch (~/.cache/agent-sync/docs)
+#   - memory   : memória compartilhada entre CLIs via libSQL local (~/.cache/agent-sync/memory.db)
 #   - sentry   : erros/performance do Sentry (opcional; defina SENTRY_MCP_URL)
 #
 # Uso:
@@ -16,6 +17,9 @@ CONTEXT7_URL="https://mcp.context7.com/mcp"
 DOCS_NAME="docs"
 DOCS_BIN="$(command -v docs-mcp 2>/dev/null || true)"
 [ -n "$DOCS_BIN" ] || DOCS_BIN="$HOME/.local/bin/docs-mcp"
+MEMORY_NAME="memory"
+MEMORY_BIN="$(command -v memory-mcp 2>/dev/null || true)"
+[ -n "$MEMORY_BIN" ] || MEMORY_BIN="$HOME/.local/bin/memory-mcp"
 
 remove_server() {
   local cli="$1" name="$2"
@@ -124,6 +128,31 @@ setup_docs() {
   echo "✅ docs configurado (offline)"
 }
 
+# ── MCP local de memória compartilhada (entre Claude Code, Codex, agy, OpenCode) ─
+setup_memory() {
+  if [ ! -x "$MEMORY_BIN" ]; then
+    echo "⚠️  memory-mcp não encontrado ($MEMORY_BIN). Rode 'make install' primeiro."
+    return 0
+  fi
+  echo "→ MCP local de memória compartilhada: $MEMORY_BIN"
+  if command -v claude >/dev/null 2>&1; then
+    remove_server claude "$MEMORY_NAME"
+    claude mcp add -s user "$MEMORY_NAME" -- "$MEMORY_BIN" >/dev/null
+  fi
+  if command -v codex >/dev/null 2>&1; then
+    remove_server codex "$MEMORY_NAME"
+    codex mcp add "$MEMORY_NAME" -- "$MEMORY_BIN" >/dev/null
+  fi
+  if command -v agy >/dev/null 2>&1; then
+    remove_server agy "$MEMORY_NAME"
+    agy mcp add "$MEMORY_NAME" "$MEMORY_BIN" >/dev/null
+  fi
+  if command -v opencode >/dev/null 2>&1; then
+    upsert_opencode "$MEMORY_NAME" '{"type":"local","command":["'"$MEMORY_BIN"'"],"enabled":true}'
+  fi
+  echo "✅ memory configurado (compartilhado entre CLIs)"
+}
+
 # ── Sentry (opcional) ───────────────────────────────────────────────────────
 setup_sentry() {
   local url="${SENTRY_MCP_URL:-}"
@@ -153,5 +182,6 @@ setup_sentry() {
 
 setup_context7
 setup_docs
+setup_memory
 setup_sentry
 echo "✨ MCPs configurados. Verifique com 'mcp list' de cada CLI."

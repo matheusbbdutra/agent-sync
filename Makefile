@@ -18,6 +18,7 @@ build: ## Compila agent-sync e as ferramentas em bin/
 	cd tools && go build -o ../bin/docs-fetch ./cmd/docs-fetch
 	cd tools && go build -o ../bin/docs-mcp ./cmd/docs-mcp
 	cd tools && go build -o ../bin/docs-cache-write ./cmd/docs-cache-write
+	cd tools && go build -o ../bin/memory-mcp ./cmd/memory-mcp
 
 install: build ## Compila e instala os binários em ~/.local/bin
 	mkdir -p ~/.local/bin

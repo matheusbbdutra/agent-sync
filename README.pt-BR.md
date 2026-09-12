@@ -30,11 +30,12 @@ agent-sync/
 │   ├── cmd/db-guardian/    # Valida SQL read-only (bloqueia mutações, injeta LIMIT); NÃO executa queries
 │   └── cmd/docs-fetch/     # Baixa/cacheia docs e extrai texto ou outline de títulos (baixo token)
 │   └── cmd/docs-mcp/       # Servidor MCP local (offline) sobre o cache de docs
+│   └── cmd/memory-mcp/     # Servidor MCP de memória compartilhada entre CLIs (libSQL local, CGO)
 ├── mirror/sources.json     # Fontes oficiais curadas para sincronizar no cache local
 ├── templates/STATE.md      # Template de handoff de sessão (checkpoint/retomada)
 ├── cmd/agent-sync/         # Orquestrador de sincronização CLI (+ vendor de skills + gerador de agentes)
 ├── scripts/setup-go.sh     # Bootstrap do Go (>= 1.24) via mise ou tarball oficial
-├── scripts/setup-mcp.sh    # Configura Context7, MCP local de docs e Sentry (opcional)
+├── scripts/setup-mcp.sh    # Configura Context7, MCP local de docs, memória compartilhada e Sentry (opcional)
 ├── LICENSE / NOTICE        # Licença MIT e atribuição das skills de terceiros
 ├── Makefile                # Comandos de automação
 └── README.md / README.pt-BR.md  # docs (EN padrão, PT-BR)
@@ -77,14 +78,21 @@ Curadas por domínio no `skills/manifest.json` e importadas de [rmyndharis/antig
 | Pesquisa web | `search-specialist` |
 | Contexto | `context-manager`, `context-management-context-save` |
 
-Além das vendorizadas, há **9 skills autorais em PT-BR** (não existem no catálogo):
-`ddd`, `design-patterns`, `object-calisthenics`, `symfony`, `doctrine`, `phpunit-symfony`, `docs-research`, `context-guard` e `sentry`.
+Além das vendorizadas, há **10 skills autorais em PT-BR** (não existem no catálogo):
+`ddd`, `design-patterns`, `object-calisthenics`, `symfony`, `doctrine`, `phpunit-symfony`, `docs-research`, `context-guard`, `sentry` e `agent-delegate`.
+
+### Memória compartilhada entre CLIs
+
+- **`memory-mcp`** (`tools/cmd/memory-mcp`): servidor MCP local sobre libSQL (`~/.cache/agent-sync/memory.db`, sem sync remoto) que dá a Claude Code, Codex, agy e OpenCode acesso ao mesmo histórico de decisões/feedback/contexto de projeto. Requer CGO (`go-libsql`) — assumido aceitável para uso pessoal (gcc/clang já é pré-requisito do `make`).
+- Busca hoje é **FTS5/BM25** (relevância por texto), sem embedding real — o schema já reserva uma coluna vetorial (`embedding_json`) para uma fase futura de busca semântica.
+- Ferramentas MCP expostas: `store_memory` (aceita `scratch: true|false`), `search_memory`, `get_memory`, `list_memories`, `delete_memory` (só remove memórias gravadas com `scratch: true` — permanentes são recusadas por design).
+- **`agent-delegate`** (skill): critérios para decidir se/para qual CLI-modelo delegar uma tarefa (qualquer CLI pode chamar qualquer outro via seu modo não-interativo: `claude -p`, `agy --print`, `opencode run`), sempre consultando o `memory-mcp` antes de montar o prompt delegado.
 
 ### Contexto e sessões longas
 
 - **`context-guard`** (skill): zonas de saúde, sinais de drift, reancoragem após compaction e checkpoint. **Obrigatória por padrão** em tarefas multi-etapa/sessões longas (referenciada nas `global-rules`, no topo e na reafirmação final).
 - **`STATE.md`**: fonte de verdade para retomar sessões. Base em `templates/STATE.md`; mantenha no projeto.
-- Ferramentas de baixo token: `ast-outline`, `trace-strip`, `docs-fetch`, `docs-mcp`, `db-guardian` (ver `token-saving-toolkit`).
+- Ferramentas de baixo token: `ast-outline`, `trace-strip`, `docs-fetch`, `docs-mcp`, `memory-mcp`, `db-guardian` (ver `token-saving-toolkit`).
 - **Hook do `context-guard`** (`hooks/context-guard-nudge.sh`): como a skill acima depende só da autodisciplina do modelo, o `-apply` também instala um lembrete real no nível do harness, disparado a cada N chamadas de ferramenta (padrão 40, `AGENT_SYNC_NUDGE_THRESHOLD`) cobrando o carregamento do `context-guard` e a atualização do `STATE.md`. Cobertura por CLI:
   - **Claude Code**: hook `PostToolUse` mesclado em `~/.claude/settings.json` (preserva hooks/chaves existentes, reaplicação idempotente).
   - **Codex**: hook `PostToolUse` mesclado em `~/.codex/hooks.json`.
@@ -146,7 +154,7 @@ Verifica o `go` disponível e, se ausente/antigo, instala a versão exigida pelo
 ```bash
 make install
 ```
-Isso compilará os binários em Go (`agent-sync`, `ast-outline`, `trace-strip`, `db-guardian`, `docs-fetch`, `docs-mcp`) e os colocará em `~/.local/bin/`.
+Isso compilará os binários em Go (`agent-sync`, `ast-outline`, `trace-strip`, `db-guardian`, `docs-fetch`, `docs-mcp`, `memory-mcp`) e os colocará em `~/.local/bin/`.
 
 ### 4. Sincronizar com todas as CLIs
 ```bash
