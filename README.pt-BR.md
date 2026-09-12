@@ -78,15 +78,16 @@ Curadas por domínio no `skills/manifest.json` e importadas de [rmyndharis/antig
 | Pesquisa web | `search-specialist` |
 | Contexto | `context-manager`, `context-management-context-save` |
 
-Além das vendorizadas, há **10 skills autorais em PT-BR** (não existem no catálogo):
-`ddd`, `design-patterns`, `object-calisthenics`, `symfony`, `doctrine`, `phpunit-symfony`, `docs-research`, `context-guard`, `sentry` e `agent-delegate`.
+Além das vendorizadas, há **11 skills autorais em PT-BR** (não existem no catálogo):
+`ddd`, `design-patterns`, `object-calisthenics`, `symfony`, `doctrine`, `phpunit-symfony`, `docs-research`, `context-guard`, `sentry`, `agent-delegate` e `arch-context-check`.
 
 ### Memória compartilhada entre CLIs
 
 - **`memory-mcp`** (`tools/cmd/memory-mcp`): servidor MCP local sobre libSQL (`~/.cache/agent-sync/memory.db`, sem sync remoto) que dá a Claude Code, Codex, agy e OpenCode acesso ao mesmo histórico de decisões/feedback/contexto de projeto. Requer CGO (`go-libsql`) — assumido aceitável para uso pessoal (gcc/clang já é pré-requisito do `make`).
 - Busca hoje é **FTS5/BM25** (relevância por texto), sem embedding real — o schema já reserva uma coluna vetorial (`embedding_json`) para uma fase futura de busca semântica.
 - Ferramentas MCP expostas: `store_memory` (aceita `scratch: true|false`), `search_memory`, `get_memory`, `list_memories`, `delete_memory` (só remove memórias gravadas com `scratch: true` — permanentes são recusadas por design).
-- **`agent-delegate`** (skill): critérios para decidir se/para qual CLI-modelo delegar uma tarefa (qualquer CLI pode chamar qualquer outro via seu modo não-interativo: `claude -p`, `agy --print`, `opencode run`), sempre consultando o `memory-mcp` antes de montar o prompt delegado.
+- **`agent-delegate`** (skill): critérios para decidir se/para qual CLI-modelo delegar uma tarefa (qualquer CLI pode chamar qualquer outro via seu modo não-interativo: `claude -p`, `agy --print`, `opencode run`), sempre consultando o `memory-mcp` antes de montar o prompt delegado. Inclui limitação documentada: Claude Code não consegue orquestrar `agy` em modo headless (classificador de segurança do harness recusa permissões amplas a um agente autônomo).
+- **`arch-context-check`** (skill): checklist obrigatório antes de sugerir arquitetura/Clean Code/DDD/padrões de projeto — cruza os skills especializados (`ddd`, `design-patterns`, `object-calisthenics`, `architecture-patterns`) com decisões anteriores no `memory-mcp` e com o código real, antes de dar uma sugestão.
 
 ### Contexto e sessões longas
 

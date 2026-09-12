@@ -6,7 +6,8 @@
 
 - Implementar `memory-mcp`: memória compartilhada entre Claude Code, agy, OpenCode e Codex via libSQL local (CGO ok, uso pessoal confirmado).
 - Registrar skill `agent-delegate` com critérios de delegação de tarefas entre CLIs (any-to-any, via modos non-interactive: `claude -p`, `agy --print`, `opencode run`).
-- Status: **implementação concluída e testada de ponta a ponta**. `make install`/`setup-mcp.sh` rodados de verdade; MCP `memory` conectado em Claude Code, agy e OpenCode. Teste real de delegação: Claude gravou uma convenção no `memory-mcp`, `opencode run` (modelo `deepseek-v4.1-flash`) leu via MCP e criou o arquivo especificado — verificado o conteúdo real, não só a saída do agente. Guardrail de delete implementado e testado: `delete_memory` só remove memórias com `scratch=true`; recusa memórias permanentes.
+- Registrar skill `arch-context-check`: checklist obrigatório antes de sugerir arquitetura/Clean Code/DDD/padrões — cruza skills especializados + `memory-mcp` + código real antes de responder.
+- Status: **tudo implementado, testado e commitado/pushado** (commit `15c77ed`). `memory-mcp` + `delete_memory`/`scratch` + `agent-delegate` (com limitação Claude→agy documentada) + `arch-context-check` recém-criada (ainda não commitada).
 
 ## Decisões tomadas
 
