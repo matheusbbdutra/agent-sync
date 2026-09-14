@@ -306,11 +306,24 @@ func main() {
 			fmt.Printf("✅ [%s] Hook de context-guard instalado em: %s\n", t.Name, t.HooksSettingsPath)
 		}
 
+		// Instala o lembrete de memory-mcp (store_memory), hoje dependente só
+		// da disciplina do modelo.
+		if err := syncMemoryNudgeHook(baseDir, t); err != nil {
+			fmt.Printf("⚠️  [%s] Falha ao sincronizar hook de memória: %v\n", t.Name, err)
+		} else if t.HooksSettingsPath != "" {
+			fmt.Printf("✅ [%s] Hook de lembrete de memória instalado em: %s\n", t.Name, t.HooksSettingsPath)
+		}
+
 		// OpenCode: plugin TS best-effort (ver limitação documentada no hooks.go)
 		if err := syncOpenCodePlugin(baseDir, t); err != nil {
 			fmt.Printf("⚠️  [%s] Falha ao sincronizar plugin: %v\n", t.Name, err)
 		} else if t.OpenCodePluginDir != "" {
 			fmt.Printf("✅ [%s] Plugin de context-guard instalado em: %s (best-effort, ver README)\n", t.Name, t.OpenCodePluginDir)
+		}
+		if err := syncOpenCodeMemoryNudgePlugin(baseDir, t); err != nil {
+			fmt.Printf("⚠️  [%s] Falha ao sincronizar plugin de memória: %v\n", t.Name, err)
+		} else if t.OpenCodePluginDir != "" {
+			fmt.Printf("✅ [%s] Plugin de lembrete de memória instalado em: %s (best-effort, ver README)\n", t.Name, t.OpenCodePluginDir)
 		}
 
 		// docs-cache: cacheia passivamente docs consultadas via WebFetch/

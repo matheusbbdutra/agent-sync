@@ -9,6 +9,7 @@ import (
 
 const contextGuardHookName = "agent-sync-context-guard"
 const docsCacheHookName = "agent-sync-docs-cache"
+const memoryNudgeHookName = "agent-sync-memory-nudge"
 
 // hookEntry é o formato comum a Claude Code e Gemini CLI para um item de hooks.<Evento>[].
 type hookEntry struct {
@@ -36,6 +37,20 @@ func syncHooks(baseDir string, target TargetCLI) error {
 		return syncAntigravityHook(baseDir, target, contextGuardHookName, scriptName, "*")
 	}
 	return syncStandardHook(baseDir, target, contextGuardHookName, scriptName, "*")
+}
+
+// syncMemoryNudgeHook instala o hook que lembra periodicamente de checar/
+// gravar memoria via memory-mcp (store_memory), ja que hoje isso depende
+// so da disciplina do modelo seguindo o CLAUDE.md. Suportado onde já existe
+// HooksSettingsPath/HooksEvent (Claude Code, Codex e Antigravity).
+func syncMemoryNudgeHook(baseDir string, target TargetCLI) error {
+	if target.HooksSettingsPath == "" || target.HooksEvent == "" {
+		return nil
+	}
+	if target.HooksFormat == "antigravity" {
+		return syncAntigravityHook(baseDir, target, memoryNudgeHookName, "memory-nudge.antigravity.sh", "*")
+	}
+	return syncStandardHook(baseDir, target, memoryNudgeHookName, "memory-nudge.sh", "*")
 }
 
 // syncDocsCacheHook instala o hook que cacheia passivamente docs consultadas
@@ -169,6 +184,19 @@ func syncOpenCodePlugin(baseDir string, target TargetCLI) error {
 		return fmt.Errorf("plugin do hook não encontrado: %s", src)
 	}
 	return copyFile(src, filepath.Join(target.OpenCodePluginDir, "context-guard-nudge.ts"))
+}
+
+// syncOpenCodeMemoryNudgePlugin instala o plugin best-effort de lembrete de
+// memory-mcp (store_memory) para o OpenCode.
+func syncOpenCodeMemoryNudgePlugin(baseDir string, target TargetCLI) error {
+	if target.OpenCodePluginDir == "" {
+		return nil
+	}
+	src := filepath.Join(baseDir, "hooks", "memory-nudge.opencode.ts")
+	if _, err := os.Stat(src); err != nil {
+		return fmt.Errorf("plugin do hook não encontrado: %s", src)
+	}
+	return copyFile(src, filepath.Join(target.OpenCodePluginDir, "memory-nudge.ts"))
 }
 
 // syncOpenCodeDocsCachePlugin instala o plugin best-effort que cacheia
