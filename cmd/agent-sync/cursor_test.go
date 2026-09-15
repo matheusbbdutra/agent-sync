@@ -70,8 +70,17 @@ func TestMergeCursorHooksJSONIdempotent(t *testing.T) {
 		t.Fatalf("deveria preservar afterFileEdit: %+v", afterEdit)
 	}
 	post := decodeCursorHookEntries(hooks["postToolUse"])
-	if len(post) != 3 {
-		t.Fatalf("esperava 3 postToolUse gerenciados, got %d: %+v", len(post), post)
+	if len(post) != 4 {
+		t.Fatalf("esperava 4 postToolUse gerenciados, got %d: %+v", len(post), post)
+	}
+	var hasReact bool
+	for _, e := range post {
+		if strings.Contains(e.Command, "agent-react-nudge.cursor.sh") {
+			hasReact = true
+		}
+	}
+	if !hasReact {
+		t.Fatalf("agent-react-nudge ausente em postToolUse: %+v", post)
 	}
 	before := decodeCursorHookEntries(hooks["beforeShellExecution"])
 	if len(before) != 1 || !strings.Contains(before[0].Command, "bash-guardian.cursor.sh") {

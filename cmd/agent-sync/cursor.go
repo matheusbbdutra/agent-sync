@@ -26,6 +26,7 @@ func cursorManagedHooks() []cursorHookDef {
 	return []cursorHookDef{
 		{Event: "postToolUse", Script: "context-guard-nudge.cursor.sh"},
 		{Event: "postToolUse", Script: "memory-nudge.cursor.sh"},
+		{Event: "postToolUse", Script: "agent-react-nudge.cursor.sh"},
 		{Event: "postToolUse", Script: "docs-cache.cursor.sh", Matcher: "WebFetch"},
 		{Event: "afterMCPExecution", Script: "docs-cache-mcp.cursor.sh", Matcher: "query-docs"},
 		{Event: "beforeShellExecution", Script: "bash-guardian.cursor.sh"},

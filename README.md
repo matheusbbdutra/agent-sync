@@ -78,8 +78,8 @@ Curated by domain in `skills/manifest.json` and imported from [rmyndharis/antigr
 | Web research | `search-specialist` |
 | Context | `context-manager`, `context-management-context-save` |
 
-In addition to the vendored ones, there are **11 authored skills in Portuguese (PT-BR)** (not present in the catalog):
-`ddd`, `design-patterns`, `object-calisthenics`, `symfony`, `doctrine`, `phpunit-symfony`, `docs-research`, `context-guard`, `sentry`, `agent-delegate`, and `arch-context-check`.
+In addition to the vendored ones, there are **12 authored skills in Portuguese (PT-BR)** (not present in the catalog):
+`ddd`, `design-patterns`, `object-calisthenics`, `symfony`, `doctrine`, `phpunit-symfony`, `docs-research`, `context-guard`, `sentry`, `agent-delegate`, `arch-context-check`, and `agent-react`.
 
 ### Shared memory across CLIs
 
@@ -93,6 +93,8 @@ In addition to the vendored ones, there are **11 authored skills in Portuguese (
   - **OpenCode**: `tool.execute.after` plugin copied to `~/.config/opencode/plugins/memory-nudge.ts`. Same best-effort caveat as `context-guard-nudge` ([anomalyco/opencode#13574](https://github.com/anomalyco/opencode/issues/13574)).
   - **Cursor**: `postToolUse` command hook in `~/.cursor/hooks.json` (script under `~/.cursor/hooks/`, output uses native `additional_context`).
 - **`agent-delegate`** (skill): criteria for deciding whether/to which CLI-model to delegate a task, using permission-friction profiles (`print` vs `session`; default headless target: OpenCode). Prefer `delegate-run` (`scripts/delegate-run.sh`, installed by `make install`) for log/manifest/tmux instead of raw Bash. Always check `memory-mcp` before building the delegated prompt. Documented limitation: Claude Code cannot orchestrate `agy` in headless mode.
+- **`agent-react`** (skill): disciplines the ReAct loop (Thought → Action → Observation) on multi-step tasks — anti-loop, tool budget, and cited evidence; complements `context-guard` / `debugging-strategies` without replacing them.
+- **`agent-react-nudge` hook** (`hooks/agent-react-nudge.sh` / `.antigravity.sh` / `.opencode.ts` / `.cursor.sh`): reminder every N tool calls/invocations (default 15, `AGENT_SYNC_REACT_NUDGE_THRESHOLD`) to validate active hypotheses before concluding/implementing. Same install mechanism as the other nudges; OpenCode is best-effort ([anomalyco/opencode#13574](https://github.com/anomalyco/opencode/issues/13574)). Does not semantically guarantee correctness — only reinforces hypothesis ≠ fact.
 - **`arch-context-check`** (skill): mandatory checklist before suggesting architecture/Clean Code/DDD/design patterns — cross-references the specialized skills (`ddd`, `design-patterns`, `object-calisthenics`, `architecture-patterns`) with prior decisions in `memory-mcp` and the actual code before giving a suggestion.
 
 ### Context and long sessions

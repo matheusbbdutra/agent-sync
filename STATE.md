@@ -2,21 +2,38 @@
 
 > Fonte de verdade para retomar o trabalho entre sessões/compactions.
 
-## Tarefa atual — delegate-run watch (passo 4)
+## Meta atual
 
-- `delegate-run watch <id>`: poll até `done` (exit 0) / `failed` (1) / timeout (3).
-- `--fail-on-stall` → exit 2 se log idle ≥ stall threshold.
-- `--interval` / `--timeout` (ou env `AGENT_SYNC_DELEGATE_WATCH_*`).
+- Hook `agent-react-nudge` (validação de hipóteses) nas 5 CLIs.
+- Status: concluído
 
-## Plano de delegação (completo)
+## Decisões tomadas
 
-1. Skill print/session + matriz de permissão
-2. `delegate-run` (tmux + log + manifesto)
-3. Contrato `DELEGATE_RESULT` + `result`
-4. `watch` / stalled poll
+- Nudge (não gate): threshold 15, env `AGENT_SYNC_REACT_NUDGE_THRESHOLD`
+- Mesmo padrão de context-guard/memory; OpenCode best-effort
+- Hipótese ≠ fato já em global-rules + skill agent-react
+
+## Estado do repositório
+
+- Branch: `main`
+- Mudanças não commitadas: agent-react skill, hooks, wiring Go, READMEs, STATE.md, global-rules
+
+## Arquivos-chave
+
+- `hooks/agent-react-nudge.{sh,cursor.sh,antigravity.sh,opencode.ts}`
+- `cmd/agent-sync/hooks.go` / `cursor.go` / `main.go`
+- `skills/agent-react/SKILL.md`
 
 ## Próximos passos
 
-1. Usar na prática (OpenCode print / agy session).
-2. Não commitiar sem pedido explícito.
-3. Fora de escopo ainda: embedding no memory-mcp; heurística automática de modelo.
+1. Commit quando o usuário pedir
+2. Observar ruído do threshold 15 na prática
+
+## Bloqueios / perguntas abertas
+
+- Nenhum
+
+## Contexto para reancorar
+
+- Regras: PT-BR; hipótese ≠ fato; nudge ≠ garantia
+- Verificação: `grep agent-react ~/.cursor/hooks.json` + `go test ./cmd/agent-sync/`

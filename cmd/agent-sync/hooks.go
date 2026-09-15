@@ -10,6 +10,7 @@ import (
 const contextGuardHookName = "agent-sync-context-guard"
 const docsCacheHookName = "agent-sync-docs-cache"
 const memoryNudgeHookName = "agent-sync-memory-nudge"
+const agentReactNudgeHookName = "agent-sync-agent-react-nudge"
 
 // hookEntry é o formato comum a Claude Code e Gemini CLI para um item de hooks.<Evento>[].
 type hookEntry struct {
@@ -51,6 +52,18 @@ func syncMemoryNudgeHook(baseDir string, target TargetCLI) error {
 		return syncAntigravityHook(baseDir, target, memoryNudgeHookName, "memory-nudge.antigravity.sh", "*")
 	}
 	return syncStandardHook(baseDir, target, memoryNudgeHookName, "memory-nudge.sh", "*")
+}
+
+// syncAgentReactNudgeHook instala o lembrete de validacao de hipoteses
+// (skill agent-react): hipotese != fato; validar ou pedir passo ao usuario.
+func syncAgentReactNudgeHook(baseDir string, target TargetCLI) error {
+	if target.HooksSettingsPath == "" || target.HooksEvent == "" {
+		return nil
+	}
+	if target.HooksFormat == "antigravity" {
+		return syncAntigravityHook(baseDir, target, agentReactNudgeHookName, "agent-react-nudge.antigravity.sh", "*")
+	}
+	return syncStandardHook(baseDir, target, agentReactNudgeHookName, "agent-react-nudge.sh", "*")
 }
 
 // syncDocsCacheHook instala o hook que cacheia passivamente docs consultadas
@@ -197,6 +210,19 @@ func syncOpenCodeMemoryNudgePlugin(baseDir string, target TargetCLI) error {
 		return fmt.Errorf("plugin do hook não encontrado: %s", src)
 	}
 	return copyFile(src, filepath.Join(target.OpenCodePluginDir, "memory-nudge.ts"))
+}
+
+// syncOpenCodeAgentReactNudgePlugin instala o plugin best-effort de lembrete
+// de validacao de hipoteses (agent-react) para o OpenCode.
+func syncOpenCodeAgentReactNudgePlugin(baseDir string, target TargetCLI) error {
+	if target.OpenCodePluginDir == "" {
+		return nil
+	}
+	src := filepath.Join(baseDir, "hooks", "agent-react-nudge.opencode.ts")
+	if _, err := os.Stat(src); err != nil {
+		return fmt.Errorf("plugin do hook não encontrado: %s", src)
+	}
+	return copyFile(src, filepath.Join(target.OpenCodePluginDir, "agent-react-nudge.ts"))
 }
 
 // syncOpenCodeDocsCachePlugin instala o plugin best-effort que cacheia
