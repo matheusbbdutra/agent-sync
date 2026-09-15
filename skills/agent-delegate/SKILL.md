@@ -1,61 +1,103 @@
 ---
 name: agent-delegate
-description: Critérios para decidir se e para qual CLI/modelo delegar uma tarefa (Claude Code, Codex, Antigravity/agy, OpenCode), usando o modo não-interativo de cada um e a memória compartilhada (`memory` MCP). Use quando o usuário pedir para "mandar isso pra outro agente/modelo", ao avaliar se uma tarefa é barata/mecânica o suficiente para rodar num modelo mais econômico, ou ao decidir se vale delegar em vez de executar você mesmo.
+description: Critérios para decidir se e para qual CLI/modelo delegar uma tarefa (Claude Code, Codex, Antigravity/agy, OpenCode, Cursor), usando o modo adequado ao perfil de permissão de cada harness e a memória compartilhada (`memory` MCP). Use quando o usuário pedir para "mandar isso pra outro agente/modelo", ao avaliar se uma tarefa é barata/mecânica o suficiente para rodar num modelo mais econômico, ou ao decidir se vale delegar em vez de executar você mesmo.
 ---
 
 # Delegação entre agentes/CLIs
 
-Responda em PT-BR, objetivo (CLAUDE.md global). Esta skill não cria uma orquestração automática — é um checklist para decidir manualmente se/para onde delegar. A infra de suporte é a memória compartilhada (`memory-mcp`, ver `tools/cmd/memory-mcp`) mais os modos não-interativos que cada CLI já expõe:
+Responda em PT-BR, objetivo (CLAUDE.md global). Esta skill não cria orquestração automática — é um checklist para decidir se/para onde/como delegar. Infra de suporte: memória compartilhada (`memory-mcp`) + modos print/session que cada CLI já expõe.
 
-- Claude Code: `claude -p "<prompt>"`
-- Antigravity (agy): `agy --print "<prompt>"` (ou `-p`)
-- OpenCode: `opencode run "<mensagem>"`
+## Modos de execução
 
-Qualquer CLI pode chamar qualquer outro via `Bash`/subprocess — é simétrico em teoria (agy → opencode, opencode → claude, claude → agy, etc.), não é uma via de mão única "Claude delega pro barato". **Na prática, Claude Code → agy tem uma limitação conhecida** (ver seção abaixo) — as demais direções não apresentaram esse problema nos testes feitos.
+| Modo | Quando | Como |
+| --- | --- | --- |
+| **`print`** | tarefa mecânica, fácil de auditar, alvo permissivo, sem expectativa de prompt de permissão | `claude -p`, `opencode run`, `agent -p`, e só excepcionalmente `agy -p` |
+| **`session`** | alvo pedirá permissão, tarefa longa, ou você pode precisar intervir | CLI **interativo** (ex.: `agy -i` / `--prompt-interactive`, ou sessão tmux detachable). O orquestrador **não** bloqueia no TTY — avisa o usuário a attachar se precisar aprovar |
 
-## Limitação conhecida: Claude Code não consegue orquestrar `agy` em modo headless
+Não trate todos os CLIs como equivalentes no passo “rodar via Bash”. O critério decisivo é o **perfil de fricção de permissão** do harness, não só o modelo.
 
-Testado em 2026-09-12: delegar do Claude Code para `agy --print` esbarra no classificador de segurança do próprio harness do Claude Code ("Create Unsafe Agents"), não em uma limitação do `agy` ou do `memory-mcp`.
+## Perfil de permissão por alvo
 
-- `agy --print` sem nenhuma flag especial falha sozinho: modo headless não consegue aprovar permissões de ferramenta (MCP, escrita de arquivo, comando) interativamente, e nega tudo por padrão.
-- `--dangerously-skip-permissions` e `--mode accept-edits` são recusados pelo classificador do Claude Code antes mesmo de chegar ao `agy` — é uma concessão de capacidade ampla demais para um agente autônomo, e isso é bloqueado independente de confirmação do usuário no chat.
-- Escopar a permissão no `settings.json` do agy (`mcp(memory/*)`, `write_file(/caminho/especifico/*)`, `read_file(/caminho/especifico/*)`) **funcionou uma vez** (permissão restrita a um diretório específico, não `*` global).
-- Mas: (a) qualquer permissão de `command(...)` com argumento livre (ex.: `command(python3 *)`, necessário pro agy verificar o próprio script rodando) continua sendo recusada, e com razão — é execução arbitrária de comando; e (b) em tentativas repetidas na mesma sessão, o classificador passou a bloquear até a variante já validada como seguro, sugerindo que ele também pondera o padrão de insistência, não só o conteúdo de cada comando isoladamente.
+| Alvo | Perfil | Comando print | Uso em delegação |
+| --- | --- | --- | --- |
+| **OpenCode** | permissivo (deny-list; só padrões perigosos pedem `ask`) | `opencode run "<mensagem>"` | **default** para headless / trabalho mecânico |
+| **Cursor Agent** | médio (`--force` / `--yolo` só se o usuário autorizar) | `agent -p "<prompt>"` (`--workspace <path>` se precisar) | ok em workspace confiado |
+| **Claude Code** | médio/alto + classificador de segurança | `claude -p "<prompt>"` | ok em print; **não** orquestrar `agy` a partir dele |
+| **Antigravity (agy)** | allow-list estreita + sandbox; aprovar uma vez **não** generaliza (matching quase literal) | `agy -p` / `--print` | **não** usar print por padrão → modo `session`. Print só se a allowlist já cobrir exatamente as tools/comandos da tarefa |
+| **Codex** | médio | modo non-interactive do Codex | ok se a tarefa couber no sandbox dele |
 
-**Conclusão prática:** não tente automatizar Claude Code → agy via `Bash`/subprocess sem que o usuário aprove manualmente as permissões do agy primeiro (rodando `agy` interativo uma vez). Não insista tentando variações de flags/regras de permissão numa mesma sessão — isso é reconhecidamente um padrão que o próprio classificador escala para bloqueio mais amplo. Se o usuário quiser essa comparação, oriente-o a rodar `agy` interativamente e aprovar os prompts uma vez; depois disso, `agy --print` deve funcionar sem intervenção.
+### Por que o agy “pede de novo”
 
-**Direções que funcionaram sem problema:** Claude Code → OpenCode (`opencode run`), testado de ponta a ponta com sucesso (leitura de `memory-mcp` + execução + verificação real do resultado).
+No Antigravity CLI, `permissions.allow` costuma ser lista de entradas estreitas (`command(ls)`, comando literal longo, MCP específico). Variação de flag/path/tool → novo prompt. Em `--print` não há humano → nega e quebra a delegação. OpenCode, por contraste, deixa passar o que não está na deny-list — por isso é o alvo padrão de delegação automática.
 
-## Antes de delegar: consultar a memória compartilhada
+### Limitação: Claude Code → agy headless
 
-Sempre que for delegar, primeiro consulte o `memory-mcp` (`search_memory`/`list_memories`) pelo contexto/decisões já existentes relevantes à tarefa, e inclua isso no prompt que você vai passar. Delegar sem esse contexto joga fora o ganho principal: o agente-alvo (especialmente um modelo mais barato) reconstrói do zero algo que já foi decidido, com risco de contradizer uma decisão registrada.
+Testado em 2026-09-12: orquestrar `agy --print` (ou com `--dangerously-skip-permissions` / `--mode accept-edits`) a partir do Claude Code esbarra no classificador do próprio Claude (“Create Unsafe Agents”), não só no agy. Não insistir com variações de flag na mesma sessão — o classificador escala o bloqueio. Se o usuário quiser agy nessa situação: abrir agy interativo (modo `session`) ou delegar via OpenCode.
+
+`--dangerously-skip-permissions` / `--mode accept-edits` no agy: só com o usuário na frente e consciente — **nunca** como padrão desta skill.
+
+## Antes de delegar
+
+1. Consultar `memory-mcp` (`search_memory` / `list_memories`) e embutir o contexto no prompt do alvo.
+2. Escolher alvo pelo **perfil de permissão** (tabela acima), depois pelo modelo/custo.
+3. Escolher modo `print` vs `session` conforme a tabela.
+4. Default quando a tarefa é mecânica e o alvo não importa: **`opencode run`**.
+
+Ao gravar memórias: `agent` = `claude-code` | `codex` | `antigravity` | `opencode` | `cursor`.
 
 ## Critérios para decidir se delega
 
-1. **Risco/reversibilidade da tarefa.** Mecânica e fácil de verificar (boilerplate, busca, resumo, formatação, teste repetitivo) → pode ir para um modelo mais barato. Decisão de arquitetura, segurança, ou algo difícil de auditar depois → mantenha no modelo/CLI que já está conduzindo a sessão.
-2. **Custo de verificação.** Só delegue se checar o resultado for mais barato do que você mesmo ter feito a tarefa. Se validar a saída exige o mesmo cuidado de tê-la escrito, não há ganho.
-3. **Capacidade necessária.** Alguns CLIs têm ferramentas que outros não têm (ex.: automação de browser só num deles). Isso restringe o alvo possível, independente de custo.
-4. **Contexto disponível.** Só delegue se a memória compartilhada já tiver o suficiente para o agente-alvo não precisar "descobrir" algo caro sozinho — senão a delegação não economiza nada.
-5. **Escolha explícita, não heurística automática.** Quem inicia a delegação (você ou o usuário) escolhe o CLI/modelo-alvo na hora, usando os critérios acima como checklist mental. Não tente automatizar "qual modelo pra qual tarefa" com regras codificadas — é over-engineering para uso pessoal e esconde a decisão de quem deveria fazê-la.
-
-## Apagar memória: só o que foi marcado como descartável
-
-`delete_memory` só remove memórias gravadas com `scratch: true` no `store_memory` — memórias permanentes (decisões, feedback, contexto de projeto) são recusadas por design, mesmo que pareçam irrelevantes depois. Se algo realmente precisar sair, isso é uma ação manual deliberada (editar o `.db` direto), não uma chamada de ferramenta que qualquer agente delegado poderia disparar. Ao gravar algo que é só teste/rascunho/experimento de uma delegação, marque `scratch: true` desde o início para poder limpar depois sem fricção.
-
-## Proveniência e confiança
-
-Ao gravar uma memória vinda de uma tarefa delegada, registre o campo `agent` corretamente no `memory-mcp` (`store_memory`). Uma memória gravada por um modelo mais barato pede mais cautela ao ser reutilizada depois — não é motivo para não gravar, é motivo para, ao reler, considerar se vale reverificar antes de tratar como fato.
+1. **Risco/reversibilidade.** Mecânica e fácil de verificar → pode ir para modelo mais barato (de preferência OpenCode em print). Arquitetura, segurança, irreversível → mantenha no CLI da sessão.
+2. **Custo de verificação.** Só delegue se checar o resultado for mais barato do que fazer você mesmo.
+3. **Capacidade necessária.** Tooling exclusivo de um CLI restringe o alvo (independente de custo).
+4. **Contexto na memória.** Sem contexto suficiente no `memory-mcp`, o alvo barato reconstrói do zero — resolva a lacuna antes de delegar.
+5. **Escolha explícita.** Você ou o usuário escolhe alvo/modo na hora; não automatizar “qual modelo pra qual tarefa”.
 
 ## Fluxo de uma delegação
 
-1. Consultar `memory-mcp` pelo contexto relevante (`search_memory`).
-2. Montar o prompt já embutindo esse contexto (não assumir que o agente-alvo vai buscar sozinho).
-3. Rodar via `Bash` o modo não-interativo do CLI/modelo escolhido.
-4. Revisar o resultado antes de aceitar como pronto — principalmente se veio de modelo mais barato e a tarefa não é puramente mecânica.
-5. Se o resultado gerar uma decisão/aprendizado que vale persistir, gravar de volta no `memory-mcp` com a proveniência correta.
+1. Consultar `memory-mcp` pelo contexto relevante.
+2. Escolher **alvo** (perfil de permissão) + **modo** (`print` / `session`).
+3. Montar o prompt já com o contexto embutido.
+4. Executar via **`delegate-run`** (preferível ao Bash cru):
+
+```bash
+# default mecânico
+delegate-run start --target opencode --mode print --prompt "…contexto + tarefa…"
+
+# agy / precisa de aprovação humana
+delegate-run start --target agy --mode session --prompt "…" --workspace /path/do/proj --name slug
+delegate-run attach <id>          # se pedir permissão
+delegate-run tail <id> -f         # observabilidade
+delegate-run status <id>          # stalled_hint se log parado (default 600s)
+delegate-run watch <id> --interval 5 --timeout 1800   # poll até done/failed
+delegate-run watch <id> --fail-on-stall               # sai 2 se stalled
+delegate-run result <id>          # lê DELEGATE_RESULT do log
+delegate-run result <id> --raw    # JSON completo
+```
+
+   - **`print`**: bloqueia até terminar; revise o log/`run.log` antes de aceitar.
+   - **`session`**: sobe tmux detached (`delegate-<id>`); o orquestrador **não** fica no TTY — avise o usuário a `attach` se o alvo pedir permissão.
+5. O `delegate-run` **injeta** no prompt o contrato de saída. O filho deve imprimir:
+
+```text
+=== DELEGATE_RESULT ===
+{"ok":true,"summary":"…","artifacts":[],"notes":""}
+=== END_DELEGATE_RESULT ===
+```
+
+   Opcional: `store_memory(name="delegate-<id>", …)` para persistir além do log.
+6. Pai: `delegate-run result <id>` (não parsear prosa do modelo). Se `has_result=false`, trate como incompleto.
+7. Se nascer decisão/aprendizado útil além do resultado → `store_memory` permanente com proveniência correta. Rascunho/teste → `scratch: true`.
+
+Dados em `~/.cache/agent-sync/delegates/<id>/` (`manifest.json`, `prompt.txt`, `run.log`, `result.json`, `exit_code`). Script: `scripts/delegate-run.sh` (`make install` → `~/.local/bin/delegate-run`).
+
+## Apagar memória
+
+`delete_memory` só remove o que foi gravado com `scratch: true`. Permanentes exigem remoção manual deliberada.
 
 ## Quando NÃO delegar
 
-- A tarefa é pequena o suficiente que delegar (montar prompt, rodar subprocesso, revisar saída) custa mais do que fazer direto.
-- A tarefa envolve decisão irreversível ou sensível (segredos, ações destrutivas, mudanças de arquitetura) — mantenha no fluxo normal de confirmação com o usuário, não terceirize a decisão em si para outro modelo.
-- Não há memória/contexto suficiente registrado e buscá-lo/produzi-lo já seria caro — nesse caso, resolva a lacuna de contexto primeiro (você mesmo), antes de sequer cogitar delegar.
+- Overhead (montar prompt + rodar + revisar) maior que fazer direto.
+- Decisão irreversível/sensível — não terceirize a decisão em si.
+- Alvo = agy e a tarefa claramente vai disparar tools fora da allowlist **e** ninguém pode ficar no modo `session` → mude o alvo (OpenCode) ou faça você mesmo.
+- Sem memória/contexto suficiente e produzi-lo já é caro.

@@ -1,6 +1,6 @@
 // memory-mcp expõe uma memória compartilhada (~/.cache/agent-sync/memory.db,
 // libSQL local) como servidor MCP (stdio), permitindo que Claude Code, Codex,
-// Antigravity (agy) e OpenCode leiam e gravem no mesmo histórico de decisões.
+// Antigravity (agy), OpenCode e Cursor leiam e gravem no mesmo histórico de decisões.
 //
 // Busca hoje é FTS5/BM25 — sem embedding real (ver internal/agentmemory).
 package main
@@ -41,7 +41,7 @@ type rpcResponse struct {
 }
 
 func toolDefinitions() []map[string]any {
-	agentEnum := []string{"claude-code", "codex", "antigravity", "opencode"}
+	agentEnum := []string{"claude-code", "codex", "antigravity", "opencode", "cursor"}
 	typeEnum := []string{"user", "feedback", "project", "reference"}
 	return []map[string]any{
 		{

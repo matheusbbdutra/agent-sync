@@ -1,5 +1,5 @@
 // Package agentmemory implementa a camada de memória compartilhada entre CLIs
-// (Claude Code, Codex, Antigravity/agy, OpenCode) sobre libSQL local (sem sync remoto).
+// (Claude Code, Codex, Antigravity/agy, OpenCode, Cursor) sobre libSQL local (sem sync remoto).
 //
 // A busca hoje é FTS5 (BM25) — sem embedding real. O schema já reserva uma coluna
 // vetorial (embedding_json) para uma fase futura de busca semântica, mas ela não é
@@ -38,7 +38,7 @@ func DefaultDBPath() (string, error) {
 // Memory é uma entrada de memória compartilhada entre agentes.
 type Memory struct {
 	ID          string
-	Agent       string // quem gravou: claude-code | codex | antigravity | opencode
+	Agent       string // quem gravou: claude-code | codex | antigravity | opencode | cursor
 	SessionID   string
 	Type        string // user | feedback | project | reference
 	Name        string

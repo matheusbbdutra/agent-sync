@@ -7,6 +7,7 @@ Unified repository to version, maintain, and synchronize **Global Rules**, **Ski
 - **Codex / OpenAI** (`~/.codex`)
 - **Google Antigravity CLI** (`~/.gemini`) — successor to the now-deprecated standalone Gemini CLI (retired 2026-06-18 for non-enterprise accounts)
 - **OpenCode** (`~/.config/opencode`)
+- **Cursor** (`~/.cursor`) — IDE + Agent CLI (`agent` / `cursor-agent`)
 
 ---
 
@@ -57,7 +58,7 @@ Defined once in `agents/*.md` (frontmatter `name`, `description`, optional `read
 | `token-optimizer` | Low-token inspection (ast-outline/trace-strip) | ✅ |
 | `sentry-debugger` | Sentry issue triage and root cause | ✅ |
 
-> "Read-only" becomes `permission.edit=deny` in OpenCode and `sandbox_mode=read-only` in Codex; elsewhere it is enforced by the prompt.
+> "Read-only" becomes `permission.edit=deny` in OpenCode, `sandbox_mode=read-only` in Codex, and `readonly: true` in Cursor; elsewhere it is enforced by the prompt.
 
 ### Skills vendored from the catalog
 
@@ -82,15 +83,16 @@ In addition to the vendored ones, there are **11 authored skills in Portuguese (
 
 ### Shared memory across CLIs
 
-- **`memory-mcp`** (`tools/cmd/memory-mcp`): local MCP server over libSQL (`~/.cache/agent-sync/memory.db`, no remote sync) giving Claude Code, Codex, agy, and OpenCode access to the same history of decisions/feedback/project context. Requires CGO (`go-libsql`) — accepted as fine for personal use (gcc/clang is already a `make` prerequisite).
+- **`memory-mcp`** (`tools/cmd/memory-mcp`): local MCP server over libSQL (`~/.cache/agent-sync/memory.db`, no remote sync) giving Claude Code, Codex, agy, OpenCode, and Cursor access to the same history of decisions/feedback/project context. Requires CGO (`go-libsql`) — accepted as fine for personal use (gcc/clang is already a `make` prerequisite).
 - Search today is **FTS5/BM25** (text relevance), no real embeddings yet — the schema already reserves a vector column (`embedding_json`) for a future semantic-search phase.
-- Exposed MCP tools: `store_memory` (accepts `scratch: true|false`), `search_memory`, `get_memory`, `list_memories`, `delete_memory` (only removes memories stored with `scratch: true` — permanent ones are refused by design).
-- **`memory-nudge` hook** (`hooks/memory-nudge.sh` / `.antigravity.sh` / `.opencode.ts`): capturing memories today depends entirely on the model's self-discipline (no automatic trigger), so `-apply` also installs a harness-level nudge that fires every N tool calls/invocations (default 25, `AGENT_SYNC_MEMORY_NUDGE_THRESHOLD`) asking whether anything from the session should be saved via `store_memory`. Same install mechanism as `context-guard-nudge` (separate counter/threshold), covering all 4 CLIs:
+- Exposed MCP tools: `store_memory` (accepts `scratch: true|false`), `search_memory`, `get_memory`, `list_memories`, `delete_memory` (only removes memories stored with `scratch: true` — permanent ones are refused by design). Provenance enum includes `cursor`.
+- **`memory-nudge` hook** (`hooks/memory-nudge.sh` / `.antigravity.sh` / `.opencode.ts` / `.cursor.sh`): capturing memories today depends entirely on the model's self-discipline (no automatic trigger), so `-apply` also installs a harness-level nudge that fires every N tool calls/invocations (default 25, `AGENT_SYNC_MEMORY_NUDGE_THRESHOLD`) asking whether anything from the session should be saved via `store_memory`. Same install mechanism as `context-guard-nudge` (separate counter/threshold), covering all 5 targets:
   - **Claude Code**: `PostToolUse` hook merged into `~/.claude/settings.json`.
   - **Codex**: `PostToolUse` hook merged into `~/.codex/hooks.json`.
   - **Antigravity CLI**: `PreInvocation` hook merged into `~/.gemini/config/hooks.json`.
   - **OpenCode**: `tool.execute.after` plugin copied to `~/.config/opencode/plugins/memory-nudge.ts`. Same best-effort caveat as `context-guard-nudge` ([anomalyco/opencode#13574](https://github.com/anomalyco/opencode/issues/13574)).
-- **`agent-delegate`** (skill): criteria for deciding whether/to which CLI-model to delegate a task (any CLI can call any other via its non-interactive mode: `claude -p`, `agy --print`, `opencode run`), always checking `memory-mcp` before building the delegated prompt. Includes a documented limitation: Claude Code cannot orchestrate `agy` in headless mode (the harness's own safety classifier refuses broad permissions granted to an autonomous agent).
+  - **Cursor**: `postToolUse` command hook in `~/.cursor/hooks.json` (script under `~/.cursor/hooks/`, output uses native `additional_context`).
+- **`agent-delegate`** (skill): criteria for deciding whether/to which CLI-model to delegate a task, using permission-friction profiles (`print` vs `session`; default headless target: OpenCode). Prefer `delegate-run` (`scripts/delegate-run.sh`, installed by `make install`) for log/manifest/tmux instead of raw Bash. Always check `memory-mcp` before building the delegated prompt. Documented limitation: Claude Code cannot orchestrate `agy` in headless mode.
 - **`arch-context-check`** (skill): mandatory checklist before suggesting architecture/Clean Code/DDD/design patterns — cross-references the specialized skills (`ddd`, `design-patterns`, `object-calisthenics`, `architecture-patterns`) with prior decisions in `memory-mcp` and the actual code before giving a suggestion.
 
 ### Context and long sessions
@@ -103,15 +105,18 @@ In addition to the vendored ones, there are **11 authored skills in Portuguese (
   - **Codex**: `PostToolUse` hook merged into `~/.codex/hooks.json`.
   - **Antigravity CLI**: `PreInvocation` hook merged into `~/.gemini/config/hooks.json` — a different top-level shape (no `hooks` wrapper key: `{"<hook-name>": {"<Event>": [...]}}`) and a different payload than the old Gemini CLI. Uses the event's native `invocationNum` counter instead of keeping its own state file.
   - **OpenCode**: `tool.execute.after` plugin copied to `~/.config/opencode/plugins/context-guard-nudge.ts`. **Best-effort**: OpenCode has an open upstream issue ([anomalyco/opencode#13574](https://github.com/anomalyco/opencode/issues/13574)) where output mutations from this hook aren't always reflected back to the model — the reminder may not reliably reach it.
+  - **Cursor**: `postToolUse` in `~/.cursor/hooks.json` returning `additional_context` (native Cursor schema; scripts live under `~/.cursor/hooks/` and are referenced as `./hooks/...`).
 - **`bash-guardian`** (`hooks/bash-guardian-patterns.txt`): asks for confirmation before running commands matching known-risky patterns (`rm -rf`, `dd` to a device, `chmod -R 777`, `curl | sh`, `git push --force`, `git reset --hard`, `shutdown`, etc.). Default behavior is always **ask**, never a silent deny. Coverage per CLI:
   - **Claude Code**: patterns added to the native `permissions.ask` list in `settings.json` (e.g. `Bash(rm -rf *)`).
   - **OpenCode**: merged into `permission.bash` in `~/.config/opencode/opencode.json`, each set to `"ask"`. Since OpenCode resolves `permission.bash` by the **last matching rule** (order-sensitive), the merge preserves the original key order of anything already in the file and only appends/reorders the guard's own entries at the end — never re-sorts unrelated keys. **Note**: if a pattern already existed with a different value (e.g. a user-set `"allow"`), the guard overwrites it to `"ask"` — that's the point of the guardrail, but worth knowing before running `-apply` on an existing config.
   - **Antigravity CLI**: `PreToolUse` hook (`hooks/bash-guardian.antigravity.sh`) returning `{"decision":"ask"}` on a match.
+  - **Cursor**: `beforeShellExecution` hook (`hooks/bash-guardian.cursor.sh`) returning `{"permission":"ask"}` on a match — Cursor supports interactive confirmation natively here.
   - **Codex**: **not implemented**. Its `PreToolUse` hook only supports binary `allow`/`deny` — `"ask"` is explicitly documented as "parsed but not supported yet." Rather than silently downgrade to `deny` (blocking real work) or `allow` (no protection), Codex is left out of the guard until upstream ships interactive confirmation from hooks.
 - **`docs-cache`** (`tools/cmd/docs-cache-write` + `hooks/docs-cache*`): passively caches documentation the agent already looked up via `WebFetch`/`read_url_content` or `context7` (`query-docs` only — `resolve-library-id` is metadata, not doc content), without re-fetching over the network. Grows the offline `docs-fetch` cache organically as libraries get consulted, on top of the manually curated `mirror/sources.json`. `context7` results are cached under a synthetic key (`context7:/<libraryId>/<query>`). Before caching, content passes through `tools/internal/secretscan` (regex-only, no LLM call) that redacts obvious secrets (AWS/GitHub/Slack keys, JWTs, private-key blocks) — see `STATE.md` guidance in `context-guard` for the equivalent discipline where no automatic guardrail exists. Coverage per CLI:
   - **Claude Code / Codex**: shared `PostToolUse` hook (`hooks/docs-cache.sh`), matcher `WebFetch|mcp__context7__.*`. Codex has no full-page fetch tool, so only the `context7` half applies there.
   - **Antigravity CLI**: `PostToolUse` hook (`hooks/docs-cache.antigravity.sh`) matching `read_url_content|call_mcp_tool`. Antigravity's hook payload doesn't include the tool's result — the script reads it from the documented `transcriptPath` (JSONL), locating the entry at `step_index + 1`, confirmed by live-testing against a real `agy` session. The `read_url_content` argument name (`Url`) is a reasonable inference from that tool's PascalCase convention, **not confirmed live** (permission testing for it was blocked by this session's own safety classifier before confirmation).
   - **OpenCode**: `tool.execute.after` plugin (`hooks/docs-cache.opencode.ts`), same best-effort caveat as `context-guard-nudge.ts`.
+  - **Cursor**: `postToolUse` matcher `WebFetch` + `afterMCPExecution` matcher `query-docs` (`hooks/docs-cache.cursor.sh` / `docs-cache-mcp.cursor.sh`).
 
 ### Research and documentation
 
@@ -124,7 +129,7 @@ In addition to the vendored ones, there are **11 authored skills in Portuguese (
   docs-fetch -list                    # cached docs
   ```
   Sources curated in `mirror/sources.json`: Symfony, Doctrine (ORM/DBAL/Collections/Migrations), PHP, PSR, PHPUnit, Composer, Go, TypeScript, JavaScript/MDN, Node, React, Vue, Next.js, Tailwind, Vite, Laravel, Rails, Python, Django, FastAPI, Spring Boot, .NET/C#, Rust, Elixir, Vitest, Jest, Playwright, PostgreSQL, SQLite, MariaDB, MongoDB, Redis, Kafka, Elasticsearch, RabbitMQ, Docker, Kubernetes, Terraform, Nginx, Git, ESLint, OWASP.
-- **MCPs** in the 4 CLIs:
+- **MCPs** in the 5 targets:
   - `context7` — up-to-date library docs. **Remote** by default; **local/stdio** with `CONTEXT7_LOCAL=1`.
     ```bash
     make mcp                                   # remote
@@ -132,10 +137,25 @@ In addition to the vendored ones, there are **11 authored skills in Portuguese (
     CONTEXT7_API_KEY=xxx make mcp              # higher limits (not stored in the repo)
     ```
   - `docs` — **local offline MCP** (`docs-mcp`) that searches the `docs-fetch` cache. Works without internet after `make mirror`.
+  - `memory` — shared local memory (`memory-mcp`) across all CLIs including Cursor (`~/.cursor/mcp.json`).
   - `sentry` — Sentry errors/performance (**optional**, OAuth). Set the URL with org/project:
     ```bash
     SENTRY_MCP_URL=https://mcp.sentry.dev/mcp/<org>/<proj> make mcp
     ```
+
+### Cursor specifics
+
+On `-apply` / `-target cursor`, agent-sync writes:
+
+| Artifact | Path |
+| --- | --- |
+| Global rules | `~/.cursor/rules/agent-sync-global.mdc` (`alwaysApply: true`) — local file rules; do **not** confuse with account-synced User Rules in the UI |
+| Skills | `~/.cursor/skills/<name>/` (symlinks) — **never** `~/.cursor/skills-cursor/` (Cursor built-ins) |
+| Subagents | `~/.cursor/agents/<name>.md` (`model: inherit`, optional `readonly: true`) |
+| Hooks | `~/.cursor/hooks.json` + scripts in `~/.cursor/hooks/` |
+| MCP | via `make mcp` → `~/.cursor/mcp.json` (`mcpServers`) |
+
+Caveats: user-level hooks do **not** run on Cloud Agents; Cloud Agents only pick up project `.cursor/hooks.json`. UI User Rules are account-synced and have no filesystem path — the `.mdc` under `~/.cursor/rules/` is the versionable stand-in.
 
 > Context7 is hosted: even in local mode (stdio) the server calls the context7.com API — it is not offline. For true offline, use the `docs` MCP + `make mirror`.
 

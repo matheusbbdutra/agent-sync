@@ -138,6 +138,12 @@ func renderAgent(kind string, agent agentSource) (string, string, error) {
 	switch kind {
 	case "claude":
 		return agent.Name + ".md", markdownAgent(agent, nil), nil
+	case "cursor":
+		extra := []string{"model: inherit"}
+		if agent.ReadOnly {
+			extra = append(extra, "readonly: true")
+		}
+		return agent.Name + ".md", markdownAgent(agent, extra), nil
 	case "opencode":
 		extra := []string{"mode: subagent"}
 		if agent.ReadOnly {

@@ -4,6 +4,7 @@
 #   - docs     : MCP local offline sobre o cache do docs-fetch (~/.cache/agent-sync/docs)
 #   - memory   : memória compartilhada entre CLIs via libSQL local (~/.cache/agent-sync/memory.db)
 #   - sentry   : erros/performance do Sentry (opcional; defina SENTRY_MCP_URL)
+# Alvos: Claude Code, Codex, Antigravity (agy), OpenCode, Cursor (~/.cursor/mcp.json)
 #
 # Uso:
 #   bash scripts/setup-mcp.sh
@@ -48,6 +49,27 @@ with open(path, "w") as fh:
 PY
 }
 
+upsert_cursor() {
+  local name="$1" spec="$2"
+  command -v python3 >/dev/null 2>&1 || { echo "⚠️  python3 ausente; pulando cursor"; return 0; }
+  python3 - "$name" "$spec" <<'PY'
+import json, os, sys
+name, spec = sys.argv[1], json.loads(sys.argv[2])
+path = os.path.expanduser("~/.cursor/mcp.json")
+data = {}
+if os.path.exists(path):
+    with open(path) as fh:
+        raw = fh.read().strip()
+        if raw:
+            data = json.loads(raw)
+data.setdefault("mcpServers", {})[name] = spec
+os.makedirs(os.path.dirname(path), exist_ok=True)
+with open(path, "w") as fh:
+    json.dump(data, fh, indent=2, ensure_ascii=False)
+    fh.write("\n")
+PY
+}
+
 # ── Context7 ────────────────────────────────────────────────────────────────
 setup_context7() {
   local local_mode="${CONTEXT7_LOCAL:-0}"
@@ -67,6 +89,9 @@ setup_context7() {
     fi
     if command -v opencode >/dev/null 2>&1; then
       upsert_opencode "$CONTEXT7_NAME" '{"type":"local","command":["npx","-y","@upstash/context7-mcp"],"enabled":true}'
+    fi
+    if [ -d "$HOME/.cursor" ] || command -v agent >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1; then
+      upsert_cursor "$CONTEXT7_NAME" '{"command":"npx","args":["-y","@upstash/context7-mcp"]}'
     fi
   else
     echo "→ Context7 em modo remoto ($CONTEXT7_URL)"
@@ -99,6 +124,13 @@ setup_context7() {
       local spec='{"type":"remote","url":"'"$CONTEXT7_URL"'","enabled":true}'
       upsert_opencode "$CONTEXT7_NAME" "$spec"
     fi
+    if [ -d "$HOME/.cursor" ] || command -v agent >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1; then
+      if [ -n "${CONTEXT7_API_KEY:-}" ]; then
+        upsert_cursor "$CONTEXT7_NAME" '{"url":"'"$CONTEXT7_URL"'","headers":{"Authorization":"Bearer ${env:CONTEXT7_API_KEY}"}}'
+      else
+        upsert_cursor "$CONTEXT7_NAME" '{"url":"'"$CONTEXT7_URL"'"}'
+      fi
+    fi
   fi
   echo "✅ context7 configurado"
 }
@@ -125,10 +157,13 @@ setup_docs() {
   if command -v opencode >/dev/null 2>&1; then
     upsert_opencode "$DOCS_NAME" '{"type":"local","command":["'"$DOCS_BIN"'"],"enabled":true}'
   fi
+  if [ -d "$HOME/.cursor" ] || command -v agent >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1; then
+    upsert_cursor "$DOCS_NAME" '{"command":"'"$DOCS_BIN"'"}'
+  fi
   echo "✅ docs configurado (offline)"
 }
 
-# ── MCP local de memória compartilhada (entre Claude Code, Codex, agy, OpenCode) ─
+# ── MCP local de memória compartilhada (Claude Code, Codex, agy, OpenCode, Cursor) ─
 setup_memory() {
   if [ ! -x "$MEMORY_BIN" ]; then
     echo "⚠️  memory-mcp não encontrado ($MEMORY_BIN). Rode 'make install' primeiro."
@@ -149,6 +184,9 @@ setup_memory() {
   fi
   if command -v opencode >/dev/null 2>&1; then
     upsert_opencode "$MEMORY_NAME" '{"type":"local","command":["'"$MEMORY_BIN"'"],"enabled":true}'
+  fi
+  if [ -d "$HOME/.cursor" ] || command -v agent >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1; then
+    upsert_cursor "$MEMORY_NAME" '{"command":"'"$MEMORY_BIN"'"}'
   fi
   echo "✅ memory configurado (compartilhado entre CLIs)"
 }
@@ -176,6 +214,9 @@ setup_sentry() {
   fi
   if command -v opencode >/dev/null 2>&1; then
     upsert_opencode "$name" '{"type":"remote","url":"'"$url"'","enabled":true}'
+  fi
+  if [ -d "$HOME/.cursor" ] || command -v agent >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1; then
+    upsert_cursor "$name" '{"url":"'"$url"'"}'
   fi
   echo "✅ sentry configurado (OAuth no primeiro uso)"
 }

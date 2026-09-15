@@ -56,6 +56,36 @@ func TestRenderClaude(t *testing.T) {
 	}
 }
 
+func TestRenderCursorReadonly(t *testing.T) {
+	agent := agentSource{Name: "x", Description: "d", Body: "corpo", ReadOnly: true}
+	filename, content, err := renderAgent("cursor", agent)
+	if err != nil {
+		t.Fatalf("renderAgent: %v", err)
+	}
+	if filename != "x.md" {
+		t.Fatalf("filename = %q", filename)
+	}
+	for _, want := range []string{"model: inherit", "readonly: true"} {
+		if !strings.Contains(content, want) {
+			t.Errorf("faltando %q em:\n%s", want, content)
+		}
+	}
+}
+
+func TestRenderCursorWritable(t *testing.T) {
+	agent := agentSource{Name: "x", Description: "d", Body: "corpo"}
+	_, content, err := renderAgent("cursor", agent)
+	if err != nil {
+		t.Fatalf("renderAgent: %v", err)
+	}
+	if !strings.Contains(content, "model: inherit") {
+		t.Fatalf("faltando model: inherit em:\n%s", content)
+	}
+	if strings.Contains(content, "readonly:") {
+		t.Fatalf("não deveria ter readonly: %q", content)
+	}
+}
+
 func TestRenderOpenCodeReadonly(t *testing.T) {
 	agent := agentSource{Name: "x", Description: "d", Body: "corpo", ReadOnly: true}
 	_, content, err := renderAgent("opencode", agent)

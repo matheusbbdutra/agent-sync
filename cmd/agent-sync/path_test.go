@@ -78,6 +78,8 @@ func TestIsProtectedSkillsDir(t *testing.T) {
 	protected := []string{
 		"/home/u/.gemini/config/plugins/antigravity-skills-manager/skills",
 		"/home/u/.config/plugins/foo/skills",
+		"/home/u/.cursor/skills-cursor",
+		"/home/u/.cursor/skills-cursor/create-skill",
 	}
 	for _, dir := range protected {
 		if !isProtectedSkillsDir(dir) {
@@ -89,6 +91,7 @@ func TestIsProtectedSkillsDir(t *testing.T) {
 		"/home/u/.gemini/antigravity-cli/skills",
 		"/home/u/.config/opencode/skills",
 		"/home/u/.claude/skills",
+		"/home/u/.cursor/skills",
 	}
 	for _, dir := range safe {
 		if isProtectedSkillsDir(dir) {

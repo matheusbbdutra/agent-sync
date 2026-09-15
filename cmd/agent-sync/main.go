@@ -18,7 +18,7 @@ type TargetCLI struct {
 	PluginDir         string
 	HooksSettingsPath string
 	HooksEvent        string
-	HooksFormat       string // "" (padrão Claude/Codex) ou "antigravity"
+	HooksFormat       string // "" (padrão Claude/Codex), "antigravity" ou "cursor"
 	OpenCodePluginDir string
 }
 
@@ -73,6 +73,20 @@ func getTargets() []TargetCLI {
 			AgentsDir:         filepath.Join(home, ".config", "opencode", "agents"),
 			AgentKind:         "opencode",
 			OpenCodePluginDir: filepath.Join(home, ".config", "opencode", "plugins"),
+		},
+		{
+			// Cursor IDE / agent CLI: skills e agents em ~/.cursor; regras
+			// locais em ~/.cursor/rules/*.mdc (não sincronizam via conta);
+			// hooks nativos em ~/.cursor/hooks.json (cwd = ~/.cursor/).
+			// Nunca tocar em ~/.cursor/skills-cursor/ (built-ins da Cursor).
+			Name:              "cursor",
+			RulesPath:         filepath.Join(home, ".cursor", "rules", "agent-sync-global.mdc"),
+			SkillsDir:         filepath.Join(home, ".cursor", "skills"),
+			AgentsDir:         filepath.Join(home, ".cursor", "agents"),
+			AgentKind:         "cursor",
+			HooksSettingsPath: filepath.Join(home, ".cursor", "hooks.json"),
+			HooksEvent:        "postToolUse",
+			HooksFormat:       "cursor",
 		},
 	}
 }
@@ -195,9 +209,14 @@ func resolveBaseDir(exePath, cwd, envHome string) string {
 }
 
 // isProtectedSkillsDir evita sobrescrever a árvore git de plugins de terceiros
-// (qualquer caminho que contenha o par de segmentos "config/plugins").
+// (qualquer caminho que contenha o par de segmentos "config/plugins") e o
+// diretório reservado de skills built-in da Cursor (~/.cursor/skills-cursor).
 func isProtectedSkillsDir(dir string) bool {
-	parts := strings.Split(filepath.ToSlash(filepath.Clean(dir)), "/")
+	slash := filepath.ToSlash(filepath.Clean(dir))
+	if strings.Contains(slash, "/.cursor/skills-cursor") || strings.HasSuffix(slash, "/skills-cursor") {
+		return true
+	}
+	parts := strings.Split(slash, "/")
 	for i := 0; i+1 < len(parts); i++ {
 		if (parts[i] == "config" || parts[i] == ".config") && parts[i+1] == "plugins" {
 			return true
@@ -208,7 +227,7 @@ func isProtectedSkillsDir(dir string) bool {
 
 func main() {
 	applyFlag := flag.Bool("apply", false, "Aplica as regras e skills para todas as CLIs configuradas")
-	targetFlag := flag.String("target", "", "Aplica para uma CLI específica (claude, codex, antigravity, opencode)")
+	targetFlag := flag.String("target", "", "Aplica para uma CLI específica (claude, codex, antigravity, opencode, cursor)")
 	statusFlag := flag.Bool("status", false, "Exibe o status de sincronização com as CLIs")
 	vendorFlag := flag.Bool("vendor", false, "Importa as skills curadas do catálogo definido em skills/manifest.json")
 	sourceFlag := flag.String("source", "", "Diretório de origem das skills para -vendor (default: skillsDir do manifest)")
@@ -225,7 +244,7 @@ func main() {
 		fmt.Println("🚀 Agent-Sync: Gerenciador Unificado de Regras e Skills para Agentes AI")
 		fmt.Println("\nUso:")
 		fmt.Println("  agent-sync -apply              # Sincroniza em todas as CLIs instaladas")
-		fmt.Println("  agent-sync -target <cli>       # Sincroniza apenas para claude, codex, antigravity ou opencode")
+		fmt.Println("  agent-sync -target <cli>       # Sincroniza apenas para claude, codex, antigravity, opencode ou cursor")
 		fmt.Println("  agent-sync -status             # Verifica o status atual de cada CLI")
 		fmt.Println("  agent-sync -vendor             # Importa as skills curadas do manifest")
 		return
@@ -276,9 +295,15 @@ func main() {
 			continue
 		}
 
-		// Copia regras
-		if err := copyFile(rulesSource, t.RulesPath); err != nil {
-			fmt.Printf("⚠️  [%s] Falha ao atualizar regras: %v\n", t.Name, err)
+		// Copia regras (Cursor usa .mdc com alwaysApply)
+		var rulesErr error
+		if t.AgentKind == "cursor" {
+			rulesErr = syncCursorRules(rulesSource, t.RulesPath)
+		} else {
+			rulesErr = copyFile(rulesSource, t.RulesPath)
+		}
+		if rulesErr != nil {
+			fmt.Printf("⚠️  [%s] Falha ao atualizar regras: %v\n", t.Name, rulesErr)
 		} else {
 			fmt.Printf("✅ [%s] Regras atualizadas em: %s\n", t.Name, t.RulesPath)
 		}
@@ -297,6 +322,16 @@ func main() {
 			fmt.Printf("⚠️  [%s] Falha ao sincronizar agentes: %v\n", t.Name, err)
 		} else if agents > 0 {
 			fmt.Printf("✅ [%s] %d agentes gerados em: %s\n", t.Name, agents, t.AgentsDir)
+		}
+
+		if t.HooksFormat == "cursor" {
+			if err := syncCursorAll(baseDir, t); err != nil {
+				fmt.Printf("⚠️  [%s] Falha ao sincronizar hooks Cursor: %v\n", t.Name, err)
+			} else {
+				fmt.Printf("✅ [%s] Hooks (context-guard, memory, docs-cache, bash-guardian) em: %s\n", t.Name, t.HooksSettingsPath)
+			}
+			count++
+			continue
 		}
 
 		// Instala o hook de lembrete do context-guard (quando suportado pela CLI)
