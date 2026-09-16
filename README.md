@@ -88,7 +88,8 @@ In addition to the vendored ones, there are **12 authored skills in Portuguese (
 - Exposed MCP tools: `store_memory` (accepts `scratch: true|false`), `search_memory`, `get_memory`, `list_memories`, `delete_memory` (only removes memories stored with `scratch: true` — permanent ones are refused by design). Provenance enum includes `cursor`.
 - **`memory-nudge` hook** (`hooks/memory-nudge.sh` / `.antigravity.sh` / `.opencode.ts` / `.cursor.sh`): capturing memories today depends entirely on the model's self-discipline (no automatic trigger), so `-apply` also installs a harness-level nudge that fires every N tool calls/invocations (default 25, `AGENT_SYNC_MEMORY_NUDGE_THRESHOLD`) asking whether anything from the session should be saved via `store_memory`. Same install mechanism as `context-guard-nudge` (separate counter/threshold), covering all 5 targets:
   - **Claude Code**: `PostToolUse` hook merged into `~/.claude/settings.json`.
-  - **Codex**: `PostToolUse` hook merged into `~/.codex/hooks.json`.
+  - **Codex**: `PostToolUse` hook merged into `~/.codex/hooks.json`; `protect-mcp` commands are adapted to Codex's native `PreToolUse`/`PostToolUse` schema during synchronization.
+  - Hook failures are persisted locally in `~/.cache/agent-sync/hooks/errors.jsonl` (with redaction and rotation); `agent-sync -observability` displays a summary.
   - **Antigravity CLI**: `PreInvocation` hook merged into `~/.gemini/config/hooks.json`.
   - **OpenCode**: `tool.execute.after` plugin copied to `~/.config/opencode/plugins/memory-nudge.ts`. Same best-effort caveat as `context-guard-nudge` ([anomalyco/opencode#13574](https://github.com/anomalyco/opencode/issues/13574)).
   - **Cursor**: `postToolUse` command hook in `~/.cursor/hooks.json` (script under `~/.cursor/hooks/`, output uses native `additional_context`).

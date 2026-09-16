@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const contextGuardHookName = "agent-sync-context-guard"
@@ -99,10 +100,32 @@ func syncStandardHook(baseDir string, target TargetCLI, hookName, scriptName, ma
 	}
 
 	entries := decodeHookEntries(hooksRoot[target.HooksEvent])
+	if target.AgentKind == "codex" {
+		adapterPath := filepath.Join(baseDir, "hooks", "codex-protect-mcp-adapter.sh")
+		entries = adaptCodexProtectionHooks(entries, adapterPath)
+		if target.HooksEvent != "PreToolUse" {
+			hooksRoot["PreToolUse"] = adaptCodexProtectionHooks(decodeHookEntries(hooksRoot["PreToolUse"]), adapterPath)
+		}
+	}
 	hooksRoot[target.HooksEvent] = upsertHookEntry(entries, scriptPath, hookName, matcher)
 	settings["hooks"] = hooksRoot
 
 	return writeJSONObject(target.HooksSettingsPath, settings)
+}
+
+func adaptCodexProtectionHooks(entries []hookEntry, adapterPath string) []hookEntry {
+	for i := range entries {
+		for j := range entries[i].Hooks {
+			command := entries[i].Hooks[j].Command
+			if strings.Contains(command, "npx protect-mcp@0.7.4 evaluate") {
+				entries[i].Hooks[j].Command = strings.Replace(command, "npx protect-mcp@0.7.4 evaluate", adapterPath+" evaluate", 1)
+			}
+			if strings.Contains(command, "npx protect-mcp@0.7.4 sign") {
+				entries[i].Hooks[j].Command = strings.Replace(command, "npx protect-mcp@0.7.4 sign", adapterPath+" sign", 1)
+			}
+		}
+	}
+	return entries
 }
 
 // syncAntigravityHook cobre o formato próprio do Antigravity CLI, sem chave

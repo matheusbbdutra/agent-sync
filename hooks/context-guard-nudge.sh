@@ -2,6 +2,7 @@
 # Lembrete pos-ferramenta: a cada N chamadas na mesma sessao, cobra o carregamento
 # da skill context-guard e a atualizacao do STATE.md (reforco do enforcement por prompt).
 set -euo pipefail
+trap 'status=$?; "$(dirname "$0")/observe-error.sh" "PostToolUse" "hook_exit_$status" "context-guard nudge falhou"; exit "$status"' ERR
 
 THRESHOLD="${AGENT_SYNC_NUDGE_THRESHOLD:-40}"
 STATE_DIR="${TMPDIR:-/tmp}/agent-sync-nudge"
@@ -19,7 +20,7 @@ printf '%s' "$count" > "$counter_file"
 
 if [ "$((count % THRESHOLD))" -eq 0 ]; then
   cat <<EOF
-{"systemMessage":"agent-sync: lembrete de context-guard (#$count)","hookSpecificOutput":{"additionalContext":"[agent-sync] Carregue context-guard e atualize STATE.md."}}
+{"systemMessage":"agent-sync: lembrete de context-guard (#$count)","hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"[agent-sync] Carregue context-guard e atualize STATE.md."}}
 EOF
 else
   printf '{}'
