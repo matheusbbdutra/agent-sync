@@ -4,36 +4,21 @@
 
 ## Meta atual
 
-- Hook `agent-react-nudge` (validação de hipóteses) nas 5 CLIs.
-- Status: concluído
+- Skill `agent-react` + hook `agent-react-nudge` + regra hipótese ≠ fato.
+- Status: concluído (commit pendente de push se desejado)
 
 ## Decisões tomadas
 
-- Nudge (não gate): threshold 15, env `AGENT_SYNC_REACT_NUDGE_THRESHOLD`
-- Mesmo padrão de context-guard/memory; OpenCode best-effort
-- Hipótese ≠ fato já em global-rules + skill agent-react
-
-## Estado do repositório
-
-- Branch: `main`
-- Mudanças não commitadas: agent-react skill, hooks, wiring Go, READMEs, STATE.md, global-rules
-
-## Arquivos-chave
-
-- `hooks/agent-react-nudge.{sh,cursor.sh,antigravity.sh,opencode.ts}`
-- `cmd/agent-sync/hooks.go` / `cursor.go` / `main.go`
-- `skills/agent-react/SKILL.md`
+- Nudge (não gate): threshold 15, `AGENT_SYNC_REACT_NUDGE_THRESHOLD`
+- Garantia semântica plena exige camada extra (ex. `stop`/`afterAgentResponse` no Cursor) — não implementada ainda
+- Hook global Cursor = `~/.cursor/hooks.json` (local); Cloud Agents só leem `.cursor/hooks.json` do repo
 
 ## Próximos passos
 
-1. Commit quando o usuário pedir
-2. Observar ruído do threshold 15 na prática
+1. Push se desejado
+2. Se barulho: subir threshold ou filtrar só tools de mutação
+3. Avaliar hook `stop` no Cursor para reforço no fim do turno
 
 ## Bloqueios / perguntas abertas
 
-- Nenhum
-
-## Contexto para reancorar
-
-- Regras: PT-BR; hipótese ≠ fato; nudge ≠ garantia
-- Verificação: `grep agent-react ~/.cursor/hooks.json` + `go test ./cmd/agent-sync/`
+- OpenCode: nudge best-effort até issue upstream #13574

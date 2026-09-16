@@ -8,7 +8,7 @@ STATE_DIR="${TMPDIR:-/tmp}/agent-sync-react-nudge"
 mkdir -p "$STATE_DIR"
 
 input="$(cat)"
-session_id="$(printf '%s' "$input" | grep -o '"session_id"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n1 | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/')"
+session_id="$(printf '%s' "$input" | { grep -o '"session_id"[[:space:]]*:[[:space:]]*"[^"]*"' || true; } | head -n1 | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/')"
 session_id="${session_id:-default}"
 
 counter_file="$STATE_DIR/$session_id.count"

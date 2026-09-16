@@ -7,9 +7,9 @@ STATE_DIR="${TMPDIR:-/tmp}/agent-sync-memory-nudge-cursor"
 mkdir -p "$STATE_DIR"
 
 input="$(cat)"
-session_id="$(printf '%s' "$input" | grep -o '"session_id"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n1 | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/')"
+session_id="$(printf '%s' "$input" | { grep -o '"session_id"[[:space:]]*:[[:space:]]*"[^"]*"' || true; } | head -n1 | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/')"
 if [ -z "$session_id" ]; then
-  session_id="$(printf '%s' "$input" | grep -o '"conversation_id"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n1 | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/')"
+  session_id="$(printf '%s' "$input" | { grep -o '"conversation_id"[[:space:]]*:[[:space:]]*"[^"]*"' || true; } | head -n1 | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/')"
 fi
 session_id="${session_id:-default}"
 
