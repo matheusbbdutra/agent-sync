@@ -46,17 +46,19 @@ func toolDefinitions() []map[string]any {
 	return []map[string]any{
 		{
 			"name":        "store_memory",
-			"description": "Grava ou atualiza (upsert por type+name) uma memória compartilhada entre agentes/CLIs.",
+			"description": "Grava ou atualiza uma memória por projeto+type+name, com PC e caminho de origem.",
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"agent":       map[string]any{"type": "string", "enum": agentEnum, "description": "Quem está gravando"},
-					"session_id":  map[string]any{"type": "string", "description": "ID da sessão de origem (opcional)"},
-					"type":        map[string]any{"type": "string", "enum": typeEnum},
-					"name":        map[string]any{"type": "string", "description": "slug curto, único por type"},
-					"description": map[string]any{"type": "string"},
-					"content":     map[string]any{"type": "string"},
-					"scratch":     map[string]any{"type": "boolean", "description": "true = memória descartável (teste/rascunho), pode ser removida depois com delete_memory. false (default) = memória permanente, não removível por essa ferramenta."},
+					"agent":        map[string]any{"type": "string", "enum": agentEnum, "description": "Quem está gravando"},
+					"session_id":   map[string]any{"type": "string", "description": "ID da sessão de origem (opcional)"},
+					"type":         map[string]any{"type": "string", "enum": typeEnum},
+					"name":         map[string]any{"type": "string", "description": "slug curto, único por projeto+type"},
+					"description":  map[string]any{"type": "string"},
+					"content":      map[string]any{"type": "string"},
+					"project_path": map[string]any{"type": "string", "description": "Diretório do projeto; se omitido, usa o projeto Git do diretório inicial do MCP"},
+					"global":       map[string]any{"type": "boolean", "description": "Gravar memória sem vínculo com projeto"},
+					"scratch":      map[string]any{"type": "boolean", "description": "true = memória descartável (teste/rascunho), pode ser removida depois com delete_memory. false (default) = memória permanente, não removível por essa ferramenta."},
 				},
 				"required": []string{"agent", "type", "name", "description", "content"},
 			},
@@ -66,7 +68,7 @@ func toolDefinitions() []map[string]any {
 			"description": "Remove uma memória pelo nome, mas SÓ se ela foi gravada com scratch=true. Memórias permanentes (scratch=false) são recusadas — precisam de remoção manual deliberada.",
 			"inputSchema": map[string]any{
 				"type":       "object",
-				"properties": map[string]any{"name": map[string]any{"type": "string"}},
+				"properties": map[string]any{"name": map[string]any{"type": "string"}, "project_id": map[string]any{"type": "string"}},
 				"required":   []string{"name"},
 			},
 		},
@@ -76,20 +78,24 @@ func toolDefinitions() []map[string]any {
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"query": map[string]any{"type": "string"},
-					"agent": map[string]any{"type": "string", "enum": agentEnum, "description": "Filtrar por quem gravou (opcional)"},
-					"type":  map[string]any{"type": "string", "enum": typeEnum, "description": "Filtrar por tipo (opcional)"},
-					"limit": map[string]any{"type": "integer", "description": "Máximo de resultados (default 10)"},
+					"query":        map[string]any{"type": "string"},
+					"agent":        map[string]any{"type": "string", "enum": agentEnum, "description": "Filtrar por quem gravou (opcional)"},
+					"type":         map[string]any{"type": "string", "enum": typeEnum, "description": "Filtrar por tipo (opcional)"},
+					"limit":        map[string]any{"type": "integer", "description": "Máximo de resultados (default 10)"},
+					"project_id":   map[string]any{"type": "string", "description": "Filtrar pelo ID comum do projeto"},
+					"pc":           map[string]any{"type": "string", "description": "Filtrar pelo PC de origem"},
+					"project_path": map[string]any{"type": "string", "description": "Filtrar pelo caminho de origem exato"},
+					"project_dir":  map[string]any{"type": "string", "description": "Diretório local cujo ID comum será usado para filtrar nos dois PCs"},
 				},
 				"required": []string{"query"},
 			},
 		},
 		{
 			"name":        "get_memory",
-			"description": "Busca uma memória pelo nome exato.",
+			"description": "Busca uma memória pelo nome exato e, se necessário, pelo projeto.",
 			"inputSchema": map[string]any{
 				"type":       "object",
-				"properties": map[string]any{"name": map[string]any{"type": "string"}},
+				"properties": map[string]any{"name": map[string]any{"type": "string"}, "project_id": map[string]any{"type": "string"}},
 				"required":   []string{"name"},
 			},
 		},
@@ -99,9 +105,13 @@ func toolDefinitions() []map[string]any {
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"agent": map[string]any{"type": "string", "enum": agentEnum},
-					"type":  map[string]any{"type": "string", "enum": typeEnum},
-					"limit": map[string]any{"type": "integer", "description": "Máximo de resultados (default 100)"},
+					"agent":        map[string]any{"type": "string", "enum": agentEnum},
+					"type":         map[string]any{"type": "string", "enum": typeEnum},
+					"limit":        map[string]any{"type": "integer", "description": "Máximo de resultados (default 100)"},
+					"project_id":   map[string]any{"type": "string", "description": "Filtrar pelo ID comum do projeto"},
+					"pc":           map[string]any{"type": "string", "description": "Filtrar pelo PC de origem"},
+					"project_path": map[string]any{"type": "string", "description": "Filtrar pelo caminho de origem exato"},
+					"project_dir":  map[string]any{"type": "string", "description": "Diretório local cujo ID comum será usado para filtrar nos dois PCs"},
 				},
 			},
 		},
@@ -127,10 +137,24 @@ func formatMemories(items []agentmemory.Memory) string {
 		if m.Scratch {
 			scratchTag = " [scratch]"
 		}
-		fmt.Fprintf(&b, "\n[%s/%s]%s %s (gravado por %s em %s)\n%s\n%s\n",
-			m.Type, m.Name, scratchTag, m.Description, m.Agent, m.UpdatedAt.Format("2006-01-02"), strings.Repeat("-", 8), m.Content)
+		fmt.Fprintf(&b, "\n[%s/%s]%s %s (gravado por %s em %s; PC: %s; projeto: %s; caminho: %s)\n%s\n%s\n",
+			m.Type, m.Name, scratchTag, m.Description, m.Agent, m.UpdatedAt.Format("2006-01-02"), m.PC, m.ProjectID, m.ProjectPath, strings.Repeat("-", 8), m.Content)
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+func memoryFilter(projectID, pc, projectPath, projectDir string) (agentmemory.ScopeFilter, error) {
+	if projectDir != "" {
+		origin, err := agentmemory.ResolveOrigin(projectDir)
+		if err != nil {
+			return agentmemory.ScopeFilter{}, err
+		}
+		if projectID != "" && projectID != origin.ProjectID {
+			return agentmemory.ScopeFilter{}, fmt.Errorf("project_id difere do projeto em project_dir")
+		}
+		projectID = origin.ProjectID
+	}
+	return agentmemory.ScopeFilter{ProjectID: projectID, PC: pc, ProjectPath: projectPath}, nil
 }
 
 func callTool(store *agentmemory.Store, name string, args json.RawMessage) map[string]any {
@@ -144,6 +168,8 @@ func callTool(store *agentmemory.Store, name string, args json.RawMessage) map[s
 			Description string `json:"description"`
 			Content     string `json:"content"`
 			Scratch     bool   `json:"scratch"`
+			ProjectPath string `json:"project_path"`
+			Global      bool   `json:"global"`
 		}
 		if err := json.Unmarshal(args, &in); err != nil {
 			return errorResult("params inválidos: " + err.Error())
@@ -151,9 +177,21 @@ func callTool(store *agentmemory.Store, name string, args json.RawMessage) map[s
 		if in.Agent == "" || in.Type == "" || in.Name == "" || in.Content == "" {
 			return errorResult("campos obrigatórios: agent, type, name, content")
 		}
+		origin := agentmemory.Origin{}
+		if in.Global {
+			origin.PC, _ = os.Hostname()
+		}
+		if !in.Global {
+			var originErr error
+			origin, originErr = agentmemory.ResolveOrigin(in.ProjectPath)
+			if originErr != nil {
+				return errorResult(originErr.Error())
+			}
+		}
 		err := store.Upsert(agentmemory.Memory{
 			Agent: in.Agent, SessionID: in.SessionID, Type: in.Type,
 			Name: in.Name, Description: in.Description, Content: in.Content, Scratch: in.Scratch,
+			PC: origin.PC, ProjectPath: origin.ProjectPath, ProjectID: origin.ProjectID,
 		})
 		if err != nil {
 			return errorResult(err.Error())
@@ -166,12 +204,19 @@ func callTool(store *agentmemory.Store, name string, args json.RawMessage) map[s
 
 	case "delete_memory":
 		var in struct {
-			Name string `json:"name"`
+			Name      string `json:"name"`
+			ProjectID string `json:"project_id"`
 		}
 		if err := json.Unmarshal(args, &in); err != nil || strings.TrimSpace(in.Name) == "" {
 			return errorResult("parâmetro 'name' é obrigatório")
 		}
-		deleted, err := store.Delete(in.Name)
+		var deleted bool
+		var err error
+		if in.ProjectID == "" {
+			deleted, err = store.Delete(in.Name)
+		} else {
+			deleted, err = store.DeleteScoped(in.Name, in.ProjectID)
+		}
 		if err != nil {
 			if err == agentmemory.ErrNotScratch {
 				return errorResult(fmt.Sprintf("memória %q não é scratch (gravada como permanente) — remoção recusada. Se realmente precisa remover, isso exige ação manual deliberada, não via ferramenta.", in.Name))
@@ -185,15 +230,23 @@ func callTool(store *agentmemory.Store, name string, args json.RawMessage) map[s
 
 	case "search_memory":
 		var in struct {
-			Query string `json:"query"`
-			Agent string `json:"agent"`
-			Type  string `json:"type"`
-			Limit int    `json:"limit"`
+			Query       string `json:"query"`
+			Agent       string `json:"agent"`
+			Type        string `json:"type"`
+			Limit       int    `json:"limit"`
+			ProjectID   string `json:"project_id"`
+			PC          string `json:"pc"`
+			ProjectPath string `json:"project_path"`
+			ProjectDir  string `json:"project_dir"`
 		}
 		if err := json.Unmarshal(args, &in); err != nil || strings.TrimSpace(in.Query) == "" {
 			return errorResult("parâmetro 'query' é obrigatório")
 		}
-		items, err := store.Search(in.Query, in.Agent, in.Type, in.Limit)
+		filter, err := memoryFilter(in.ProjectID, in.PC, in.ProjectPath, in.ProjectDir)
+		if err != nil {
+			return errorResult(err.Error())
+		}
+		items, err := store.Search(in.Query, in.Agent, in.Type, in.Limit, filter)
 		if err != nil {
 			return errorResult(err.Error())
 		}
@@ -204,12 +257,19 @@ func callTool(store *agentmemory.Store, name string, args json.RawMessage) map[s
 
 	case "get_memory":
 		var in struct {
-			Name string `json:"name"`
+			Name      string `json:"name"`
+			ProjectID string `json:"project_id"`
 		}
 		if err := json.Unmarshal(args, &in); err != nil || strings.TrimSpace(in.Name) == "" {
 			return errorResult("parâmetro 'name' é obrigatório")
 		}
-		m, err := store.Get(in.Name)
+		var m *agentmemory.Memory
+		var err error
+		if in.ProjectID == "" {
+			m, err = store.Get(in.Name)
+		} else {
+			m, err = store.GetScoped(in.Name, in.ProjectID)
+		}
 		if err != nil {
 			return errorResult(err.Error())
 		}
@@ -220,12 +280,22 @@ func callTool(store *agentmemory.Store, name string, args json.RawMessage) map[s
 
 	case "list_memories":
 		var in struct {
-			Agent string `json:"agent"`
-			Type  string `json:"type"`
-			Limit int    `json:"limit"`
+			Agent       string `json:"agent"`
+			Type        string `json:"type"`
+			Limit       int    `json:"limit"`
+			ProjectID   string `json:"project_id"`
+			PC          string `json:"pc"`
+			ProjectPath string `json:"project_path"`
+			ProjectDir  string `json:"project_dir"`
 		}
-		json.Unmarshal(args, &in)
-		items, err := store.List(in.Agent, in.Type, in.Limit)
+		if err := json.Unmarshal(args, &in); err != nil {
+			return errorResult("params inválidos: " + err.Error())
+		}
+		filter, err := memoryFilter(in.ProjectID, in.PC, in.ProjectPath, in.ProjectDir)
+		if err != nil {
+			return errorResult(err.Error())
+		}
+		items, err := store.List(in.Agent, in.Type, in.Limit, filter)
 		if err != nil {
 			return errorResult(err.Error())
 		}

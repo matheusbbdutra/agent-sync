@@ -145,3 +145,27 @@ func TestListFiltraPorAgenteETipo(t *testing.T) {
 		t.Fatalf("List por tipo retornou %+v", items)
 	}
 }
+
+func TestProjectScopePreventsNameCollisionAndFilters(t *testing.T) {
+	store := openTestStore(t)
+	for _, project := range []string{"one", "two"} {
+		if err := store.Upsert(Memory{Agent: "codex", Type: "project", Name: "decision", Description: "scope", Content: "shared word", ProjectID: project, ProjectPath: "/repo/" + project, PC: "pc-" + project}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := store.Get("decision"); err == nil {
+		t.Fatal("nome ambíguo aceito")
+	}
+	first, err := store.GetScoped("decision", "one")
+	if err != nil || first.ProjectPath != "/repo/one" {
+		t.Fatalf("get escopado: %+v %v", first, err)
+	}
+	items, err := store.Search("shared", "", "", 10, ScopeFilter{ProjectID: "two"})
+	if err != nil || len(items) != 1 || items[0].PC != "pc-two" {
+		t.Fatalf("busca escopada: %+v %v", items, err)
+	}
+	items, err = store.List("", "", 10, ScopeFilter{PC: "pc-one", ProjectPath: "/repo/one"})
+	if err != nil || len(items) != 1 || items[0].ProjectID != "one" {
+		t.Fatalf("lista escopada: %+v %v", items, err)
+	}
+}

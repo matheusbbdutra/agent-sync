@@ -20,6 +20,8 @@ build: ## Compila agent-sync e as ferramentas em bin/
 	cd tools && go build -o ../bin/docs-cache-write ./cmd/docs-cache-write
 	cd tools && go build -o ../bin/memory-mcp ./cmd/memory-mcp
 	cd tools && go build -o ../bin/git-diff-summary ./cmd/git-diff-summary
+	cd tools && go build -o ../bin/mr-review-local ./cmd/mr-review-local
+	cd tools && go build -o ../bin/memory-sync ./cmd/memory-sync
 
 install: build ## Compila e instala os binários/scripts em ~/.local/bin
 	mkdir -p ~/.local/bin
@@ -28,6 +30,7 @@ install: build ## Compila e instala os binários/scripts em ~/.local/bin
 		cp "$$f" ~/.local/bin/"$$name".tmp && chmod +x ~/.local/bin/"$$name".tmp && mv -f ~/.local/bin/"$$name".tmp ~/.local/bin/"$$name"; \
 	done
 	install -m 0755 scripts/delegate-run.sh ~/.local/bin/delegate-run
+	install -m 0755 scripts/agent-sync-session.sh ~/.local/bin/agent-sync-session
 	@echo "Binários instalados em ~/.local/bin com sucesso!"
 
 sync: install ## Instala e roda agent-sync -apply (sincroniza as 5 CLIs)

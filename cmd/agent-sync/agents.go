@@ -13,7 +13,7 @@ const (
 	antigravityAgentDir  = "agents"
 	antigravityPluginDoc = `{
   "name": "agent-sync",
-  "description": "Especialistas autorais do agent-sync (spec-planner, code-reviewer, security-auditor, debugger, architecture-reviewer, test-engineer, refactor-specialist, db-guardian, token-optimizer)."
+  "description": "Agentes especialistas autorais do agent-sync."
 }
 `
 )

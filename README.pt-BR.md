@@ -24,7 +24,7 @@ agent-sync/
 │   └── <41 skills>/          # Vendorizadas do catálogo (backend, segurança, banco, API, linguagens, testes, ops, contexto)
 ├── agents/                 # Agentes especialistas autorais (canônicos), gerados por CLI no `-apply`
 │   ├── spec-planner.md, code-reviewer.md, security-auditor.md, debugger.md
-│   └── architecture-reviewer.md, test-engineer.md, refactor-specialist.md, db-guardian.md, token-optimizer.md, sentry-debugger.md
+│   └── architecture-reviewer.md, test-engineer.md, refactor-specialist.md, db-guardian.md, token-optimizer.md, sentry-debugger.md, mr-reviewer.md
 ├── tools/                  # Binários utilitários de alta velocidade em Go
 │   ├── cmd/ast-outline/    # Extrai classes/métodos em vez de ler arquivos inteiros (Go, Python, TS, PHP)
 │   ├── cmd/trace-strip/    # Remove ruídos de frameworks em logs de erro
@@ -49,6 +49,7 @@ Definidos uma vez em `agents/*.md` (frontmatter `name`, `description` e `readonl
 | Agente | Papel | Read-only |
 | --- | --- | --- |
 | `spec-planner` | Entende o pedido e planeja antes de codar | ✅ |
+| `mr-reviewer` | Revisa refs Git locais com evidência de regressões, segurança e impacto | ✅ |
 | `code-reviewer` | Clean Code, SOLID, Calisthenics e segurança | ✅ |
 | `security-auditor` | OWASP, injeção, XSS, segredos | ✅ |
 | `debugger` | Causa raiz com hipóteses e evidências | ❌ |
@@ -84,7 +85,7 @@ Além das vendorizadas, há **12 skills autorais em PT-BR** (não existem no cat
 
 ### Memória compartilhada entre CLIs
 
-- **`memory-mcp`** (`tools/cmd/memory-mcp`): servidor MCP local sobre libSQL (`~/.cache/agent-sync/memory.db`, sem sync remoto) que dá a Claude Code, Codex, agy, OpenCode e Cursor acesso ao mesmo histórico de decisões/feedback/contexto de projeto. Requer CGO (`go-libsql`) — assumido aceitável para uso pessoal (gcc/clang já é pré-requisito do `make`).
+- **`memory-mcp`** (`tools/cmd/memory-mcp`): servidor MCP local sobre libSQL (`~/.cache/agent-sync/memory.db`, com sincronização opcional de memórias persistentes via Turso Cloud; busca FTS5 local) que dá a Claude Code, Codex, agy, OpenCode e Cursor acesso ao mesmo histórico de decisões/feedback/contexto de projeto. Requer CGO (`go-libsql`) — assumido aceitável para uso pessoal (gcc/clang já é pré-requisito do `make`).
 - Busca hoje é **FTS5/BM25** (relevância por texto), sem embedding real — o schema já reserva uma coluna vetorial (`embedding_json`) para uma fase futura de busca semântica.
 - Ferramentas MCP expostas: `store_memory` (aceita `scratch: true|false`), `search_memory`, `get_memory`, `list_memories`, `delete_memory` (só remove memórias gravadas com `scratch: true` — permanentes são recusadas por design). O enum de proveniência inclui `cursor`.
 - **Hook `memory-nudge`** (`hooks/memory-nudge.sh` / `.antigravity.sh` / `.opencode.ts` / `.cursor.sh`): a gravação de memória hoje depende só da disciplina do modelo (nenhum gatilho automático), então o `-apply` também instala um lembrete em nível de harness que dispara a cada N chamadas de ferramenta/invocações (padrão 25, `AGENT_SYNC_MEMORY_NUDGE_THRESHOLD`) perguntando se algo da sessão deveria ser salvo via `store_memory`. Mesmo mecanismo de instalação do `context-guard-nudge` (contador/threshold separados), cobrindo os 5 alvos:
@@ -183,7 +184,7 @@ Verifica o `go` disponível e, se ausente/antigo, instala a versão exigida pelo
 ```bash
 make install
 ```
-Isso compilará os binários em Go (`agent-sync`, `ast-outline`, `trace-strip`, `db-guardian`, `docs-fetch`, `docs-mcp`, `memory-mcp`) e os colocará em `~/.local/bin/`.
+Isso compilará os binários em Go (`agent-sync`, `ast-outline`, `trace-strip`, `db-guardian`, `docs-fetch`, `docs-mcp`, `memory-mcp`, `mr-review-local`, `memory-sync`) e os colocará em `~/.local/bin/`, junto com `agent-sync-session`.
 
 ### 4. Sincronizar com todas as CLIs
 ```bash
@@ -191,6 +192,47 @@ make sync
 # ou diretamente:
 agent-sync -apply
 ```
+
+Use o `mr-reviewer` em qualquer CLI após `make sync`. A coleta local também pode ser executada diretamente:
+
+```bash
+mr-review-local -repo /caminho/do/checkout -base upstream/main -head origin/branch-teste
+# adicione -fetch para atualizar os remotos dessas referências
+```
+
+O comando gera JSON com os SHAs e o patch para o agente analisar; `-fetch` não faz checkout nem merge. O patch é omitido quando ultrapassa o limite e o relatório indica revisão parcial.
+
+### Sincronização entre dois PCs
+
+Em cada PC, rode `memory-sync -init`. O comando cria `~/.config/agent-sync/config.json` caso não exista e imprime o caminho. Preencha `turso.url` com a URL `libsql://...` do mesmo banco Turso Cloud e `turso.token` com o token deste PC. O arquivo é criado com permissão `0600`, não é sobrescrito e deve permanecer fora do repositório. Para projetos sem remoto Git, configure um ID estável no mapa `projects`, usando o caminho local de cada PC como chave:
+
+```json
+{
+  "turso": { "url": "libsql://seu-banco.turso.io", "token": "seu-token" },
+  "projects": {
+    "/home/voce/projetos/app": "app-principal"
+  }
+}
+```
+
+Projetos com `origin` ou `upstream` usam automaticamente um ID derivado do remoto. O MCP grava PC, caminho local e ID do projeto; buscas podem usar `project_dir` para resolver o mesmo projeto em PCs com caminhos diferentes.
+
+```json
+{
+  "turso": {
+    "url": "libsql://seu-banco.turso.io",
+    "token": "seu-token"
+  }
+}
+```
+
+```bash
+memory-sync -init
+agent-sync-session ~/Documentos/agent-sync codex
+# ou: agent-sync-session ~/Documentos/agent-sync claude
+```
+
+O wrapper exige checkout limpo, faz `git pull --ff-only`, atualiza a instalação das cinco CLIs quando o repositório muda e baixa as memórias antes de abrir a CLI. Ao sair, envia memórias persistentes e executa `git push` para commits feitos na sessão. Alterações sem commit não são enviadas; o wrapper não cria commits. O SQLite local fica em `~/.cache/agent-sync/memory.db`; memórias `scratch` não são sincronizadas. Para uso manual, rode `memory-sync -phase start` antes e `memory-sync -phase end` depois. Em caso de conflito, escolha a versão com `memory-sync -phase resolve-local -conflict <id>` ou `memory-sync -phase resolve-remote -conflict <id>` e repita a sincronização. A conexão com Turso Cloud ainda precisa ser validada na sua conta.
 
 ### 5. MCPs de documentação (opcional)
 ```bash

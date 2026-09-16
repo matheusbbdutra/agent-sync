@@ -24,7 +24,7 @@ agent-sync/
 │   └── <41 skills>/          # Vendored from the catalog (backend, security, DB, API, languages, tests, ops, context)
 ├── agents/                 # Authored specialist agents (canonical), generated per CLI on `-apply`
 │   ├── spec-planner.md, code-reviewer.md, security-auditor.md, debugger.md
-│   └── architecture-reviewer.md, test-engineer.md, refactor-specialist.md, db-guardian.md, token-optimizer.md, sentry-debugger.md
+│   └── architecture-reviewer.md, test-engineer.md, refactor-specialist.md, db-guardian.md, token-optimizer.md, sentry-debugger.md, mr-reviewer.md
 ├── tools/                  # High-speed Go utility binaries
 │   ├── cmd/ast-outline/    # Extracts classes/methods instead of reading whole files (Go, Python, TS, PHP)
 │   ├── cmd/trace-strip/    # Removes framework noise from error logs
@@ -48,6 +48,7 @@ Defined once in `agents/*.md` (frontmatter `name`, `description`, optional `read
 | Agent | Role | Read-only |
 | --- | --- | --- |
 | `spec-planner` | Understands the request and plans before coding | ✅ |
+| `mr-reviewer` | Reviews local Git refs with evidence of regressions, security, and impact | ✅ |
 | `code-reviewer` | Clean Code, SOLID, Calisthenics, and security | ✅ |
 | `security-auditor` | OWASP, injection, XSS, secrets | ✅ |
 | `debugger` | Root cause with hypotheses and evidence | ❌ |
@@ -83,7 +84,7 @@ In addition to the vendored ones, there are **12 authored skills in Portuguese (
 
 ### Shared memory across CLIs
 
-- **`memory-mcp`** (`tools/cmd/memory-mcp`): local MCP server over libSQL (`~/.cache/agent-sync/memory.db`, no remote sync) giving Claude Code, Codex, agy, OpenCode, and Cursor access to the same history of decisions/feedback/project context. Requires CGO (`go-libsql`) — accepted as fine for personal use (gcc/clang is already a `make` prerequisite).
+- **`memory-mcp`** (`tools/cmd/memory-mcp`): local MCP server over libSQL (`~/.cache/agent-sync/memory.db`, with optional persistent memory sync via Turso Cloud; local FTS5 search) giving Claude Code, Codex, agy, OpenCode, and Cursor access to the same history of decisions/feedback/project context. Requires CGO (`go-libsql`) — accepted as fine for personal use (gcc/clang is already a `make` prerequisite).
 - Search today is **FTS5/BM25** (text relevance), no real embeddings yet — the schema already reserves a vector column (`embedding_json`) for a future semantic-search phase.
 - Exposed MCP tools: `store_memory` (accepts `scratch: true|false`), `search_memory`, `get_memory`, `list_memories`, `delete_memory` (only removes memories stored with `scratch: true` — permanent ones are refused by design). Provenance enum includes `cursor`.
 - **`memory-nudge` hook** (`hooks/memory-nudge.sh` / `.antigravity.sh` / `.opencode.ts` / `.cursor.sh`): capturing memories today depends entirely on the model's self-discipline (no automatic trigger), so `-apply` also installs a harness-level nudge that fires every N tool calls/invocations (default 25, `AGENT_SYNC_MEMORY_NUDGE_THRESHOLD`) asking whether anything from the session should be saved via `store_memory`. Same install mechanism as `context-guard-nudge` (separate counter/threshold), covering all 5 targets:
@@ -182,7 +183,7 @@ Checks the available `go` and, if missing/outdated, installs the version require
 ```bash
 make install
 ```
-This builds the Go binaries (`agent-sync`, `ast-outline`, `trace-strip`, `db-guardian`, `docs-fetch`, `docs-mcp`, `memory-mcp`) and places them in `~/.local/bin/`.
+This builds the Go binaries (`agent-sync`, `ast-outline`, `trace-strip`, `db-guardian`, `docs-fetch`, `docs-mcp`, `memory-mcp`, `mr-review-local`, `memory-sync`) and places them in `~/.local/bin/`, along with `agent-sync-session`.
 
 ### 4. Sync with all CLIs
 ```bash
@@ -190,6 +191,47 @@ make sync
 # or directly:
 agent-sync -apply
 ```
+
+Use `mr-reviewer` in any CLI after `make sync`. You can also run the local collector directly:
+
+```bash
+mr-review-local -repo /path/to/checkout -base upstream/main -head origin/test-branch
+# add -fetch to update the remotes named by those refs
+```
+
+The command returns JSON with commit SHAs and a patch for the agent to review; `-fetch` does not check out or merge. Oversized patches are omitted and marked as partial.
+
+### Sync between two PCs
+
+On each PC, run `memory-sync -init`. It creates `~/.config/agent-sync/config.json` if missing and prints its path. Set `turso.url` to the `libsql://...` URL of the same Turso Cloud database and `turso.token` to this PC's token. The file is created with `0600` permissions, is never overwritten, and stays outside the repository. For projects without a Git remote, configure a stable ID in the `projects` map, using each PC's local path as the key:
+
+```json
+{
+  "turso": { "url": "libsql://your-database.turso.io", "token": "your-token" },
+  "projects": {
+    "/home/you/projects/app": "main-app"
+  }
+}
+```
+
+Projects with an `origin` or `upstream` remote automatically use an ID derived from that remote. The MCP records the PC, local path, and project ID; searches can use `project_dir` to resolve the same project across different PC paths.
+
+```json
+{
+  "turso": {
+    "url": "libsql://your-database.turso.io",
+    "token": "your-token"
+  }
+}
+```
+
+```bash
+memory-sync -init
+agent-sync-session ~/Documents/agent-sync codex
+# or: agent-sync-session ~/Documents/agent-sync claude
+```
+
+The wrapper requires a clean checkout, runs `git pull --ff-only`, refreshes all five CLI installations when the repository changes, and downloads memories before starting the CLI. When the CLI exits, it uploads persistent memories and pushes commits made during the session. It does not commit uncommitted changes. The local SQLite database stays at `~/.cache/agent-sync/memory.db`; scratch memories are excluded. For manual use, run `memory-sync -phase start` before and `memory-sync -phase end` after a session. On conflict, choose a version using `memory-sync -phase resolve-local -conflict <id>` or `memory-sync -phase resolve-remote -conflict <id>`, then retry sync. The Turso Cloud connection still needs validation against your account.
 
 ### 5. Documentation MCPs (optional)
 ```bash

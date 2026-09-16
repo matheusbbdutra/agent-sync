@@ -171,3 +171,20 @@ func TestLoadAgentsReadsRepoAgents(t *testing.T) {
 		t.Fatalf("ordem/quantidade inesperada: %+v", agents)
 	}
 }
+
+func TestMRReviewerRendersForAllCLIs(t *testing.T) {
+	path := filepath.Join("..", "..", "agents", "mr-reviewer.md")
+	agent, err := parseAgent(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !agent.ReadOnly || !strings.Contains(agent.Body, "mr-review-local") {
+		t.Fatal("agente de MR deve ser somente leitura e usar o coletor comum")
+	}
+	for _, kind := range []string{"claude", "codex", "antigravity", "opencode", "cursor"} {
+		name, content, err := renderAgent(kind, agent)
+		if err != nil || !strings.Contains(name, "mr-reviewer") || !strings.Contains(content, "mr-review-local") {
+			t.Fatalf("renderização %s: %s, %v", kind, name, err)
+		}
+	}
+}
