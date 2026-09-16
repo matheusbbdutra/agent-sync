@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 # Lembrete pos-ferramenta: a cada N chamadas na mesma sessao, cobra o carregamento
 # da skill context-guard e a atualizacao do STATE.md (reforco do enforcement por prompt).
 set -euo pipefail

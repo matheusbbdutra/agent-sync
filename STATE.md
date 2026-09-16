@@ -136,3 +136,11 @@
 - Configuração sem remoto: `projects` no `~/.config/agent-sync/config.json`, com caminho local como chave e ID comum como valor. `project_dir` resolve o ID no PC atual.
 - Verificação: testes de identidade Git em caminhos diferentes, ID configurável, colisão de nomes, filtros, sincronização entre dois PCs e migração remota passaram. `make install` passou. `memory-sync -phase start/end` no Turso real passou com 0 alterações após a migração.
 - Limitação: memórias antigas recebem `project_id` vazio; não foram atribuídas automaticamente a um projeto para evitar associação incorreta. A ferramenta `store_memory` passa a exigir um projeto Git válido, ID configurado ou `global=true` para novas memórias.
+
+## Diagnóstico de `Hook failed` código 127 — 2026-09-16
+
+- Sintoma relatado: `Hook failed / hook exited with code 127`.
+- Evidência: os hooks Codex ativos apontam para scripts no checkout (`~/.codex/hooks.json`); execução direta com payload vazio retornava exit 0 e não havia evento 127 no log redigido. O código 127 ocorre antes do corpo do script quando `#!/usr/bin/env bash` não encontra `bash` em um PATH restrito da CLI; por isso `observe-error.sh` não consegue registrar o erro. O adaptador `codex-protect-mcp-adapter.sh` também foi reproduzido localmente e retornou exit 0.
+- Correção aplicada: hooks Codex `context-guard-nudge.sh`, `memory-nudge.sh`, `agent-react-nudge.sh`, `docs-cache.sh` e `codex-protect-mcp-adapter.sh` usam `#!/usr/bin/bash`, removendo a dependência do PATH para localizar o interpretador. Não alterado o conteúdo dos payloads nem os gates.
+- Verificação: `bash -n` e execução dos quatro hooks com payload vazio passaram; `go test ./cmd/agent-sync` passou; `git diff --check` passou. A reprodução exata depende do ambiente da CLI, que não foi capturado no relato.
+- Próximo passo: repetir a operação que gerou o erro. Se persistir, capturar o nome do hook e stderr da CLI; o próximo suspeito será um comando interno ausente no PATH restrito.

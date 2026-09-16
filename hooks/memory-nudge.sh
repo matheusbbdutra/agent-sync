@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 # Lembrete pos-ferramenta: a cada N chamadas na mesma sessao, cobra a
 # checagem/gravacao de memoria via memory-mcp (store_memory), ja que hoje
 # isso depende so da disciplina do modelo seguindo o CLAUDE.md.

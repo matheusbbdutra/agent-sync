@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 # Lembrete pos-ferramenta: a cada N chamadas na mesma sessao, cobra validacao
 # de hipoteses (agent-react) — hipotese != fato; validar ou pedir passo ao user.
 set -euo pipefail

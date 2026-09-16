@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 # Adapta o stdout do protect-mcp ao contrato de hooks do Codex.
 set -uo pipefail
 

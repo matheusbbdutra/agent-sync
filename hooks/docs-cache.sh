@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 # Cacheia passivamente docs ja consultadas via WebFetch ou context7 (query-docs),
 # sem refazer requisicao de rede - so persiste o que a ferramenta ja trouxe.
 # Compartilhado entre Claude Code e Codex (schema de PostToolUse equivalente:
