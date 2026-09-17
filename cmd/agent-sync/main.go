@@ -365,6 +365,13 @@ func main() {
 			fmt.Printf("✅ [%s] Hook de agent-react instalado em: %s\n", t.Name, t.HooksSettingsPath)
 		}
 
+		// Instala o hook de compactação de contexto (ctx-window on-tool-call).
+		if err := syncCtxCompactHook(baseDir, t); err != nil {
+			fmt.Printf("⚠️  [%s] Falha ao sincronizar hook ctx-compact: %v\n", t.Name, err)
+		} else if t.HooksSettingsPath != "" {
+			fmt.Printf("✅ [%s] Hook de ctx-compact instalado em: %s\n", t.Name, t.HooksSettingsPath)
+		}
+
 		// OpenCode: plugin TS best-effort (ver limitação documentada no hooks.go)
 		if err := syncOpenCodePlugin(baseDir, t); err != nil {
 			fmt.Printf("⚠️  [%s] Falha ao sincronizar plugin: %v\n", t.Name, err)
@@ -380,6 +387,11 @@ func main() {
 			fmt.Printf("⚠️  [%s] Falha ao sincronizar plugin agent-react: %v\n", t.Name, err)
 		} else if t.OpenCodePluginDir != "" {
 			fmt.Printf("✅ [%s] Plugin de agent-react instalado em: %s (best-effort, ver README)\n", t.Name, t.OpenCodePluginDir)
+		}
+		if err := syncOpenCodeCtxCompactPlugin(baseDir, t); err != nil {
+			fmt.Printf("⚠️  [%s] Falha ao sincronizar plugin ctx-compact: %v\n", t.Name, err)
+		} else if t.OpenCodePluginDir != "" {
+			fmt.Printf("✅ [%s] Plugin de ctx-compact instalado em: %s (best-effort)\n", t.Name, t.OpenCodePluginDir)
 		}
 
 		// docs-cache: cacheia passivamente docs consultadas via WebFetch/

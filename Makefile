@@ -22,6 +22,7 @@ build: ## Compila agent-sync e as ferramentas em bin/
 	cd tools && go build -o ../bin/git-diff-summary ./cmd/git-diff-summary
 	cd tools && go build -o ../bin/mr-review-local ./cmd/mr-review-local
 	cd tools && go build -o ../bin/memory-sync ./cmd/memory-sync
+	cd tools && go build -o ../bin/ctx-window ./cmd/ctx-window
 
 install: build ## Compila e instala os binários/scripts em ~/.local/bin
 	mkdir -p ~/.local/bin

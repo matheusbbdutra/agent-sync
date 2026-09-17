@@ -12,6 +12,7 @@ const contextGuardHookName = "agent-sync-context-guard"
 const docsCacheHookName = "agent-sync-docs-cache"
 const memoryNudgeHookName = "agent-sync-memory-nudge"
 const agentReactNudgeHookName = "agent-sync-agent-react-nudge"
+const ctxCompactHookName = "agent-sync-ctx-compact"
 
 // hookEntry é o formato comum a Claude Code e Gemini CLI para um item de hooks.<Evento>[].
 type hookEntry struct {
@@ -65,6 +66,35 @@ func syncAgentReactNudgeHook(baseDir string, target TargetCLI) error {
 		return syncAntigravityHook(baseDir, target, agentReactNudgeHookName, "agent-react-nudge.antigravity.sh", "*")
 	}
 	return syncStandardHook(baseDir, target, agentReactNudgeHookName, "agent-react-nudge.sh", "*")
+}
+
+// syncCtxCompactHook instala o hook que registra tool calls no working memory
+// do ctx-window e dispara auto-compactacao quando o budget estimado e atingido.
+// Cobre Claude, Codex, Antigravity e Cursor (formatos suportados pelo agent-sync).
+// OpenCode fica best-effort via plugin TS (syncOpenCodeCtxCompactPlugin).
+func syncCtxCompactHook(baseDir string, target TargetCLI) error {
+	if target.HooksSettingsPath == "" || target.HooksEvent == "" {
+		return nil
+	}
+	if target.HooksFormat == "antigravity" {
+		return syncAntigravityHook(baseDir, target, ctxCompactHookName, "ctx-compact.antigravity.sh", "*")
+	}
+	return syncStandardHook(baseDir, target, ctxCompactHookName, "ctx-compact.sh", "*")
+}
+
+// syncOpenCodeCtxCompactPlugin instala o plugin TS best-effort para OpenCode
+// (mesma limitacao documentada em syncOpenCodePlugin — output do hook nem
+// sempre chega ao modelo ate a issue upstream #13574 fechar).
+func syncOpenCodeCtxCompactPlugin(baseDir string, target TargetCLI) error {
+	if target.OpenCodePluginDir == "" {
+		return nil
+	}
+	src := filepath.Join(baseDir, "hooks", "ctx-compact.opencode.ts")
+	if _, err := os.Stat(src); err != nil {
+		// plugin opcional — silencioso se nao existir
+		return nil
+	}
+	return copyFile(src, filepath.Join(target.OpenCodePluginDir, "ctx-compact.ts"))
 }
 
 // syncDocsCacheHook instala o hook que cacheia passivamente docs consultadas

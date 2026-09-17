@@ -15,6 +15,9 @@ type Config struct {
 		URL   string `json:"url"`
 		Token string `json:"token"`
 	} `json:"turso"`
+	Summarizer string `json:"summarizer,omitempty"`
+	CTXK       int    `json:"ctx_k,omitempty"`
+	CTXBudget  int    `json:"ctx_budget,omitempty"`
 }
 
 func ConfigPath() (string, error) {

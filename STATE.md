@@ -144,3 +144,67 @@
 - Correção aplicada: hooks Codex `context-guard-nudge.sh`, `memory-nudge.sh`, `agent-react-nudge.sh`, `docs-cache.sh` e `codex-protect-mcp-adapter.sh` usam `#!/usr/bin/bash`, removendo a dependência do PATH para localizar o interpretador. Não alterado o conteúdo dos payloads nem os gates.
 - Verificação: `bash -n` e execução dos quatro hooks com payload vazio passaram; `go test ./cmd/agent-sync` passou; `git diff --check` passou. A reprodução exata depende do ambiente da CLI, que não foi capturado no relato.
 - Próximo passo: repetir a operação que gerou o erro. Se persistir, capturar o nome do hook e stderr da CLI; o próximo suspeito será um comando interno ausente no PATH restrito.
+
+## Estratégia de janela de contexto (Cenário 3) — 2026-09-17
+
+- Plano aprovado: skill `context-window-strategy` + tool `tools/cmd/ctx-window/` aplicando o padrão do paper arXiv 2606.10209v1 (Microsoft — Lodha et al.): Last 5 tool calls + summary incremental atinge 91.6% de conclusão vs 71% do full context.
+- Decisão de default: **summarizer = próprio modelo da sessão** (default). Heurística pura local como fallback garantido. Ollama local como upgrade opcional para privacidade. Configurável via `agent-sync -apply`, env `AGENT_SYNC_SUMMARIZER`, JSON `~/.config/agent-sync/config.json`.
+- Compactação sob demanda (não dois níveis paralelos): quando contexto estoura (tokens > budget ou N tool calls > threshold), o próprio modelo resume o histórico enquanto tem contexto completo disponível; vamos resetar mesmo, então o custo de tokens não é desperdiçado.
+- Unidade de janela: tool calls (alinhado ao paper), K=5 por padrão configurável.
+- Próximo passo externo: Fase 0 de calibração empírica (mini-projetos variando K, teto e summarizer) antes de cravar defaults numéricos; sem ela, qualquer teto é chute.
+- Status: Fase 1 em andamento — skill + tool + heurística + testes.
+
+### Fase 1 — Esqueleto concluído — 2026-09-17
+
+- Skill `skills/context-window-strategy/SKILL.md` + prompt de sumarização `skills/context-window-strategy/prompts/summarize.md`.
+- Tool Go `tools/cmd/ctx-window/` com subcomandos: `show`, `compact`, `set-k`, `doctor`, `benchmark`.
+- Heurística local implementada como fallback (extrator por regex de marcadores + YAML estruturado com 6 seções).
+- Persistência em `~/.cache/agent-sync/ctx-window/<sessão>/{meta.json,turns.jsonl,summary.md,summary_vN.md}`.
+- 29 testes passando (`go test ./cmd/ctx-window/...`); `gofmt -l` limpo; `go vet ./...` sem alertas.
+- `Makefile` build/install adiciona `bin/ctx-window`.
+- Bugs corrigidos durante testes: shadowing de variável `t` em teste JSONL; `looksLikePath` agora aceita formato `path:line`; `Save` agora regrava `turns.jsonl` (idempotente) para refletir trim após `set-k`; `runCompact` não incrementa Version duas vezes.
+- Próximo: Fase 2 (hook de disparo `hooks/ctx-compact.sh` + integração memory-mcp + setup wizard no `-apply`).
+- Regras ativas: não consultar `.env`; não expor segredos; não commitar sem pedido; manter padrão de testes do repo (table-driven quando aplicável, cobertura de caminhos de erro); sem dependência externa — só stdlib.
+
+### Migração para EN — 2026-09-17
+
+- Decisão: skill, prompt, mensagens CLI e comentários em inglês (componentes técnicos que vão para o LLM ou definem contrato da skill).
+- Justificativa do usuário: LLMs são otimizados para inglês; ganho marginal mas vale a consistência técnica.
+- Trade-off aceito: quebra de consistência com o resto do agent-sync (regras globais, READMEs e outros tools continuam PT-BR).
+- Heurística local mantida **bilíngue** (marcadores PT-BR + EN) — fallback funciona para qualquer idioma do agente sem perder funcionalidade.
+- Marcadores EN adicionados: `was defined`, `was set to`, `chose to` (decisões); cobertura completa em erros, hipóteses, próximos passos, restrições.
+- 30 testes passando (incluindo `TestHeuristicAcceptsPTBRMarkers` para garantir cobertura PT-BR na heurística).
+- Mensagens do relatório agora em inglês (`Current summary` em vez de `Sumário atual`).
+
+### Fase 2 — Hook + integração no sync — 2026-09-17
+
+- **Subcomando `ctx-window on-tool-call`**: registra cada tool call no working memory e dispara auto-compactação quando `AGENT_SYNC_CTX_COMPACT_AT` (default 200 chars estimados) é atingido. Saída em JSON com `auto_compacted`, `version`, `turns`.
+- **Hooks criados**:
+  - `hooks/ctx-compact.sh` — Claude Code + Codex (PostToolUse).
+  - `hooks/ctx-compact.cursor.sh` — Cursor (postToolUse, lê `session_id` ou `conversation_id`).
+  - `hooks/ctx-compact.antigravity.sh` — Antigravity CLI (lê `sessionId` ou `session_id`).
+  - OpenCode best-effort via `syncOpenCodeCtxCompactPlugin` (silencioso se o plugin TS não existir ainda).
+- **`cmd/agent-sync/hooks.go`**: nova função `syncCtxCompactHook` (formato padrão + antigravity) e constante `ctxCompactHookName`. Mensagem de instalação impressa para cada CLI sincronizada.
+- **`cmd/agent-sync/main.go`**: chamada de `syncCtxCompactHook` para cada CLI com hooks suportados.
+- **`tools/internal/agentmemory/config.go`**: campos `Summarizer`, `CTXK`, `CTXBudget` adicionados ao `Config` para suportar setup wizard futuro (campos opcionais via `omitempty`).
+- **Testes**: 5 novos testes para `on-tool-call` (abaixo do threshold, acima do threshold, sem `--tool`, `EstimatedChars`, `compactAtThreshold`).
+- **Verificação**: `bash -n` dos 3 hooks passa; `go test ./cmd/ctx-window/...` 35 testes OK; `gofmt -l` limpo; `go vet ./...` sem alertas.
+- **Bug corrigido durante testes**: `flag.Parse` consumia o session_id como flag (tokens sem `--` são tentados como flag); ajustado para extrair session manualmente antes do Parse.
+- Próximo: setup wizard interativo no `agent-sync -apply` perguntando summarizer (A/B/C); ADR `docs/ADR-context-window-strategy.md`; READMEs.
+
+### Parecer empírico (mini-projeto /tmp/ctx-test/) — 2026-09-17
+
+- 6 runs (A–F) com a mesma tarefa (refatorar `Calculator` introduzindo `Stats` struct, forçando decisão documentada).
+- **Cenários A–E (heurística)**: 5 testes passando em todos; sumário **vazio nas seções semânticas** (decisions, resolved_errors, next_steps, constraints). Heurística só captura `artifacts` (paths).
+- **Cenário F (LLM summarizer via `opencode run --pure`)**: **todas as 6 seções populadas semanticamente** — 5 decisões + rationale, paths com descrição, cause+fix, 2 próximos passos, 4 restrições das regras globais (citou `AGENTS.md`).
+- **Parecer**: heurística é **fallback de segurança**, não produção. LLM summarizer é o **caminho real** do paper, validado end-to-end no OpenCode.
+- Implementação: `tools/cmd/ctx-window/summarize.go` (subcomandos `summarize` e `on-tool-call-llm`). Hook TS passa a chamar `on-tool-call-llm` em vez de `on-tool-call`. Cap de input aumentado para 16000 chars (~4000 tokens).
+- Custo adicional: 1 chamada extra de LLM por compactação (~5s latência). Aceitável.
+- Limitação não testada: ganho percentual exato do paper (91.6% vs 71%) exige LLM que degrade em contexto longo + sessão 50+ tool calls — fora do escopo deste ambiente.
+
+### Fase 4 — ADR + documentação — 2026-09-17
+
+- **`docs/ADR-context-window-strategy.md`** criado: aceita a estratégia com referência explícita ao paper arXiv [2606.10209v1](https://arxiv.org/html/2606.10209v1). Documenta decisão, consequências, evidência empírica (tabela 6 runs), implementação, limites conhecidos.
+- **READMEs atualizados**: `README.md` e `README.pt-BR.md` ganharam bullet em "Context and long sessions" / "Contexto e sessões longas" descrevendo a skill + link para o ADR.
+- **Fase 0 — calibração empírica**: marcada como **reduzida e aceita** no ADR (variamos summarizer + cap; aceitamos K=5 e teto=1000 do paper sem calibração local — justificado por custo proibitivo e paper já ter calibrado W).
+- Pendência restante (opcional, não bloqueia): integração `memory-mcp` para reancorar sumário entre CLIs via memória `project`.
