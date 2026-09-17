@@ -18,6 +18,7 @@ type Session struct {
 	ID         string    `json:"id"`
 	K          int       `json:"k"`
 	Summarizer string    `json:"summarizer"`
+	CLIName    string    `json:"cli_name"` // which CLI owns this session: claude | codex | opencode | cursor | antigravity
 	Budget     int       `json:"budget"`
 	Version    int       `json:"version"`
 	Turns      []Turn    `json:"turns"`

@@ -30,11 +30,20 @@ Usage:
   ctx-window show <session>                  shows summary + working memory + versions
   ctx-window compact <session>               forces compaction now (local heuristic)
   ctx-window set-k <session> <N>             adjusts K (working memory)
-  ctx-window on-tool-call <session>          records a tool call and compacts (heuristic) if needed
+  ctx-window on-tool-call <session>          records a tool call and compacts (local heuristic) if needed
       --tool <name>                          tool name (required)
       [--input <text>]                       truncated input (optional)
-  ctx-window on-tool-call-llm <session>     same but compacts via LLM (own model via opencode run)
-  ctx-window summarize <session>            forces LLM summarization now
+      [--cli <name>]                         claude|codex|opencode|cursor|antigravity (persisted on the session)
+  ctx-window on-tool-call-llm <session>      same but compacts via the owning CLI's own model
+      --cli <name>                           claude|codex|opencode|cursor|antigravity (required first call)
+  ctx-window hook <cli>                      reads a PostToolUse-style payload from stdin, extracts session/tool/
+                                              input/result for that CLI's schema, and calls on-tool-call-llm.
+                                              cli: claude|codex|cursor|antigravity. Installed directly as the hook
+                                              command by cmd/agent-sync (syncCtxCompactHook) — no intermediate
+                                              script file needed. OpenCode stays on hooks/ctx-compact.opencode.ts
+                                              (its hook IS a TS plugin, no Go equivalent to swap in there).
+  ctx-window summarize --cli <name> <session>  forces LLM summarization now (flags must come before <session>: the
+                                                stdlib flag parser stops at the first positional argument)
   ctx-window doctor                          detects available configuration
   ctx-window benchmark <dataset>             runs empirical battery (placeholder)
   ctx-window -help
@@ -67,6 +76,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runOnToolCall(rest, stdout, stderr)
 	case "on-tool-call-llm":
 		return runOnToolCallLLM(rest, stdout, stderr)
+	case "hook":
+		return runHook(rest, os.Stdin, stdout, stderr)
 	case "summarize":
 		return runSummarize(rest, stdout, stderr)
 	case "doctor":
@@ -163,6 +174,7 @@ func runOnToolCall(args []string, stdout, stderr io.Writer) error {
 	fs.SetOutput(stderr)
 	tool := fs.String("tool", "", "tool name (required)")
 	input := fs.String("input", "", "truncated tool input (optional)")
+	cliFlag := fs.String("cli", "", "CLI that owns this session: claude, codex, opencode, cursor, antigravity")
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -172,6 +184,9 @@ func runOnToolCall(args []string, stdout, stderr io.Writer) error {
 	s, err := Load(session)
 	if err != nil {
 		return err
+	}
+	if cli := strings.TrimSpace(*cliFlag); cli != "" {
+		s.CLIName = cli
 	}
 	content := *tool
 	if *input != "" {

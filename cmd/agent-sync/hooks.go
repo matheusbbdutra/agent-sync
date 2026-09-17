@@ -69,17 +69,27 @@ func syncAgentReactNudgeHook(baseDir string, target TargetCLI) error {
 }
 
 // syncCtxCompactHook instala o hook que registra tool calls no working memory
-// do ctx-window e dispara auto-compactacao quando o budget estimado e atingido.
-// Cobre Claude, Codex, Antigravity e Cursor (formatos suportados pelo agent-sync).
-// OpenCode fica best-effort via plugin TS (syncOpenCodeCtxCompactPlugin).
+// do ctx-window e dispara auto-compactacao (via LLM da propria CLI) quando o
+// budget estimado e atingido. O comando instalado e o proprio binario
+// ctx-window (`ctx-window hook <cli>`, ja esperado no PATH — mesma premissa
+// dos outros subcomandos chamados por hooks neste projeto): ele le o payload
+// da hook via stdin, extrai session/tool/input/resultado do schema daquela
+// CLI e decide, internamente, se compacta via `claude -p`/`codex exec`/
+// `cursor-agent -p`/`agy -p`. Nao ha script bash/python intermediario aqui
+// de proposito — manter essa logica em uma linguagem so (Go) facilita
+// depurar; antes cada CLI tinha um .sh + .py so pra isso. Cobre Claude,
+// Codex, Antigravity e Cursor. OpenCode fica no plugin TS
+// (syncOpenCodeCtxCompactPlugin) porque o hook dele E o runtime de plugin,
+// sem equivalente em Go pra trocar.
 func syncCtxCompactHook(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" || target.HooksEvent == "" {
 		return nil
 	}
+	command := "ctx-window hook " + target.AgentKind
 	if target.HooksFormat == "antigravity" {
-		return syncAntigravityHook(baseDir, target, ctxCompactHookName, "ctx-compact.antigravity.sh", "*")
+		return syncAntigravityHookCommand(target, ctxCompactHookName, command, "*")
 	}
-	return syncStandardHook(baseDir, target, ctxCompactHookName, "ctx-compact.sh", "*")
+	return syncStandardHookCommand(baseDir, target, ctxCompactHookName, command, "*")
 }
 
 // syncOpenCodeCtxCompactPlugin instala o plugin TS best-effort para OpenCode
@@ -112,13 +122,22 @@ func syncDocsCacheHook(baseDir string, target TargetCLI) error {
 }
 
 // syncStandardHook cobre o formato compartilhado por Claude Code e Codex:
-// {"hooks": {"<Evento>": [{"matcher", "hooks": [...]}]}}.
+// {"hooks": {"<Evento>": [{"matcher", "hooks": [...]}]}}. Espera um script
+// em disco (hooks/<scriptName>); para instalar um comando literal (ex.: um
+// subcomando do binário ctx-window, sem arquivo de script), use
+// syncStandardHookCommand diretamente.
 func syncStandardHook(baseDir string, target TargetCLI, hookName, scriptName, matcher string) error {
 	scriptPath := filepath.Join(baseDir, "hooks", scriptName)
 	if _, err := os.Stat(scriptPath); err != nil {
 		return fmt.Errorf("script do hook não encontrado: %s", scriptPath)
 	}
+	return syncStandardHookCommand(baseDir, target, hookName, scriptPath, matcher)
+}
 
+// syncStandardHookCommand é a versão sem exigência de arquivo em disco:
+// `command` é gravado literalmente no settings.json (pode ser um script ou
+// um comando de binário já esperado no PATH, ex. "ctx-window hook claude").
+func syncStandardHookCommand(baseDir string, target TargetCLI, hookName, command, matcher string) error {
 	settings, err := readJSONObject(target.HooksSettingsPath)
 	if err != nil {
 		return err
@@ -137,7 +156,7 @@ func syncStandardHook(baseDir string, target TargetCLI, hookName, scriptName, ma
 			hooksRoot["PreToolUse"] = adaptCodexProtectionHooks(decodeHookEntries(hooksRoot["PreToolUse"]), adapterPath)
 		}
 	}
-	hooksRoot[target.HooksEvent] = upsertHookEntry(entries, scriptPath, hookName, matcher)
+	hooksRoot[target.HooksEvent] = upsertHookEntry(entries, command, hookName, matcher)
 	settings["hooks"] = hooksRoot
 
 	return writeJSONObject(target.HooksSettingsPath, settings)
@@ -160,12 +179,18 @@ func adaptCodexProtectionHooks(entries []hookEntry, adapterPath string) []hookEn
 
 // syncAntigravityHook cobre o formato próprio do Antigravity CLI, sem chave
 // "hooks" de topo: {"<nome-do-hook>": {"<Evento>": [{"matcher", "hooks": [...]}]}}.
+// Espera um script em disco (hooks/<scriptName>); para um comando literal
+// (sem arquivo), use syncAntigravityHookCommand diretamente.
 func syncAntigravityHook(baseDir string, target TargetCLI, hookName, scriptName, matcher string) error {
 	scriptPath := filepath.Join(baseDir, "hooks", scriptName)
 	if _, err := os.Stat(scriptPath); err != nil {
 		return fmt.Errorf("script do hook não encontrado: %s", scriptPath)
 	}
+	return syncAntigravityHookCommand(target, hookName, scriptPath, matcher)
+}
 
+// syncAntigravityHookCommand é a versão sem exigência de arquivo em disco.
+func syncAntigravityHookCommand(target TargetCLI, hookName, command, matcher string) error {
 	root, err := readJSONObject(target.HooksSettingsPath)
 	if err != nil {
 		return err
@@ -177,7 +202,7 @@ func syncAntigravityHook(baseDir string, target TargetCLI, hookName, scriptName,
 	}
 
 	entries := decodeHookEntries(hookGroup[target.HooksEvent])
-	hookGroup[target.HooksEvent] = upsertHookEntry(entries, scriptPath, hookName, matcher)
+	hookGroup[target.HooksEvent] = upsertHookEntry(entries, command, hookName, matcher)
 	root[hookName] = hookGroup
 
 	return writeJSONObject(target.HooksSettingsPath, root)

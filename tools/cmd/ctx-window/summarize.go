@@ -58,15 +58,53 @@ func buildSummarizePrompt(history string, budgetTokens int) string {
 	return prompt
 }
 
-// runSummarize asks the opencode CLI (already authenticated) to generate a
-// summary for the session via the same LLM the user is running. We invoke
-// `opencode run --pure` to avoid plugin recursion (our own hook should not
-// fire while we're inside a summarize call).
+// knownCLIs maps a CLI name to the binary/flags that run it non-interactively
+// with a single prompt and print the response to stdout. Verified live via
+// `<bin> --help` on 2026-09-17 (see docs/ADR-context-window-strategy.md).
+var knownCLIs = map[string]struct {
+	bin        string
+	staticArgs []string // args placed before the model flag/prompt
+	modelFlag  string   // flag name used to select a model, "" if unsupported here
+}{
+	"claude":      {bin: "claude", staticArgs: []string{"-p"}, modelFlag: "--model"},
+	"codex":       {bin: "codex", staticArgs: []string{"exec"}, modelFlag: "--model"},
+	"opencode":    {bin: "opencode", staticArgs: []string{"run", "--pure"}, modelFlag: "-m"},
+	"cursor":      {bin: "cursor-agent", staticArgs: []string{"-p"}, modelFlag: "--model"},
+	"antigravity": {bin: "agy", staticArgs: []string{"-p"}, modelFlag: "--model"},
+}
+
+// summarizerCommand builds the exec.Cmd that runs the given CLI
+// non-interactively with prompt as its single instruction. Recursion into
+// our own hooks is not a concern for claude/codex/cursor/antigravity here
+// because their hooks only fire on tool calls, and a plain "-p"/"exec" run
+// with no tools available makes no tool calls; opencode is the exception
+// (its plugin hook fires on tool.execute.after), so it keeps --pure.
+func summarizerCommand(ctx context.Context, cliName, model, prompt string) (*exec.Cmd, error) {
+	cli, ok := knownCLIs[cliName]
+	if !ok {
+		known := make([]string, 0, len(knownCLIs))
+		for k := range knownCLIs {
+			known = append(known, k)
+		}
+		return nil, fmt.Errorf("unknown CLI %q for summarization (known: %s)", cliName, strings.Join(known, ", "))
+	}
+	args := append([]string{}, cli.staticArgs...)
+	if model != "" && cli.modelFlag != "" {
+		args = append(args, cli.modelFlag, model)
+	}
+	args = append(args, prompt)
+	return exec.CommandContext(ctx, cli.bin, args...), nil
+}
+
+// runSummarize asks the CLI that owns the session (claude, codex, opencode,
+// cursor or antigravity — whichever hook triggered this session) to generate
+// a summary via the same LLM/subscription the user is already running.
 func runSummarize(args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("summarize", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	model := fs.String("model", "", "model in provider/model format (default: minimax/MiniMax-M3)")
-	timeout := fs.Duration("timeout", 60*time.Second, "timeout for the opencode call")
+	cliFlag := fs.String("cli", "", "CLI to run the summary through: claude, codex, opencode, cursor, antigravity (default: session's cli_name)")
+	model := fs.String("model", "", "model to request from the CLI (default: CLI's own default, or $AGENT_SYNC_CTX_MODEL)")
+	timeout := fs.Duration("timeout", 60*time.Second, "timeout for the CLI call")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -80,27 +118,34 @@ func runSummarize(args []string, stdout, stderr io.Writer) error {
 	if len(s.Turns) == 0 {
 		return errors.New("session has no tool calls — nothing to summarize")
 	}
+	cliName := strings.TrimSpace(*cliFlag)
+	if cliName == "" {
+		cliName = strings.TrimSpace(s.CLIName)
+	}
+	if cliName == "" {
+		return errors.New("no CLI known for this session — pass --cli (claude, codex, opencode, cursor, antigravity) or ensure the hook records cli_name")
+	}
 	promptModel := *model
 	if promptModel == "" {
 		promptModel = strings.TrimSpace(os.Getenv("AGENT_SYNC_CTX_MODEL"))
-	}
-	if promptModel == "" {
-		promptModel = "minimax/MiniMax-M3"
 	}
 	history := formatHistoryForPrompt(s.Turns)
 	prompt := buildSummarizePrompt(history, s.Budget)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "opencode", "run", "--pure", "-m", promptModel, prompt)
+	cmd, err := summarizerCommand(ctx, cliName, promptModel, prompt)
+	if err != nil {
+		return err
+	}
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("opencode run failed: %w (stderr: %s)", err, strings.TrimSpace(stderrBuf.String()))
+		return fmt.Errorf("%s summarizer failed: %w (stderr: %s)", cliName, err, strings.TrimSpace(stderrBuf.String()))
 	}
 	yaml := extractYAML(stdoutBuf.String())
 	if yaml == "" {
-		yaml = "# empty summary returned by opencode\n" + stdoutBuf.String()
+		yaml = fmt.Sprintf("# empty summary returned by %s\n", cliName) + stdoutBuf.String()
 	}
 	prev := s.Version
 	if err := s.AppendVersionedSummary(yaml); err != nil {
@@ -109,8 +154,8 @@ func runSummarize(args []string, stdout, stderr io.Writer) error {
 	if err := s.Save(); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "summarized: version %d (previous %d); model=%s; turns=%d\n",
-		s.Version, prev, promptModel, len(s.Turns))
+	fmt.Fprintf(stdout, "summarized: version %d (previous %d); cli=%s; model=%s; turns=%d\n",
+		s.Version, prev, cliName, promptModel, len(s.Turns))
 	return nil
 }
 
@@ -126,6 +171,7 @@ func runOnToolCallLLM(args []string, stdout, stderr io.Writer) error {
 	fs.SetOutput(stderr)
 	tool := fs.String("tool", "", "tool name (required)")
 	input := fs.String("input", "", "truncated tool input (optional)")
+	cliFlag := fs.String("cli", "", "CLI that owns this session: claude, codex, opencode, cursor, antigravity")
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -135,6 +181,9 @@ func runOnToolCallLLM(args []string, stdout, stderr io.Writer) error {
 	s, err := Load(session)
 	if err != nil {
 		return err
+	}
+	if cli := strings.TrimSpace(*cliFlag); cli != "" {
+		s.CLIName = cli
 	}
 	content := *tool
 	if *input != "" {

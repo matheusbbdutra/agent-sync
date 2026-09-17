@@ -55,6 +55,11 @@ Implementar a estratégia **sliding window + incremental summary**, alinhada ao 
 - **Best-effort no OpenCode**: hook `tool.execute.after` tem limitação upstream documentada ([anomalyco/opencode#13574](https://github.com/anomalyco/opencode/issues/13574)) — output do hook nem sempre chega ao modelo.
 - **Inconsistência de idioma**: skill EN, regras globais PT-BR.
 
+## Decisões revisadas
+
+- **Summarizer não é mais fixo em `opencode run --pure`**: cada CLI (claude/codex/cursor/antigravity/opencode) resume via seu próprio modo não-interativo (`claude -p`, `codex exec`, `cursor-agent -p`, `agy -p`, `opencode run --pure`), confirmado ao vivo via `--help` de cada CLI instalada. Ver `summarizerCommand` em `summarize.go`.
+- **Hooks de claude/codex/cursor/antigravity migraram de bash+Python para Go puro**: a primeira versão da captura de `tool_input`/`tool_response` usava um script `.py` por CLI (parsing JSON) invocado por um wrapper `.sh`. Motivo da reversão: misturar Go (tool principal) + bash (wrapper) + Python (parsing) no mesmo hook tornava difícil depurar e manter — três linguagens pra uma lógica que cabe em uma. Agora é um único subcomando `ctx-window hook <cli>` (Go), lendo o payload via stdin e chamando `on-tool-call-llm` internamente; `cmd/agent-sync/hooks.go` instala esse comando direto no settings.json, sem arquivo de script intermediário. **OpenCode é a única exceção que permanece em outra linguagem** (`hooks/ctx-compact.opencode.ts`): o hook dele *é* o runtime de plugin TS do OpenCode, não um comando de shell — não há equivalente Go pra substituir isso sem reescrever o próprio OpenCode.
+
 ## Evidência empírica (mini-projeto `/tmp/ctx-test/`)
 
 6 runs com a mesma tarefa (refatorar `Calculator` introduzindo `Stats` struct, forçando decisão documentada):
@@ -81,14 +86,12 @@ Implementar a estratégia **sliding window + incremental summary**, alinhada ao 
 | --- | --- | --- |
 | Skill (protocolo) | `skills/context-window-strategy/SKILL.md` | Defaults, comandos, quando disparar |
 | Prompt de sumarização | `skills/context-window-strategy/prompts/summarize.md` | Contrato de prompt LLM |
-| Tool CLI | `tools/cmd/ctx-window/` | `show`, `compact` (heurística), `compact-llm`, `summarize`, `on-tool-call`, `on-tool-call-llm`, `set-k`, `doctor`, `benchmark` |
+| Tool CLI | `tools/cmd/ctx-window/` | `show`, `compact` (heurística), `summarize`, `on-tool-call`, `on-tool-call-llm`, `hook <cli>`, `set-k`, `doctor`, `benchmark` |
 | Heurística (fallback) | `tools/cmd/ctx-window/heuristic.go` | Regex bilíngue para paths |
-| LLM summarizer | `tools/cmd/ctx-window/summarize.go` | `opencode run --pure` para gerar YAML |
-| Hook Claude/Codex | `hooks/ctx-compact.sh` | PostToolUse padrão |
-| Hook Cursor | `hooks/ctx-compact.cursor.sh` | postToolUse + `additional_context` |
-| Hook Antigravity | `hooks/ctx-compact.antigravity.sh` | PreInvocation |
-| Plugin OpenCode (TS) | `hooks/ctx-compact.opencode.ts` | `tool.execute.after` (best-effort) |
-| Sync nas 5 CLIs | `cmd/agent-sync/hooks.go` (`syncCtxCompactHook`, `syncOpenCodeCtxCompactPlugin`) | Instalação automática via `-apply` |
+| LLM summarizer | `tools/cmd/ctx-window/summarize.go` | Dispatch por `--cli` (`summarizerCommand`): `claude -p`, `codex exec`, `opencode run --pure`, `cursor-agent -p`, `agy -p` — cada CLI resume via seu próprio modo não-interativo, não só via opencode |
+| Hook Claude/Codex/Cursor/Antigravity | `tools/cmd/ctx-window/hook.go` (`ctx-window hook <cli>`) | Lê o payload de PostToolUse via stdin, extrai `tool_input`/resultado real por schema de cada CLI (schemas confirmados lendo `docs-cache.py`/`docs-cache.cursor.py`/`docs-cache.antigravity.py`) e chama `on-tool-call-llm` internamente. Tudo em Go — decisão consciente após avaliar bash+Python por CLI (ver "Decisões revisadas" abaixo): mais difícil de depurar/manter com 3 linguagens no mesmo hook. |
+| Plugin OpenCode (TS) | `hooks/ctx-compact.opencode.ts` | `tool.execute.after` (best-effort) — único que permanece fora do Go: o hook do OpenCode **é** o runtime de plugin TS, sem equivalente para trocar |
+| Sync nas 5 CLIs | `cmd/agent-sync/hooks.go` (`syncCtxCompactHook`, `syncOpenCodeCtxCompactPlugin`) | Instalação automática via `-apply`; para claude/codex/cursor/antigravity instala o comando `ctx-window hook <cli>` diretamente no settings.json (sem script intermediário em disco) |
 
 ## Limites conhecidos
 

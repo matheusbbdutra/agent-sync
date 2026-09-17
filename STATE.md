@@ -207,4 +207,50 @@
 - **`docs/ADR-context-window-strategy.md`** criado: aceita a estratégia com referência explícita ao paper arXiv [2606.10209v1](https://arxiv.org/html/2606.10209v1). Documenta decisão, consequências, evidência empírica (tabela 6 runs), implementação, limites conhecidos.
 - **READMEs atualizados**: `README.md` e `README.pt-BR.md` ganharam bullet em "Context and long sessions" / "Contexto e sessões longas" descrevendo a skill + link para o ADR.
 - **Fase 0 — calibração empírica**: marcada como **reduzida e aceita** no ADR (variamos summarizer + cap; aceitamos K=5 e teto=1000 do paper sem calibração local — justificado por custo proibitivo e paper já ter calibrado W).
+
+### Correção — summarizer hardcoded em opencode/MiniMax-M3 — 2026-09-17
+
+- **Achado do usuário**: `runSummarize` chamava sempre `opencode run --pure -m minimax/MiniMax-M3`, mesmo quando o hook disparava em Claude Code, Codex, Cursor ou Antigravity. Cada CLI deveria resumir via seu próprio modo não-interativo, não sempre via opencode.
+- **Verificação ao vivo** (`--help` de cada CLI instalada, não suposição): `claude -p`, `codex exec`, `opencode run --pure -m`, `cursor-agent -p`, `agy -p` — todos aceitam um prompt posicional e imprimem a resposta em stdout; flag de modelo é `--model` em claude/codex/cursor/agy e `-m` em opencode.
+- **Correção aplicada**: `tools/cmd/ctx-window/summarize.go` ganhou `knownCLIs` (tabela bin+staticArgs+modelFlag) e `summarizerCommand(cli, model, prompt)`. `Session` ganhou campo `CLIName`; `on-tool-call` e `on-tool-call-llm` aceitam `--cli` e persistem no meta.json; `summarize` usa `--cli` ou `s.CLIName` da sessão (erro explícito se nenhum dos dois estiver setado — não assume opencode como default).
+- Hooks divididos por CLI: `ctx-compact.sh` (compartilhado Claude+Codex) virou `ctx-compact.claude.sh` + `ctx-compact.codex.sh`; `ctx-compact.cursor.sh`/`.antigravity.sh`/`.opencode.ts` passaram a chamar `on-tool-call-llm --cli <nome>` (antes cursor/antigravity só rodavam a heurística local, nunca o LLM). `cmd/agent-sync/hooks.go` (`syncCtxCompactHook`) seleciona o script por `target.AgentKind`.
+- Testes novos: `tools/cmd/ctx-window/summarize_test.go` (dispatch por CLI, omissão de `--model`, erro em CLI desconhecida) — puros, sem exec real. `go build ./...` e `go test ./cmd/ctx-window/... ./cmd/agent-sync/...` (módulos `tools/` e raiz) passaram.
+- ADR e READMEs (EN/PT-BR) atualizados para não citar mais opencode como único caminho.
+- Pendência: não testado end-to-end contra cada CLI real (exec de `claude -p`/`codex exec`/`cursor-agent -p`/`agy -p` fazendo uma chamada de LLM de verdade) — só a sintaxe dos comandos foi confirmada via `--help`.
+
+### Smoke test end-to-end — summarizer por CLI — 2026-09-17
+
+- Sessão sintética fixa (5 tool calls: leitura, decisão de design, erro+correção, teste passando, próximos passos+restrição) rodada contra `ctx-window summarize --cli <nome>` para `claude`, `codex`, `cursor`, `antigravity` (opencode já validado na Fase 3).
+- **Resultado**: as 4 CLIs geraram YAML válido com `decisions`, `resolved_errors`, `next_steps` e `constraints` populados corretamente; `active_hypotheses` vazio em todas (esperado — dado sintético não tinha hipótese aberta). Latência 6-14s por chamada.
+- **Bug de uso encontrado** (não de implementação): o parser `flag` da stdlib para de interpretar flags no primeiro argumento posicional — `summarize <session> --cli X` falha silenciosamente (`NArg()!=1`); a ordem correta é `summarize --cli X <session>`. Corrigido o `-help` em `main.go` para deixar isso explícito.
+- Sessão de teste removida do cache após validação (`~/.cache/agent-sync/ctx-window/smoke-test-cli-dispatch`).
+- Não coberto (na época): `on-tool-call-llm` disparando via hook real de cada CLI em uma sessão de trabalho de verdade (só o `summarize` isolado foi testado). **Resolvido nas duas seções abaixo.**
+
+### Validação end-to-end via hook real (payload simulado) — 2026-09-17
+
+- Binário `ctx-window` instalado em `~/.local/bin` estava **desatualizado** (build anterior ao `--cli`, ainda com hardcode opencode/MiniMax) — reinstalado a partir do módulo `tools/` antes de testar.
+- Simulados payloads reais de PostToolUse (schema `session_id`/`tool_name` confirmado — é o mesmo já usado por `context-guard-nudge.sh`, ativo nesta própria sessão) via stdin para `hooks/ctx-compact.{claude,codex,cursor,antigravity}.sh`, forçando `AGENT_SYNC_CTX_COMPACT_AT=1` para disparar a compactação via LLM no primeiro tool call.
+- **Resultado**: as 4 CLIs completaram a cadeia inteira (script → `ctx-window on-tool-call-llm --cli X` → exec da CLI real → `summary.md` gravado com `cli_name` correto). Latência 4-8s.
+- **Achado**: os hooks só extraíam `tool_name`, nunca `tool_input`/`tool_response` — o LLM recebia contexto vazio (só "Bash") e corretamente reportava dado insuficiente em vez de alucinar.
+
+### Extensão — captura real de tool_input/tool_response nos 4 hooks bash — 2026-09-17
+
+- Schemas de payload confirmados **por leitura de código já existente no repo** (não suposição): `docs-cache.py` (Claude/Codex: `tool_name`, `tool_input`, `tool_response`), `docs-cache.cursor.py` (Cursor: `tool_output`/`tool_response`, `tool_input` pode vir como string JSON), `docs-cache.antigravity.py` (Antigravity: payload não traz resultado — precisa ler do `transcriptPath` JSONL em `step_index == stepIdx+1`).
+- Criados `hooks/ctx-compact.py` (compartilhado Claude+Codex, recebe `--cli` como argv), `hooks/ctx-compact.cursor.py`, `hooks/ctx-compact.antigravity.py`. Todos chamam `subprocess.run([...])` com lista de argumentos (nunca string de shell) para não ter risco de injeção de comando via conteúdo de tool_input/tool_response.
+- `hooks/ctx-compact.{claude,codex,cursor,antigravity}.sh` viraram wrappers finos: delegam pro python3 se disponível; fallback bash puro (só session_id+tool_name, sem input) se `python3` ausente — mesmo padrão de degradação graciosa já usado em `docs-cache.sh`.
+- **Correção de bug no fallback do antigravity**: a versão anterior extraía `toolName` (campo plano, nunca confirmado) — o schema real é `toolCall.name` (aninhado). Fallback bash corrigido para extrair `"name"` de dentro de `toolCall` via grep raso (aceitável só como fallback degradado).
+- **Validação**: repetido o smoke test end-to-end com payloads reais de erro (`TestAverage_EmptyHistory panic: division by zero`) para claude, codex, cursor e antigravity (este último com `transcriptPath` simulado em arquivo temporário). Todos os 4 resumos capturaram a hipótese correta (divisão por zero, linha calculator.go:58) com `active_hypotheses` marcado `(hypothesis)` — antes vinha tudo vazio.
+- `go build ./...`, `go vet ./...` (raiz) e `go build ./... && go test ./...` (módulo `tools/`) passaram sem alteração de código Go (só hooks bash/python foram tocados nesta rodada).
+- Sessões de teste e arquivos temporários removidos do cache/scratchpad após validação.
+- Pendência: não testado contra o schema real do OpenCode ainda mais a fundo — plugin TS já capturava input/output desde antes (não fazia parte deste achado). Fallback puro-bash (sem python3) permanece sem captura de input — aceito, é apenas o pior caso degradado.
+
+### Correção — bash+Python demais, consolidado em Go — 2026-09-17
+
+- **Achado do usuário**: a versão anterior (bash `.sh` wrapper + Python `.py` de parsing, por CLI) misturava Go (ctx-window) + bash + Python no mesmo hook, dificultando depurar/manter. Pedido explícito: reduzir a mistura de linguagens.
+- **Correção**: criado `tools/cmd/ctx-window/hook.go` com subcomando `ctx-window hook <cli>` — lê o payload de PostToolUse via stdin, faz o parsing do schema de cada CLI **em Go** (`encoding/json`), monta o conteúdo e chama `runOnToolCallLLM` internamente (mesma função já usada por `on-tool-call-llm`, sem exec extra). Removidos `hooks/ctx-compact.{claude,codex,cursor,antigravity}.sh` e `hooks/ctx-compact.{,cursor,antigravity}.py` — não existe mais bash nem Python nesse caminho.
+- `cmd/agent-sync/hooks.go`: `syncCtxCompactHook` agora instala o comando `ctx-window hook <cli>` **direto** no settings.json de cada CLI (sem exigir arquivo de script em disco). Novas funções `syncStandardHookCommand`/`syncAntigravityHookCommand` (variante sem checagem de arquivo) mantidas ao lado das antigas `syncStandardHook`/`syncAntigravityHook` (que outros hooks — context-guard-nudge, memory-nudge, docs-cache — continuam usando normalmente, baseados em script).
+- **OpenCode é a única exceção que permanece fora do Go**: o hook dele *é* o runtime de plugin TS (`tool.execute.after`), não um comando de shell — não dá pra substituir sem reescrever o próprio OpenCode. `hooks/ctx-compact.opencode.ts` não foi tocado.
+- Testes novos: `tools/cmd/ctx-window/hook_test.go` — parsers das 3 schemas (claude/codex, cursor, antigravity incluindo leitura de transcript simulado), erro em CLI desconhecida, e um teste end-to-end (`TestRunHookEndToEndRecordsTurn`) que roda `runHook` completo isolando `cacheRoot` em diretório temporário. `go build`/`go vet`/`go test` (raiz + módulo `tools/`) passaram.
+- **Revalidado end-to-end de verdade**: reinstalado `~/.local/bin/ctx-window` com o novo binário e repetido o smoke test contra `claude`, `codex`, `cursor`, `antigravity` via `ctx-window hook <cli>` direto (sem bash/python), com payloads simulados (incluindo `transcriptPath` fake pro antigravity). Todos os 4 produziram resumo com hipótese/causa/próximos passos corretos. Sessões de teste e arquivo de transcript fake removidos após validação.
+- ADR, READMEs (EN/PT-BR) atualizados com a nova arquitetura e uma seção "Decisões revisadas" documentando o porquê da reversão bash+Python → Go.
 - Pendência restante (opcional, não bloqueia): integração `memory-mcp` para reancorar sumário entre CLIs via memória `project`.

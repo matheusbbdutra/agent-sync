@@ -37,8 +37,8 @@ export const CtxCompact: Plugin = async () => {
         const parts = [argsStr, outputStr].filter((s) => s.length > 0)
         const inputArg = parts.length > 0 ? safeShellSingleQuote(parts.join(" | ")) : ""
         const cmd = inputArg
-          ? `ctx-window on-tool-call-llm "${sessionID}" --tool "${toolName}" --input ${inputArg}`
-          : `ctx-window on-tool-call-llm "${sessionID}" --tool "${toolName}"`
+          ? `ctx-window on-tool-call-llm "${sessionID}" --cli opencode --tool "${toolName}" --input ${inputArg}`
+          : `ctx-window on-tool-call-llm "${sessionID}" --cli opencode --tool "${toolName}"`
         execSync(cmd, { stdio: "ignore", timeout: 90000 })
       } catch {
         // best-effort: nunca bloqueia o tool call
