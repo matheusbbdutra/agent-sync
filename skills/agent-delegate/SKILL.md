@@ -1,6 +1,6 @@
 ---
 name: agent-delegate
-description: Critérios para decidir se e para qual CLI/modelo delegar uma tarefa (Claude Code, Codex, Antigravity/agy, OpenCode, Cursor), usando o modo adequado ao perfil de permissão de cada harness e a memória compartilhada (`memory` MCP). Use quando o usuário pedir para "mandar isso pra outro agente/modelo", ao avaliar se uma tarefa é barata/mecânica o suficiente para rodar num modelo mais econômico, ou ao decidir se vale delegar em vez de executar você mesmo.
+description: "Critérios para delegar tarefas entre CLIs e modelos conforme complexidade e tokens."
 ---
 
 # Delegação entre agentes/CLIs

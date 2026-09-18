@@ -1,6 +1,6 @@
 ---
 name: dependency-management-deps-audit
-description: "You are a dependency security expert specializing in vulnerability scanning, license compliance, and supply chain security. Analyze project dependencies for known vulnerabilities, licensing issues, outdated packages, and provide actionable remediation strategies."
+description: "Auditoria e atualização segura de dependências, identificando vulnerabilidades (CVEs)."
 ---
 
 # Dependency Audit and Security Analysis

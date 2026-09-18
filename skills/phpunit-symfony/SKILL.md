@@ -1,6 +1,6 @@
 ---
 name: phpunit-symfony
-description: Especialista em testes no Symfony com PHPUnit cobrindo unit, integration (KernelTestCase), functional (WebTestCase), banco com rollback/factories, mocks de serviços, HttpClient, Mailer e Messenger. Use ao escrever ou revisar testes de aplicações Symfony, configurar banco de testes ou depurar suítes lentas/frágeis.
+description: "Testes automatizados no Symfony com PHPUnit (unitários, integração e WebTestCase)."
 ---
 
 # PHPUnit no Symfony

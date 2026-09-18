@@ -1,6 +1,6 @@
 ---
 name: search-specialist
-description: Expert web researcher using advanced search techniques and
+description: "Pesquisa na web avançada, operadores booleanos e síntese técnica objetiva."
   synthesis. Masters search operators, result filtering, and multi-source
   verification. Handles competitive analysis and fact-checking. Use PROACTIVELY
   for deep research, information gathering, or trend analysis.

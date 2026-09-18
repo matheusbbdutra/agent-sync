@@ -168,6 +168,7 @@ func runSummarize(args []string, stdout, stderr io.Writer) error {
 	if yaml == "" {
 		yaml = fmt.Sprintf("# empty summary returned by %s\n", cliName) + stdoutBuf.String()
 	}
+	yaml = ensureHypothesesGuard(yaml)
 	prev := s.Version
 	if err := s.AppendVersionedSummary(yaml); err != nil {
 		return err
@@ -211,6 +212,7 @@ func runSummarize(args []string, stdout, stderr io.Writer) error {
 // Aceito por ora — corrigir exigiria persistir ProjectID no Session desde o
 // hook, fora do escopo desta integração.
 func rememberSummary(sessionID, cliName, yaml string, stderr io.Writer) (int, error) {
+	yaml = ensureHypothesesGuard(yaml)
 	dbPath, err := agentmemory.DefaultDBPath()
 	if err != nil {
 		return 0, err
@@ -307,4 +309,180 @@ func extractYAML(s string) string {
 		return strings.TrimSpace(s[start:])
 	}
 	return strings.TrimSpace(s[start : start+end])
+}
+
+const (
+	activeHypothesesBlockerText = `[BLOQUEIO agent-react] Existem hipóteses ativas pendentes de validação antes de declarar a tarefa pronta.`
+	activeHypothesesBlockerLine = `- "` + activeHypothesesBlockerText + `"`
+)
+
+// ensureHypothesesGuard verifica se existem hipóteses ativas pendentes em active_hypotheses.
+// Se existirem, garante que a seção next_steps contenha o marcador de bloqueio, sem duplicá-lo se já existir.
+func ensureHypothesesGuard(summaryYAML string) string {
+	if !hasActiveHypotheses(summaryYAML) || hasNextStepsBlocker(summaryYAML) {
+		return summaryYAML
+	}
+	return insertBlockerIntoNextSteps(summaryYAML)
+}
+
+func hasActiveHypotheses(yaml string) bool {
+	for _, rec := range agentmemory.ParseSummary(yaml) {
+		if rec.Section == "active_hypotheses" {
+			content := strings.TrimSpace(rec.Content)
+			if content != "" && content != "[]" {
+				return true
+			}
+		}
+	}
+	// Fallback para itens não indentados ou variações de formatação do YAML
+	lines := strings.Split(yaml, "\n")
+	inSection := false
+	for _, line := range lines {
+		trimmed := strings.TrimRight(line, " \t\r")
+		stripped := strings.TrimLeft(trimmed, " ")
+		if !inSection {
+			if stripped == "active_hypotheses:" || strings.HasPrefix(stripped, "active_hypotheses: ") {
+				inSection = true
+				rest := strings.TrimSpace(strings.TrimPrefix(stripped, "active_hypotheses:"))
+				if rest != "" && rest != "[]" && !strings.HasPrefix(rest, "#") {
+					return true
+				}
+			}
+			continue
+		}
+		if trimmed == "" || strings.HasPrefix(stripped, "#") {
+			continue
+		}
+		if strings.HasPrefix(stripped, "-") {
+			itemContent := strings.TrimSpace(strings.TrimPrefix(stripped, "-"))
+			itemContent = strings.Trim(itemContent, `"'`)
+			if itemContent != "" && itemContent != "[]" {
+				return true
+			}
+			continue
+		}
+		if strings.HasSuffix(stripped, ":") || strings.Contains(stripped, ": ") {
+			break
+		}
+	}
+	return false
+}
+
+func hasNextStepsBlocker(yaml string) bool {
+	for _, rec := range agentmemory.ParseSummary(yaml) {
+		if rec.Section == "next_steps" && strings.Contains(rec.Content, activeHypothesesBlockerText) {
+			return true
+		}
+	}
+	lines := strings.Split(yaml, "\n")
+	inSection := false
+	for _, line := range lines {
+		trimmed := strings.TrimRight(line, " \t\r")
+		stripped := strings.TrimLeft(trimmed, " ")
+		if !inSection {
+			if stripped == "next_steps:" || strings.HasPrefix(stripped, "next_steps: ") {
+				inSection = true
+				if strings.Contains(stripped, activeHypothesesBlockerText) {
+					return true
+				}
+			}
+			continue
+		}
+		if trimmed == "" || strings.HasPrefix(stripped, "#") {
+			continue
+		}
+		if strings.Contains(line, activeHypothesesBlockerText) {
+			return true
+		}
+		if !strings.HasPrefix(stripped, "-") && (strings.HasSuffix(stripped, ":") || strings.Contains(stripped, ": ")) {
+			break
+		}
+	}
+	return false
+}
+
+func insertBlockerIntoNextSteps(yaml string) string {
+	lines := strings.Split(yaml, "\n")
+	nextStepsIdx := -1
+	for i, line := range lines {
+		trimmed := strings.TrimRight(line, " \t\r")
+		stripped := strings.TrimLeft(trimmed, " ")
+		if stripped == "next_steps:" || strings.HasPrefix(stripped, "next_steps: ") {
+			nextStepsIdx = i
+			break
+		}
+	}
+
+	if nextStepsIdx == -1 {
+		var sb strings.Builder
+		trimmed := strings.TrimRight(yaml, "\r\n")
+		sb.WriteString(trimmed)
+		if len(trimmed) > 0 {
+			sb.WriteString("\n")
+		}
+		sb.WriteString("next_steps:\n")
+		sb.WriteString("  " + activeHypothesesBlockerLine + "\n")
+		return sb.String()
+	}
+
+	headerLine := lines[nextStepsIdx]
+	leadingSpaces := headerLine[:len(headerLine)-len(strings.TrimLeft(headerLine, " "))]
+	stripped := strings.TrimLeft(strings.TrimRight(headerLine, " \t\r"), " ")
+	rest := strings.TrimSpace(strings.TrimPrefix(stripped, "next_steps:"))
+
+	if rest == "[]" || strings.HasPrefix(rest, "[]") || rest == "[ ]" {
+		newLines := make([]string, 0, len(lines)+1)
+		newLines = append(newLines, lines[:nextStepsIdx]...)
+		newLines = append(newLines, leadingSpaces+"next_steps:", leadingSpaces+"  "+activeHypothesesBlockerLine)
+		newLines = append(newLines, lines[nextStepsIdx+1:]...)
+		return strings.Join(newLines, "\n")
+	}
+
+	if strings.HasPrefix(rest, "[") && strings.HasSuffix(rest, "]") {
+		inner := strings.TrimSuffix(strings.TrimPrefix(rest, "["), "]")
+		var items []string
+		for _, raw := range strings.Split(inner, ",") {
+			item := strings.TrimSpace(raw)
+			item = strings.Trim(item, `"`)
+			if item != "" {
+				items = append(items, item)
+			}
+		}
+		newLines := make([]string, 0, len(lines)+len(items)+1)
+		newLines = append(newLines, lines[:nextStepsIdx]...)
+		newLines = append(newLines, leadingSpaces+"next_steps:", leadingSpaces+"  "+activeHypothesesBlockerLine)
+		for _, it := range items {
+			newLines = append(newLines, leadingSpaces+fmt.Sprintf("  - %q", it))
+		}
+		newLines = append(newLines, lines[nextStepsIdx+1:]...)
+		return strings.Join(newLines, "\n")
+	}
+
+	if nextStepsIdx+1 < len(lines) && strings.TrimSpace(lines[nextStepsIdx+1]) == "[]" {
+		newLines := make([]string, len(lines))
+		copy(newLines, lines)
+		newLines[nextStepsIdx+1] = leadingSpaces + "  " + activeHypothesesBlockerLine
+		return strings.Join(newLines, "\n")
+	}
+
+	itemIndent := leadingSpaces + "  "
+	for j := nextStepsIdx + 1; j < len(lines); j++ {
+		s := strings.TrimSpace(lines[j])
+		if s == "" || strings.HasPrefix(s, "#") {
+			continue
+		}
+		if strings.HasPrefix(s, "-") {
+			dashPos := strings.Index(lines[j], "-")
+			if dashPos >= 0 {
+				itemIndent = lines[j][:dashPos]
+			}
+		}
+		break
+	}
+
+	newLines := make([]string, 0, len(lines)+1)
+	newLines = append(newLines, lines[:nextStepsIdx+1]...)
+	newLines = append(newLines, itemIndent+activeHypothesesBlockerLine)
+	newLines = append(newLines, lines[nextStepsIdx+1:]...)
+	return strings.Join(newLines, "\n")
 }

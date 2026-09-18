@@ -1,6 +1,6 @@
 ---
 name: arch-context-check
-description: Checklist obrigatório antes de sugerir arquitetura, Clean Code, Domain-Driven Design ou padrões de projeto — cruza o conhecimento especializado já curado no repo (skills de ddd/design-patterns/object-calisthenics/architecture) com decisões anteriores registradas no memory-mcp e com o código/regra já existente, para dar uma resposta fundamentada em vez de conhecimento genérico do modelo. Use sempre que for sugerir como estruturar/refatorar um módulo, escolher um padrão de projeto, modelar um domínio, ou avaliar uma proposta de arquitetura do usuário.
+description: "Checklist obrigatório antes de propor arquitetura ou refatoração, prevenindo over-engineering."
 ---
 
 # Checklist antes de sugerir arquitetura/design

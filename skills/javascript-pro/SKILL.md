@@ -1,6 +1,6 @@
 ---
 name: javascript-pro
-description: Master modern JavaScript with ES6+, async patterns, and Node.js
+description: "JavaScript moderno (ES6+), padrões assíncronos, Node.js e gerenciamento de concorrência."
   APIs. Handles promises, event loops, and browser/Node compatibility. Use
   PROACTIVELY for JavaScript optimization, async debugging, or complex JS
   patterns.

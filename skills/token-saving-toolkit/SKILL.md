@@ -1,6 +1,6 @@
 ---
 name: token-saving-toolkit
-description: Conjunto de ferramentas de alto desempenho para redução drástica de consumo de tokens em inspeção de arquivos, debugging de logs/stack traces e consultas com guardrails a bancos de dados. Use ao analisar arquivos grandes, inspecionar erros ou preparar queries.
+description: "Ferramentas de alta performance (ast-outline, trace-strip) para redução drástica de tokens."
 ---
 
 # Token-Saving Toolkit & Data Guardians

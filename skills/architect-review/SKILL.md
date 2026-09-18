@@ -1,6 +1,6 @@
 ---
 name: architect-review
-description: Master software architect specializing in modern architecture
+description: "Avaliação arquitetural de backend focada em limites de contexto, desacoplamento e escalabilidade."
   patterns, clean architecture, microservices, event-driven systems, and DDD.
   Reviews system designs and code changes for architectural integrity,
   scalability, and maintainability. Use PROACTIVELY for architectural decisions.

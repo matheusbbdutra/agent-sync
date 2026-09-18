@@ -1,6 +1,6 @@
 ---
 name: docs-research
-description: Pesquisa em fontes oficiais na internet com baixo consumo de tokens, cobrindo Symfony, Doctrine, PHP, Go, JS/TS, PostgreSQL e afins. Use PROACTIVELY ao consultar documentação, APIs, versões ou comportamento de bibliotecas, e sempre que precisar citar uma fonte confiável.
+description: "Pesquisa eficiente em documentações oficiais com baixo consumo de tokens."
 ---
 
 # Pesquisa de Documentação e Web

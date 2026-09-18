@@ -1,6 +1,6 @@
 ---
 name: legacy-modernizer
-description: Refactor legacy codebases, migrate outdated frameworks, and
+description: "Modernização incremental de bases legadas e migração segura de frameworks."
   implement gradual modernization. Handles technical debt, dependency updates,
   and backward compatibility. Use PROACTIVELY for legacy system updates,
   framework migrations, or technical debt reduction.

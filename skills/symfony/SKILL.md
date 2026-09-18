@@ -1,6 +1,6 @@
 ---
 name: symfony
-description: Especialista no framework Symfony (PHP 8+) cobrindo HTTP Kernel, front controllers finos, roteamento por atributos, injeção de dependência/autowiring, configuração por ambiente, Messenger, Event Dispatcher, Form/Validator, segurança e comandos de console. Use ao criar ou refatorar aplicações Symfony, serviços, controllers ou integrações.
+description: "Desenvolvimento com framework Symfony (PHP 8+): HttpKernel, services, injeção de dependência e CLI."
 ---
 
 # Symfony (PHP 8+)

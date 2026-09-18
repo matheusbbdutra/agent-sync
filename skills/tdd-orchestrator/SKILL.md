@@ -1,6 +1,6 @@
 ---
 name: tdd-orchestrator
-description: Master TDD orchestrator specializing in red-green-refactor
+description: "Ciclo TDD (Red-Green-Refactor) com cobertura de casos de borda e design guiado por testes."
   discipline, multi-agent workflow coordination, and comprehensive test-driven
   development practices. Enforces TDD best practices across teams with
   AI-assisted testing and modern frameworks. Use PROACTIVELY for TDD

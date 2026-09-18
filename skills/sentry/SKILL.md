@@ -1,6 +1,6 @@
 ---
 name: sentry
-description: Depuração de erros e performance no Sentry — triagem de issues/events, leitura de stack traces, breadcrumbs, tags, releases, source maps, grouping/fingerprinting e tracing. Use PROACTIVELY ao investigar incidentes, exceções e regressões relatadas no Sentry, ou ao configurar o SDK.
+description: "Depuração e rastreamento de erros no Sentry: triagem de issues, breadcrumbs e transações."
 ---
 
 # Sentry — Depuração de Erros e Performance

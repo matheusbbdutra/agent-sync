@@ -382,6 +382,20 @@ func main() {
 			fmt.Printf("⚠️  [%s] Falha ao sincronizar handoff ctx-window: %v\n", t.Name, err)
 		}
 
+		// Instala o hook de fim de turno (Stop) no Antigravity CLI
+		if err := syncStopHook(baseDir, t); err != nil {
+			fmt.Printf("⚠️  [%s] Falha ao sincronizar hook de stop: %v\n", t.Name, err)
+		} else if t.HooksFormat == "antigravity" && t.HooksSettingsPath != "" {
+			fmt.Printf("✅ [%s] Hook de stop instalado em: %s\n", t.Name, t.HooksSettingsPath)
+		}
+
+		// Instala o lembrete just-in-time no PreInvocation do Antigravity CLI
+		if err := syncPreInvocationReminderHook(baseDir, t); err != nil {
+			fmt.Printf("⚠️  [%s] Falha ao sincronizar lembrete preinvocation: %v\n", t.Name, err)
+		} else if t.HooksFormat == "antigravity" && t.HooksSettingsPath != "" {
+			fmt.Printf("✅ [%s] Lembrete de preinvocation instalado em: %s\n", t.Name, t.HooksSettingsPath)
+		}
+
 		// Instala o hook PreToolUse do shell-validate. É opt-in: só ativa
 		// quando AGENT_SYNC_PRETOOLUSE_VALIDATE=1 estiver setado no ambiente.
 		if err := syncShellValidateHook(baseDir, t); err != nil {

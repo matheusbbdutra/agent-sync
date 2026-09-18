@@ -1,6 +1,6 @@
 ---
 name: backend-security-coder
-description: Expert in secure backend coding practices specializing in input
+description: "Boas práticas de segurança em backend: validação de entrada, prevenção de injeção e OWASP."
   validation, authentication, and API security. Use PROACTIVELY for backend
   security implementations or security code reviews.
 ---

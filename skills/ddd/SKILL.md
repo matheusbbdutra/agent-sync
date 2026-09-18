@@ -1,6 +1,6 @@
 ---
 name: ddd
-description: Domain-Driven Design estratégico e tático (linguagem ubíqua, subdomínios, bounded contexts, context map, entidades, value objects, agregados, eventos de domínio). Use ao modelar domínios complexos, definir fronteiras de módulos/microsserviços ou decidir entre CRUD simples e modelo rico.
+description: "Domain-Driven Design estratégico e tático: linguagem ubíqua, bounded contexts, entidades e agregados."
 ---
 
 # Domain-Driven Design (DDD)

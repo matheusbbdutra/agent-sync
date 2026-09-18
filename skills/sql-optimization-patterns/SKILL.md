@@ -1,6 +1,6 @@
 ---
 name: sql-optimization-patterns
-description: Master SQL query optimization, indexing strategies, and EXPLAIN analysis to dramatically improve database performance and eliminate slow queries. Use when debugging slow queries, designing database schemas, or optimizing application performance.
+description: "Otimização de queries SQL, análise com EXPLAIN e estratégias eficientes de indexação."
 ---
 
 # SQL Optimization Patterns

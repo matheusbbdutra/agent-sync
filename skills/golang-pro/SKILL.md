@@ -1,6 +1,6 @@
 ---
 name: golang-pro
-description: Master Go 1.21+ with modern patterns, advanced concurrency,
+description: "Desenvolvimento em Go idiomático: goroutines, canais, context, profiling e Clean Architecture."
   performance optimization, and production-ready microservices. Expert in the
   latest Go ecosystem including generics, workspaces, and cutting-edge
   frameworks. Use PROACTIVELY for Go development, architecture design, or

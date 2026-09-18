@@ -1,6 +1,6 @@
 ---
 name: api-documenter
-description: Master API documentation with OpenAPI 3.1, AI-powered tools, and
+description: "Geração e manutenção de documentação de APIs com OpenAPI 3.1 e TypeSpec."
   modern developer experience practices. Create interactive docs, generate SDKs,
   and build comprehensive developer portals. Use PROACTIVELY for API
   documentation or developer portal creation.

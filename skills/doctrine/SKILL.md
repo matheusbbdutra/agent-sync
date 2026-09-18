@@ -1,6 +1,6 @@
 ---
 name: doctrine
-description: Especialista no Doctrine ORM (PHP) cobrindo mapeamento por atributos, Identity Map/Unit of Work, repositórios, DQL/QueryBuilder parametrizado, migrations, herança, embeddables e otimização (N+1, fetch join, batch). Use ao modelar entidades, escrever consultas, criar migrations ou depurar performance/N+1 no Symfony.
+description: "Especialista em Doctrine ORM (PHP): mapeamento, repositórios, performance e mitigação de N+1."
 ---
 
 # Doctrine ORM

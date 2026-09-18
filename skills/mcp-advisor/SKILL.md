@@ -1,6 +1,6 @@
 ---
 name: mcp-advisor
-description: Avalia se uma tarefa de implementação deveria usar um servidor MCP em vez de código customizado. Use ao planejar integração com sistema externo (API, banco, SaaS, ferramenta de terceiros), ao perceber código repetitivo para acessar dados/serviço externo, ou quando o usuário perguntar "isso dá pra resolver com MCP?" / "vale a pena um MCP aqui?".
+description: "Avalia necessidade de usar ou construir servidores MCP para integração segura de sistemas."
 ---
 
 # Quando sugerir um MCP em vez de código customizado

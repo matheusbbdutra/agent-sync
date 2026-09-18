@@ -1,6 +1,6 @@
 ---
 name: agent-react
-description: Disciplina o loop ReAct (Thought → Action → Observation) em tarefas multi-etapa — hipótese só com plano de validação (agente ou usuário), nunca como fato; uma action por ciclo; anti-loop; budget; evidência citada. Use em feature, investigação, refatoração ou pesquisa com 3+ passos/tools; ao perceber tentativa repetida já refutada; hipótese sem prova apresentada como conclusão; ou quando o usuário pedir raciocínio estruturado / ReAct. Não use em tarefa trivial de 1–2 passos.
+description: "Disciplina o loop ReAct em tarefas multi-etapa, forçando validação de hipóteses antes de concluir."
 ---
 
 # Agent ReAct

@@ -1,6 +1,6 @@
 ---
 name: frontend-security-coder
-description: Expert in secure frontend coding practices specializing in XSS
+description: "Segurança em frontend: prevenção contra XSS, CSRF, CSP e manipulação segura de DOM/cookies."
   prevention, output sanitization, and client-side security patterns. Use
   PROACTIVELY for frontend security implementations or client-side security code
   reviews.

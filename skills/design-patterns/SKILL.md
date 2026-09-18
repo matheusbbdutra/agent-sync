@@ -1,6 +1,6 @@
 ---
 name: design-patterns
-description: Catálogo prático de padrões de projeto GoF (criacionais, estruturais e comportamentais) e de domínio (Repository, Unit of Work, Specification), com critérios de quando usar e evitar. Use ao projetar componentes, remover condicionais extensas, desacoplar dependências ou quando as regras globais pedirem Strategy, Factory, Adapter ou Observer.
+description: "Catálogo de padrões de projeto GoF aplicados pragmaticamente para evitar duplicação."
 ---
 
 # Padrões de Projeto (GoF) e de Domínio

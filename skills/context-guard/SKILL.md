@@ -1,6 +1,6 @@
 ---
 name: context-guard
-description: OBRIGATÓRIA em tarefas multi-etapa (3+ passos) e sessões longas. Guardião da janela de contexto que monitora degradação (drift, contradições, esquecimento no meio, lost in the middle), reancora as regras críticas após compaction e mantém checkpoint/handoff em STATE.md. SEMPRE carregue ao iniciar tarefa multi-etapa, ao chegar a ~40 passos, ao perceber drift/contradição/loop, após qualquer compaction ou quando a qualidade cair.
+description: "Guardião obrigatório em tarefas multi-etapa para manter o STATE.md e proteger a janela de contexto."
 ---
 
 # Context Guard

@@ -16,6 +16,8 @@ const ctxCompactHookName = "agent-sync-ctx-compact"
 const ctxHandoffHookName = "agent-sync-ctx-handoff"
 const ctxNudgeHookName = "agent-sync-ctx-nudge"
 const shellValidateHookName = "agent-sync-shell-validate"
+const agentStopHookName = "agent-sync-agent-stop"
+const preInvocationReminderHookName = "agent-sync-preinvocation-reminder"
 
 // hookEntry é o formato comum a Claude Code e Gemini CLI para um item de hooks.<Evento>[].
 type hookEntry struct {
@@ -101,7 +103,7 @@ func syncCtxCompactHook(baseDir string, target TargetCLI) error {
 	return syncStandardHookCommand(baseDir, target, ctxCompactHookName, command, "*")
 }
 
-func syncAntigravityPreInvocation(target TargetCLI, hookName, command string) error {
+func syncAntigravityFlatHook(target TargetCLI, hookName, event, command string) error {
 	root, err := readJSONObject(target.HooksSettingsPath)
 	if err != nil {
 		return err
@@ -111,9 +113,61 @@ func syncAntigravityPreInvocation(target TargetCLI, hookName, command string) er
 		group = map[string]interface{}{}
 	}
 	delete(group, "SessionStart")
-	group["PreInvocation"] = []hookCmd{{Type: "command", Command: command, Name: hookName, Timeout: 10}}
+	group[event] = []hookCmd{{Type: "command", Command: command, Name: hookName, Timeout: 10}}
 	root[hookName] = group
 	return writeJSONObject(target.HooksSettingsPath, root)
+}
+
+func syncAntigravityPreInvocation(target TargetCLI, hookName, command string) error {
+	return syncAntigravityFlatHook(target, hookName, "PreInvocation", command)
+}
+
+func syncAntigravityStop(target TargetCLI, hookName, command string) error {
+	return syncAntigravityFlatHook(target, hookName, "Stop", command)
+}
+
+// syncStopHook instala o hook para o evento oficial Stop do Antigravity CLI
+// (flat handler direto: command, timeout, type) apontando para o verificador de parada prematura.
+func syncStopHook(baseDir string, target TargetCLI) error {
+	if target.HooksSettingsPath == "" {
+		return nil
+	}
+	if target.HooksFormat == "antigravity" {
+		scriptPath := filepath.Join(baseDir, "hooks", "agent-stop.antigravity.sh")
+		if _, err := os.Stat(scriptPath); err != nil {
+			return fmt.Errorf("script do hook stop não encontrado: %s", scriptPath)
+		}
+		return syncAntigravityStop(target, agentStopHookName, scriptPath)
+	}
+	return nil
+}
+
+// syncPreInvocationReminderHook registra no evento PreInvocation do Antigravity CLI o lembrete
+// efêmero just-in-time ("Diretriz ativa: responda em PT-BR, sem rodeios e finalize com o resumo de 1-2 frases do que mudou e o que falta.").
+func syncPreInvocationReminderHook(baseDir string, target TargetCLI) error {
+	if target.HooksSettingsPath == "" {
+		return nil
+	}
+	if target.HooksFormat == "antigravity" {
+		scriptPath := filepath.Join(baseDir, "hooks", "agent-preinvocation.antigravity.sh")
+		if _, err := os.Stat(scriptPath); err != nil {
+			return fmt.Errorf("script do hook preinvocation não encontrado: %s", scriptPath)
+		}
+		return syncAntigravityPreInvocation(target, preInvocationReminderHookName, scriptPath)
+	}
+	return nil
+}
+
+func syncAgentStopHook(baseDir string, target TargetCLI) error {
+	return syncStopHook(baseDir, target)
+}
+
+func syncAntigravityStopHook(baseDir string, target TargetCLI) error {
+	return syncStopHook(baseDir, target)
+}
+
+func syncAgentPreInvocationHook(baseDir string, target TargetCLI) error {
+	return syncPreInvocationReminderHook(baseDir, target)
 }
 
 func syncCtxHandoffHook(baseDir string, target TargetCLI) error {

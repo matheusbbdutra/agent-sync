@@ -1,6 +1,6 @@
 ---
 name: object-calisthenics
-description: As 9 regras de Object Calisthenics de Jeff Bay para forçar design orientado a objetos limpo (um nível de indentação, sem else, sem getters/setters, coleções de primeira classe, nomes sem abreviação, classes pequenas). Use ao refatorar métodos longos, condicionais aninhadas, classes com dezenas de campos ou modelos anêmicos.
+description: "As 9 regras de Object Calisthenics de Jeff Bay para guiar código coeso e sem aninhamento."
 ---
 
 # Object Calisthenics
