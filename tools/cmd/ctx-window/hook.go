@@ -17,10 +17,43 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 )
 
 const maxHookContentChars = 16000
+
+// toolFailurePattern is a coarse signal of a failed/errored tool call. It is
+// intentionally permissive (some false positives on normal output mentioning
+// "error" are acceptable) because this only annotates context fed to the LLM
+// summarizer, never blocks anything.
+var toolFailurePattern = regexp.MustCompile(`(?i)\b(error|exception|traceback|failed|panic|timeout|timed out)\b`)
+
+// toolStatusMarker mirrors the mitigation from arXiv 2609.14758 (Fabrication
+// After Tool Failure): explicitly signaling tool status (OK/FAILED/EMPTY)
+// dropped the paper's measured fabrication rate from 45.3% to 0.87%, far
+// more than any prompt-level plea for honesty. Tagging the raw tool
+// response before it reaches the working-memory turn (and, downstream, the
+// LLM summarizer) makes the failure visible instead of leaving the model to
+// infer status from prose.
+func toolStatusMarker(responseText string) string {
+	if strings.TrimSpace(responseText) == "" {
+		return "[TOOL_STATUS: EMPTY]"
+	}
+	return toolFailureMarker(responseText)
+}
+
+// toolFailureMarker only checks for failure keywords, without the empty-body
+// check from toolStatusMarker. Used where an empty string is ambiguous
+// between "tool genuinely returned nothing" and "we failed to read the
+// result at all" (antigravity's transcript lookup) — claiming EMPTY in the
+// second case would itself be an unverified assertion.
+func toolFailureMarker(responseText string) string {
+	if toolFailurePattern.MatchString(responseText) {
+		return "[TOOL_STATUS: FAILED]"
+	}
+	return ""
+}
 
 // runHook reads a raw hook payload from stdin, extracts the tool call +
 // result for the given CLI's schema, and forwards it to the existing
@@ -99,11 +132,22 @@ func compactRaw(raw json.RawMessage) string {
 	return compacted.String()
 }
 
+// truncate caps s at maxHookContentChars, keeping head and tail instead of
+// only the head. Tool output commonly has the actionable part (an error,
+// exit status, final result) at the end — a head-only cut throws that away
+// and keeps only setup noise. Mirrors the ACI idea from SWE-agent
+// (arXiv 2405.15793): structure what reaches the model instead of a blind
+// cut.
 func truncate(s string) string {
-	if len(s) > maxHookContentChars {
-		return s[:maxHookContentChars]
+	if len(s) <= maxHookContentChars {
+		return s
 	}
-	return s
+	const marker = " ...[truncated]... "
+	half := (maxHookContentChars - len(marker)) / 2
+	if half < 0 {
+		half = 0
+	}
+	return s[:half] + marker + s[len(s)-half:]
 }
 
 func joinContent(parts ...string) string {
@@ -131,7 +175,8 @@ func parseClaudeCodexPayload(raw []byte) (sessionID, toolName, content string) {
 	if err := json.Unmarshal(raw, &p); err != nil {
 		return "", "", ""
 	}
-	content = joinContent(compactRaw(p.ToolInput), asText(p.ToolResponse))
+	responseText := asText(p.ToolResponse)
+	content = joinContent(compactRaw(p.ToolInput), responseText, toolStatusMarker(responseText))
 	return p.SessionID, p.ToolName, content
 }
 
@@ -166,7 +211,8 @@ func parseCursorPayload(raw []byte) (sessionID, toolName, content string) {
 	if len(response) == 0 {
 		response = p.ToolResponse
 	}
-	content = joinContent(compactRaw(inputRaw), asText(response))
+	responseText := asText(response)
+	content = joinContent(compactRaw(inputRaw), responseText, toolStatusMarker(responseText))
 	return sessionID, p.ToolName, content
 }
 
@@ -198,7 +244,7 @@ func parseAntigravityPayload(raw []byte) (sessionID, toolName, content string) {
 	if p.StepIdx != nil && p.TranscriptPath != "" {
 		result = findAntigravityResult(p.TranscriptPath, *p.StepIdx+1)
 	}
-	content = joinContent(compactRaw(p.ToolCall.Args), result)
+	content = joinContent(compactRaw(p.ToolCall.Args), result, toolFailureMarker(result))
 	return sessionID, p.ToolCall.Name, content
 }
 

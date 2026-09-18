@@ -90,6 +90,55 @@ func TestParseAntigravityPayloadMissingTranscriptIsSafe(t *testing.T) {
 	}
 }
 
+func TestParseClaudeCodexPayloadFlagsEmptyToolResponse(t *testing.T) {
+	raw := []byte(`{"session_id":"s1","tool_name":"Bash","tool_input":{"command":"ls"},"tool_response":""}`)
+	_, _, content := parseClaudeCodexPayload(raw)
+	if !strings.Contains(content, "TOOL_STATUS: EMPTY") {
+		t.Errorf("expected EMPTY status marker, got: %q", content)
+	}
+}
+
+func TestParseClaudeCodexPayloadFlagsFailedToolResponse(t *testing.T) {
+	raw := []byte(`{"session_id":"s1","tool_name":"Bash","tool_input":{"command":"go test"},"tool_response":"panic: division by zero"}`)
+	_, _, content := parseClaudeCodexPayload(raw)
+	if !strings.Contains(content, "TOOL_STATUS: FAILED") {
+		t.Errorf("expected FAILED status marker, got: %q", content)
+	}
+}
+
+func TestParseClaudeCodexPayloadNoMarkerOnSuccess(t *testing.T) {
+	raw := []byte(`{"session_id":"s1","tool_name":"Bash","tool_input":{"command":"go build"},"tool_response":"build succeeded"}`)
+	_, _, content := parseClaudeCodexPayload(raw)
+	if strings.Contains(content, "TOOL_STATUS") {
+		t.Errorf("expected no status marker on clean output, got: %q", content)
+	}
+}
+
+func TestParseAntigravityPayloadMissingTranscriptDoesNotClaimEmpty(t *testing.T) {
+	raw := []byte(`{"sessionId":"agy-sess","toolCall":{"name":"Bash"},"stepIdx":0,"transcriptPath":"/does/not/exist.jsonl"}`)
+	_, _, content := parseAntigravityPayload(raw)
+	if strings.Contains(content, "TOOL_STATUS") {
+		t.Errorf("expected no status marker when transcript couldn't be read at all, got: %q", content)
+	}
+}
+
+func TestTruncateKeepsHeadAndTail(t *testing.T) {
+	head := strings.Repeat("A", 100)
+	tail := strings.Repeat("B", 100)
+	middle := strings.Repeat("x", maxHookContentChars*2)
+	s := head + middle + tail
+	got := truncate(s)
+	if !strings.HasPrefix(got, head[:10]) {
+		t.Errorf("expected truncated result to keep head, got prefix: %q", got[:20])
+	}
+	if !strings.HasSuffix(got, tail[len(tail)-10:]) {
+		t.Errorf("expected truncated result to keep tail, got suffix: %q", got[len(got)-20:])
+	}
+	if len(got) > maxHookContentChars+len(" ...[truncated]... ") {
+		t.Errorf("truncated result too long: %d chars", len(got))
+	}
+}
+
 func TestRunHookUnknownCLI(t *testing.T) {
 	var stdout, stderr strings.Builder
 	err := runHook([]string{"gemini-cli"}, strings.NewReader("{}"), &stdout, &stderr)

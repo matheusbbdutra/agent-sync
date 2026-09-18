@@ -11,6 +11,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/matheusdutra/token-tools/internal/agentmemory"
 )
 
 // summarizePromptTemplate is the prompt sent to the LLM to compress the
@@ -156,7 +158,52 @@ func runSummarize(args []string, stdout, stderr io.Writer) error {
 	}
 	fmt.Fprintf(stdout, "summarized: version %d (previous %d); cli=%s; model=%s; turns=%d\n",
 		s.Version, prev, cliName, promptModel, len(s.Turns))
+
+	// Opt-in: persist the summary as individual memories in the shared
+	// memory-mcp store, so other CLIs / future sessions can recall it via
+	// search_memory. Gated by AGENT_SYNC_CTX_REMEMBER=1 because it leaks
+	// session content into a table that is shared across PCs and synced
+	// to Turso (see internal/agentmemory/sync.go). Default off.
+	if strings.TrimSpace(os.Getenv("AGENT_SYNC_CTX_REMEMBER")) == "1" {
+		remembered, err := rememberSummary(s.ID, cliName, yaml, stderr)
+		if err != nil {
+			fmt.Fprintf(stderr, "ctx-window: remember summary: %v\n", err)
+		} else if remembered > 0 {
+			fmt.Fprintf(stdout, "remembered: %d items em memory-mcp\n", remembered)
+		}
+	}
 	return nil
+}
+
+// rememberSummary abre o memory.db local, extrai itens do YAML e grava um
+// por um como memória do tipo "project". Falha silenciosa por item: o
+// Store.Upsert é independente, então uma linha com erro não aborta as
+// outras.
+//
+// Limitação conhecida: usa o cwd de quem roda o summarizer como project path.
+// Se a sessão original foi aberta numa CLI remota, o projectID pode divergir.
+// Aceito por ora — corrigir exigiria persistir ProjectID no Session desde o
+// hook, fora do escopo desta integração.
+func rememberSummary(sessionID, cliName, yaml string, stderr io.Writer) (int, error) {
+	dbPath, err := agentmemory.DefaultDBPath()
+	if err != nil {
+		return 0, err
+	}
+	store, err := agentmemory.Open(dbPath)
+	if err != nil {
+		return 0, err
+	}
+	defer store.Close()
+
+	origin, err := agentmemory.ResolveOrigin("")
+	if err != nil || origin.ProjectID == "" {
+		// Sem project_id não conseguimos escopar a memória — não grava.
+		if origin.ProjectID == "" {
+			fmt.Fprintf(stderr, "ctx-window: remember: project sem remoto Git nem projects[%q] no config; memória não persistida\n", origin.ProjectPath)
+		}
+		return 0, err
+	}
+	return store.UpsertSummary(origin.ProjectID, cliName, sessionID, yaml)
 }
 
 // runOnToolCallLLM is like runOnToolCall but uses the LLM summarizer (via
