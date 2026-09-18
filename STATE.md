@@ -612,3 +612,29 @@ Origem: revisão do fluxo `make apply` propôs 10 melhorias (P1–P10) consolida
 - Sem commit entre fases (regra global).
 - Não tocar em `receipts/`, `review-receipts/`, `docs/ADR-fim-de-turno-hooks.md` (preservar alterações pré-existentes).
 - Regras ativas: não consultar `.env`; não expor segredos; hipótese ≠ fato.
+
+### Fase 2 — Endurecimento do driver paralelo e do dry-run — 2026-09-18
+Origem: code review multi-dimensão (security/performance/architecture) do commit `7ab5016` identificou 7 melhorias (3 HIGH + 4 MED). Todas aplicadas.
+
+**Mudanças em `cmd/agent-sync/main.go`:**
+- **HIGH #1** — `firstEr`/`os.Exit(1)` removidos: `applyToTarget` sempre retornava `nil` (verificado por leitura), então o handler de erro era inalcançável. Máquina morta eliminada.
+- **HIGH #2** — Ordem dos logs agora determinística: `allLogs[i]` indexado por posição no slice `filtered`, impressão itera `targets` (não ordem de término das goroutines). Saída estável: claude, codex, antigravity, opencode, cursor.
+- **HIGH #3** — `sync.Mutex` removido: `allLogs := make([][]string, len(filtered))` pré-alocado, cada worker escreve em `allLogs[i]` (índices distintos são independentes em Go ≥1.22). `var wg sync.WaitGroup` agora é a única primitiva de sincronização.
+- **MED #1** — DRY em `standardHooks`: 17 lambdas duplicadas substituídas por 3 helpers (`settingsPathDetail`, `openCodePluginDetailNote`, `openCodePluginDetail`). Entrada `bash-guardian/opencode` ficou como lambda única por usar `openCodeConfigFileRef(t)`.
+- **MED #2+#3** — Cache da env var: `dryRunEnvCache bool` setado uma vez em `main()` antes do spawn. `shouldDryRun()` agora é leitura pura de duas vars (zero syscall). Comentário de race mantido até que algum refactor mova o spawn.
+- **MED #4** — Smoke test do dry-run: `TestApplyDryRunDoesNotWriteDisk` em `main_test.go` percorre `applyToTarget` em modo dry-run e valida que `RulesPath`/`SkillsDir`/`AgentsDir` não foram criados, e que logs `[dry-run]` foram emitidos.
+
+**Novo arquivo:** `cmd/agent-sync/main_test.go` com 5 testes (`TestSettingsPathDetailGating`, `TestOpenCodePluginDetailVariants`, `TestStandardHooksHasExpectedEntries`, `TestShouldDryRunReadsCachedOnly`, `TestApplyDryRunDoesNotWriteDisk`).
+
+**Verificações:**
+- `go vet ./...` limpo (raiz + `tools/`)
+- `go test ./...` PASS em ambos os módulos (8 testes em `cmd/agent-sync`, incluindo os 5 novos)
+- `go test -race ./cmd/agent-sync/` PASS — sem data race detectada
+- Build limpo (`go build ./cmd/agent-sync/`)
+
+**Pendências remanescentes do review (LOW, não aplicadas):** trailing-newlines do `repomap.go` misturadas com gofmt no mesmo commit; `count` eliminado em favor de `len(filtered)` (já feito nesta fase); separação visual de `var (wg, mu, allLogs, firstEr)` — `mu`/`firstEr`/`allLogs` foram removidos juntos, então não há mais o bloco a separar.
+
+### Fase 2.1 — LOW #4 (paridade visual de runCursorHooks) — 2026-09-18
+Último LOW acionável do review. Adicionado parágrafo ao comentário de cabeçalho de `runCursorHooks` em `cmd/agent-sync/main.go:441-450` explicando que `ctx-compact`/`ctx-handoff` só logam em falha por design (não imprimem linha de sucesso) para evitar ruído visual duplicado com o "✅ cursor-all" que já cobre a operação inteira. Sem mudança funcional.
+
+**Próxima fase:** smoke real de `make apply -dry-run` numa máquina com pelo menos 2 CLIs instaladas para validar a ordem dos logs na prática (P9 da lista original — integração, não unitário).

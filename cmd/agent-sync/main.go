@@ -11,19 +11,23 @@ import (
 	"sync"
 )
 
-// dryRunEnabled é setado uma vez em main() (após flag.Parse) e lido por
-// copyFile/writeJSONObject em qualquer goroutine. É seguro porque a escrita
-// acontece antes de qualquer worker iniciar.
-var dryRunEnabled bool
+// dryRunEnabled e dryRunEnvCache são setados uma única vez em main() (após
+// flag.Parse, antes do spawn de workers) e lidos em qualquer goroutine via
+// shouldDryRun. A leitura é apenas de memória — não há syscall no caminho
+// quente. É seguro porque a escrita acontece antes de qualquer worker
+// iniciar; o compilador não insere barreira, mas a ordem sequencial de
+// main() garante happens-before via go statement.
+var (
+	dryRunEnabled  bool
+	dryRunEnvCache bool
+)
 
 // shouldDryRun combina a flag CLI `-dry-run`/`-n` com a env var
-// AGENT_SYNC_DRY_RUN=1. A env var permite integração com scripts/Make sem
-// precisar expor a flag CLI (ex.: `make apply DRY_RUN=1`).
+// AGENT_SYNC_DRY_RUN=1 (cacheada na inicialização). A env var permite
+// integração com scripts/Make sem expor a flag CLI (ex.: `make apply
+// DRY_RUN=1`).
 func shouldDryRun() bool {
-	if dryRunEnabled {
-		return true
-	}
-	return os.Getenv("AGENT_SYNC_DRY_RUN") == "1"
+	return dryRunEnabled || dryRunEnvCache
 }
 
 type TargetCLI struct {
@@ -333,6 +337,26 @@ func openCodeConfigFileRef(t TargetCLI) string {
 	return filepath.Join(filepath.Dir(t.OpenCodePluginDir), openCodeConfigFile)
 }
 
+// Helpers para o campo `detail` de hookSpec — fatorados para evitar 17
+// lambdas idênticos na tabela standardHooks. Cada um retorna "" quando o
+// target não tem path relevante, fazendo hookSpec.run suprimir a linha de
+// sucesso (mesmo comportamento da lambda original).
+
+func settingsPathDetail(t TargetCLI) string {
+	if t.HooksSettingsPath == "" {
+		return ""
+	}
+	return "instalado em: " + t.HooksSettingsPath
+}
+
+func openCodePluginDetailNote(t TargetCLI) string {
+	return "em " + t.OpenCodePluginDir + " (best-effort, ver README)"
+}
+
+func openCodePluginDetail(t TargetCLI) string {
+	return "em " + t.OpenCodePluginDir + " (best-effort)"
+}
+
 // standardHooks é a tabela ordenada de hooks instalada em targets não-Cursor.
 // Cursor usa runCursorHooks (syncCursorAll + syncCtxCompactHook +
 // syncCtxHandoffHook) por ter merge próprio em hooks.json e extras
@@ -341,154 +365,31 @@ func openCodeConfigFileRef(t TargetCLI) string {
 var standardHooks = []hookSpec{
 	// Hooks suportados em Claude Code, Codex e Antigravity (os early-returns
 	// internos de cada sync*Hook silenciam o que não se aplica).
-	{
-		name: "context-guard",
-		fn:   syncHooks,
-		detail: func(t TargetCLI) string {
-			if t.HooksSettingsPath == "" {
-				return ""
-			}
-			return "instalado em: " + t.HooksSettingsPath
-		},
-	},
-	{
-		name: "memory-nudge",
-		fn:   syncMemoryNudgeHook,
-		detail: func(t TargetCLI) string {
-			if t.HooksSettingsPath == "" {
-				return ""
-			}
-			return "instalado em: " + t.HooksSettingsPath
-		},
-	},
-	{
-		name: "agent-react",
-		fn:   syncAgentReactNudgeHook,
-		detail: func(t TargetCLI) string {
-			if t.HooksSettingsPath == "" {
-				return ""
-			}
-			return "instalado em: " + t.HooksSettingsPath
-		},
-	},
-	{
-		name: "ctx-compact",
-		fn:   syncCtxCompactHook,
-		detail: func(t TargetCLI) string {
-			if t.HooksSettingsPath == "" {
-				return ""
-			}
-			return "instalado em: " + t.HooksSettingsPath
-		},
-	},
+	{name: "context-guard", fn: syncHooks, detail: settingsPathDetail},
+	{name: "memory-nudge", fn: syncMemoryNudgeHook, detail: settingsPathDetail},
+	{name: "agent-react", fn: syncAgentReactNudgeHook, detail: settingsPathDetail},
+	{name: "ctx-compact", fn: syncCtxCompactHook, detail: settingsPathDetail},
 	{
 		name: "ctx-handoff",
 		fn:   syncCtxHandoffHook,
 		// detail nil → não imprime sucesso (preserva comportamento histórico)
 	},
-	{
-		name: "shell-validate",
-		fn:   syncShellValidateHook,
-		detail: func(t TargetCLI) string {
-			if t.HooksSettingsPath == "" {
-				return ""
-			}
-			return "instalado em: " + t.HooksSettingsPath
-		},
-	},
-	{
-		name: "docs-cache",
-		fn:   syncDocsCacheHook,
-		detail: func(t TargetCLI) string {
-			if t.HooksSettingsPath == "" {
-				return ""
-			}
-			return "instalado em: " + t.HooksSettingsPath
-		},
-	},
+	{name: "shell-validate", fn: syncShellValidateHook, detail: settingsPathDetail},
+	{name: "docs-cache", fn: syncDocsCacheHook, detail: settingsPathDetail},
 	// Exclusivos do Antigravity CLI (sync*Hook retornam nil para outros).
-	{
-		name:    "stop",
-		fn:      syncStopHook,
-		formats: []string{"antigravity"},
-		detail: func(t TargetCLI) string {
-			if t.HooksSettingsPath == "" {
-				return ""
-			}
-			return "instalado em: " + t.HooksSettingsPath
-		},
-	},
-	{
-		name:    "preinvocation",
-		fn:      syncPreInvocationReminderHook,
-		formats: []string{"antigravity"},
-		detail: func(t TargetCLI) string {
-			if t.HooksSettingsPath == "" {
-				return ""
-			}
-			return "instalado em: " + t.HooksSettingsPath
-		},
-	},
+	{name: "stop", fn: syncStopHook, formats: []string{"antigravity"}, detail: settingsPathDetail},
+	{name: "preinvocation", fn: syncPreInvocationReminderHook, formats: []string{"antigravity"}, detail: settingsPathDetail},
 	// Plugins TS best-effort do OpenCode (issue #13574 documentada no README).
-	{
-		name:       "opencode-context-guard",
-		fn:         syncOpenCodePlugin,
-		agentKinds: []string{"opencode"},
-		detail: func(t TargetCLI) string {
-			return "em " + t.OpenCodePluginDir + " (best-effort, ver README)"
-		},
-	},
-	{
-		name:       "opencode-memory",
-		fn:         syncOpenCodeMemoryNudgePlugin,
-		agentKinds: []string{"opencode"},
-		detail: func(t TargetCLI) string {
-			return "em " + t.OpenCodePluginDir + " (best-effort, ver README)"
-		},
-	},
-	{
-		name:       "opencode-agent-react",
-		fn:         syncOpenCodeAgentReactNudgePlugin,
-		agentKinds: []string{"opencode"},
-		detail: func(t TargetCLI) string {
-			return "em " + t.OpenCodePluginDir + " (best-effort, ver README)"
-		},
-	},
-	{
-		name:       "opencode-ctx-compact",
-		fn:         syncOpenCodeCtxCompactPlugin,
-		agentKinds: []string{"opencode"},
-		detail: func(t TargetCLI) string {
-			return "em " + t.OpenCodePluginDir + " (best-effort)"
-		},
-	},
-	{
-		name:       "opencode-docs-cache",
-		fn:         syncOpenCodeDocsCachePlugin,
-		agentKinds: []string{"opencode"},
-		detail: func(t TargetCLI) string {
-			return "em " + t.OpenCodePluginDir + " (best-effort)"
-		},
-	},
+	{name: "opencode-context-guard", fn: syncOpenCodePlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetailNote},
+	{name: "opencode-memory", fn: syncOpenCodeMemoryNudgePlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetailNote},
+	{name: "opencode-agent-react", fn: syncOpenCodeAgentReactNudgePlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetailNote},
+	{name: "opencode-ctx-compact", fn: syncOpenCodeCtxCompactPlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetail},
+	{name: "opencode-docs-cache", fn: syncOpenCodeDocsCachePlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetail},
 	// bash-guardian: 3 entradas porque cada CLI tem implementação própria
 	// (permissions.ask no Claude, PreToolUse ask no Antigravity, permission.bash
 	// no OpenCode). Codex fica fora — PreToolUse só suporta allow/deny binário.
-	{
-		name:       "bash-guardian",
-		fn:         syncBashGuardianClaude,
-		agentKinds: []string{"claude"},
-		detail: func(t TargetCLI) string {
-			return "instalado em: " + t.HooksSettingsPath
-		},
-	},
-	{
-		name:       "bash-guardian",
-		fn:         syncBashGuardianAntigravity,
-		agentKinds: []string{"antigravity"},
-		detail: func(t TargetCLI) string {
-			return "instalado em: " + t.HooksSettingsPath
-		},
-	},
+	{name: "bash-guardian", fn: syncBashGuardianClaude, agentKinds: []string{"claude"}, detail: settingsPathDetail},
+	{name: "bash-guardian", fn: syncBashGuardianAntigravity, agentKinds: []string{"antigravity"}, detail: settingsPathDetail},
 	{
 		name:       "bash-guardian",
 		fn:         syncBashGuardianOpenCode,
@@ -542,6 +443,11 @@ func (c applyContext) applyCommon(t TargetCLI) {
 // preCompact) + ctx-handoff (sessionStart). O syncCursorAll já instala
 // context-guard/memory/agent-react/docs-cache/bash-guardian via
 // cursorManagedHooks() — por isso estes hooks NÃO aparecem em standardHooks.
+//
+// Diferente do caminho padrão (runStandardHooks), aqui só logamos em caso
+// de falha dos dois últimos: ctx-compact e ctx-handoff são idempotentes e
+// suas linhas de sucesso histórico eram apenas ruído visual no fluxo do
+// Cursor (o syncCursorAll já imprime o "✅ cursor-all" acima).
 func runCursorHooks(c applyContext, t TargetCLI) {
 	if err := syncCursorAll(c.baseDir, t); err != nil {
 		c.log.append("⚠️  [%s/cursor-all] %v", t.Name, err)
@@ -585,9 +491,11 @@ func main() {
 	dryRunShortFlag := flag.Bool("n", false, "Alias curto para -dry-run")
 	flag.Parse()
 
-	// Habilita dry-run se a flag OU a env var estiver setada. Escrita única
-	// antes de qualquer worker iniciar; leitura sem race.
+	// Habilita dry-run se a flag CLI OU a env var estiver setada. Escrita
+	// única antes de qualquer worker iniciar; shouldDryRun() vira leitura
+	// pura de variáveis de pacote (sem syscall).
 	dryRunEnabled = *dryRunFlag || *dryRunShortFlag
+	dryRunEnvCache = os.Getenv("AGENT_SYNC_DRY_RUN") == "1"
 
 	exePath, _ := os.Executable()
 	cwd, _ := os.Getwd()
@@ -657,39 +565,34 @@ func main() {
 		fmt.Println("⚠️  Modo dry-run: nenhuma escrita em disco será feita.")
 	}
 
-	// Conta quantos targets passam pelo filtro -target antes de goroutinar
-	// (preserva a mensagem final "N CLI(s) sincronizada(s) com sucesso").
-	count := 0
+	// Filtra os targets uma única vez: usado para (a) preservar a
+	// mensagem final "N CLI(s) sincronizada(s) com sucesso" e (b) indexar
+	// allLogs por posição, garantindo ordem determinística dos logs na
+	// saída (não dependente da ordem de término das goroutines).
+	filtered := make([]TargetCLI, 0, len(targets))
 	for _, t := range targets {
 		if *targetFlag == "" || *targetFlag == t.Name {
-			count++
+			filtered = append(filtered, t)
 		}
 	}
 
-	// Cada target roda em sua própria goroutine. O workerLog local isola a
-	// saída desse worker; a coleta em allLogs é protegida por mu (lock curto,
-	// só no momento de append). Não usamos errgroup porque os targets são
-	// independentes (sem contexto compartilhado a cancelar) e o go.mod é
-	// minimalista (sem dependências externas).
+	// Cada target roda em sua própria goroutine. O workerLog local isola
+	// a saída desse worker; allLogs é pré-alocado e cada worker escreve
+	// em seu próprio índice — sem mutex porque índices distintos de um
+	// slice são independentes (Go ≥1.22). Não usamos errgroup porque os
+	// targets são independentes (sem contexto compartilhado a cancelar) e
+	// o go.mod é minimalista (sem dependências externas).
 	ctx := applyContext{
 		baseDir:      baseDir,
 		rulesSource:  rulesSource,
 		skillsSource: skillsSource,
 		log:          nil, // sobrescrito por workerLog dentro de cada goroutine
 	}
+	allLogs := make([][]string, len(filtered))
 
-	var (
-		wg      sync.WaitGroup
-		mu      sync.Mutex
-		allLogs [][]string
-		firstEr error
-	)
-
-	for i := range targets {
-		t := targets[i]
-		if *targetFlag != "" && *targetFlag != t.Name {
-			continue
-		}
+	var wg sync.WaitGroup
+	for i := range filtered {
+		i, t := i, filtered[i] // captura para a closure
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -699,30 +602,14 @@ func main() {
 			// workerLog.buf e intercalaria linhas de targets distintos).
 			c := ctx
 			c.log = workerLog
-			if err := applyToTarget(c, t); err != nil {
-				mu.Lock()
-				if firstEr == nil {
-					firstEr = err
-				}
-				mu.Unlock()
-				return
-			}
-			mu.Lock()
-			allLogs = append(allLogs, workerLog.lines())
-			mu.Unlock()
+			applyToTarget(c, t)
+			allLogs[i] = workerLog.lines()
 		}()
 	}
 	wg.Wait()
 
-	if firstEr != nil {
-		fmt.Fprintf(os.Stderr, "❌ Falha em apply paralelo: %v\n", firstEr)
-		os.Exit(1)
-	}
-
-	// Imprime os logs coletados por target, na ordem em que os workers
-	// finalizaram (aceita intercalação entre targets — cada linha é
-	// auto-contida com [cli/hook]). Saída serializada no stdout principal
-	// para preservar legibilidade.
+	// Imprime os logs na ordem dos targets filtrados — saída estável,
+	// independente da ordem em que as goroutines finalizaram.
 	for _, lines := range allLogs {
 		for _, line := range lines {
 			fmt.Println(line)
@@ -737,7 +624,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "⚠️  Falha ao persistir env no shell rc: %v\n", err)
 	}
 
-	fmt.Printf("\n✨ Concluído! %d CLI(s) sincronizada(s) com sucesso.\n", count)
+	fmt.Printf("\n✨ Concluído! %d CLI(s) sincronizada(s) com sucesso.\n", len(filtered))
 }
 
 // shellEnvMarker é a linha que marca o bloco gerenciado por este agente.
