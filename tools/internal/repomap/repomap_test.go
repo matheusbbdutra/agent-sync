@@ -10,9 +10,9 @@ import (
 
 // helper: cria um repositório temporário com alguns arquivos rastreáveis.
 type fakeRepo struct {
-	root    string
-	cache   string
-	files   map[string]string
+	root  string
+	cache string
+	files map[string]string
 }
 
 func newFakeRepo(t *testing.T) *fakeRepo {

@@ -272,7 +272,13 @@ make vendor
 agent-sync -vendor
 ```
 
-> Repository root resolution can be forced with the `AGENT_SYNC_HOME` variable.
+### Environment variables
+
+| Variable | Default | Applies to | What it does |
+|---|---|---|---|
+| `AGENT_SYNC_HOME` | (heuristic) | `agent-sync`, `agent-sync-session` | Forces the repository root path. Useful when the binary is called from outside the repo (CI, symlinks, tests). Takes priority over `cwd` and `os.Executable()`. |
+| `AGENT_SYNC_DRY_RUN=1` | `0` | `agent-sync -apply` | Enables dry-run mode (equivalent to the `-dry-run`/`-n` flag): shows what would be done without writing to disk. Useful for `make apply DRY_RUN=1`. |
+| `AGENT_SYNC_PRETOOLUSE_VALIDATE=1` | (not persisted) | `shell-validate` hook | Activates the `shell-validate` hook (flags likely-invalid shell commands before execution). `make apply` persists it automatically in `~/.zshrc`/`~/.bashrc`; without this env, the hook is a silent no-op. |
 
 ---
 

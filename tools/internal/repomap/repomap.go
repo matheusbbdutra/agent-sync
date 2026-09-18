@@ -55,10 +55,10 @@ type FileEntry struct {
 
 // Cache é a representação serializada em disco.
 type Cache struct {
-	Version int                    `json:"version"`
-	Root    string                 `json:"root,omitempty"`
-	Files   map[string]*FileEntry  `json:"files"`
-	Edges   map[string][]string    `json:"edges,omitempty"`
+	Version int                   `json:"version"`
+	Root    string                `json:"root,omitempty"`
+	Files   map[string]*FileEntry `json:"files"`
+	Edges   map[string][]string   `json:"edges,omitempty"`
 }
 
 // UpdateStats sumariza o que mudou durante um Update.
@@ -515,9 +515,9 @@ func extractGo(src []byte) (symbols, imports []string) {
 }
 
 var (
-	rePyClass    = regexp.MustCompile(`(?m)^(?:@\w+(?:\([^)]*\))?\s*)*class\s+(\w+)`)
-	rePyFunc     = regexp.MustCompile(`(?m)^(?:async\s+)?def\s+(\w+)`)
-	rePyImport   = regexp.MustCompile(`(?m)^\s*(?:from\s+([\w.]+)\s+)?import\s+([\w.,\s*]+(?:as\s+\w+)?)`)
+	rePyClass  = regexp.MustCompile(`(?m)^(?:@\w+(?:\([^)]*\))?\s*)*class\s+(\w+)`)
+	rePyFunc   = regexp.MustCompile(`(?m)^(?:async\s+)?def\s+(\w+)`)
+	rePyImport = regexp.MustCompile(`(?m)^\s*(?:from\s+([\w.]+)\s+)?import\s+([\w.,\s*]+(?:as\s+\w+)?)`)
 )
 
 func extractPy(src []byte) (symbols, imports []string) {
@@ -545,15 +545,15 @@ func extractPy(src []byte) (symbols, imports []string) {
 }
 
 var (
-	reTSClass        = regexp.MustCompile(`(?m)^(?:export\s+(?:default\s+)?)?(?:abstract\s+)?class\s+(\w+)`)
-	reTSInterface    = regexp.MustCompile(`(?m)^(?:export\s+)?interface\s+(\w+)`)
-	reTSType         = regexp.MustCompile(`(?m)^(?:export\s+)?type\s+(\w+)`)
-	reTSFunc         = regexp.MustCompile(`(?m)^(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s+(\w+)`)
-	reTSArrow        = regexp.MustCompile(`(?m)^(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\(`)
+	reTSClass         = regexp.MustCompile(`(?m)^(?:export\s+(?:default\s+)?)?(?:abstract\s+)?class\s+(\w+)`)
+	reTSInterface     = regexp.MustCompile(`(?m)^(?:export\s+)?interface\s+(\w+)`)
+	reTSType          = regexp.MustCompile(`(?m)^(?:export\s+)?type\s+(\w+)`)
+	reTSFunc          = regexp.MustCompile(`(?m)^(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s+(\w+)`)
+	reTSArrow         = regexp.MustCompile(`(?m)^(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\(`)
 	reTSRequireAssign = regexp.MustCompile(`(?m)^\s*(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*require\(`)
-	reTSImportFrom   = regexp.MustCompile(`(?m)^import\s+(?:type\s+)?(?:\{[^}]+\}|\*\s+as\s+\w+|\w+)\s+from\s+["']([^"']+)["']`)
-	reTSImportSide   = regexp.MustCompile(`(?m)^import\s+["']([^"']+)["']`)
-	reTSRequire      = regexp.MustCompile(`(?m)require\(\s*["']([^"']+)["']\s*\)`)
+	reTSImportFrom    = regexp.MustCompile(`(?m)^import\s+(?:type\s+)?(?:\{[^}]+\}|\*\s+as\s+\w+|\w+)\s+from\s+["']([^"']+)["']`)
+	reTSImportSide    = regexp.MustCompile(`(?m)^import\s+["']([^"']+)["']`)
+	reTSRequire       = regexp.MustCompile(`(?m)require\(\s*["']([^"']+)["']\s*\)`)
 )
 
 func extractTS(src []byte) (symbols, imports []string) {
@@ -572,9 +572,9 @@ func extractTS(src []byte) (symbols, imports []string) {
 }
 
 var (
-	rePHPClass     = regexp.MustCompile(`(?m)^(?:(?:final|abstract|readonly)\s+)?(?:class|interface|trait|enum)\s+(\w+)`)
-	rePHPFunc      = regexp.MustCompile(`(?m)^\s*(?:public|protected|private)?\s*(?:static\s+)?function\s+(\w+)`)
-	rePHPUse       = regexp.MustCompile(`(?m)^\s*use\s+([\w\\]+(?:\s+as\s+\w+)?)\s*;`)
+	rePHPClass = regexp.MustCompile(`(?m)^(?:(?:final|abstract|readonly)\s+)?(?:class|interface|trait|enum)\s+(\w+)`)
+	rePHPFunc  = regexp.MustCompile(`(?m)^\s*(?:public|protected|private)?\s*(?:static\s+)?function\s+(\w+)`)
+	rePHPUse   = regexp.MustCompile(`(?m)^\s*use\s+([\w\\]+(?:\s+as\s+\w+)?)\s*;`)
 )
 
 func extractPHP(src []byte) (symbols, imports []string) {

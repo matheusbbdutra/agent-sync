@@ -158,18 +158,6 @@ func syncPreInvocationReminderHook(baseDir string, target TargetCLI) error {
 	return nil
 }
 
-func syncAgentStopHook(baseDir string, target TargetCLI) error {
-	return syncStopHook(baseDir, target)
-}
-
-func syncAntigravityStopHook(baseDir string, target TargetCLI) error {
-	return syncStopHook(baseDir, target)
-}
-
-func syncAgentPreInvocationHook(baseDir string, target TargetCLI) error {
-	return syncPreInvocationReminderHook(baseDir, target)
-}
-
 func syncCtxHandoffHook(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" {
 		return nil
@@ -476,6 +464,10 @@ func syncOpenCodeDocsCachePlugin(baseDir string, target TargetCLI) error {
 }
 
 func writeJSONObject(path string, obj map[string]interface{}) error {
+	if shouldDryRun() {
+		fmt.Printf("[dry-run] write json %s\n", path)
+		return nil
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}

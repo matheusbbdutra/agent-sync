@@ -501,3 +501,114 @@ Pendência das seções anteriores fechada: o verificador de Look Before You Lea
 - Não verificado: como `agy` (Antigravity) trata "fim de turno" — não consultado nesta rodada. Pendência separada, marcada na ADR.
 - Pendência anterior do STATE.md:27 ("camada extra `stop`/`afterAgentResponse` no Cursor não implementada") agora documentada na ADR — não sumiu, virou referência estruturada. Próximo passo é implementar Trilha A com smoke real, fechar ADR como Aceita.
 - Regras ativas: não consultar `.env`; não expor segredos; não commitar sem pedido; não implementar com base em hipótese não validada (Trilha B especialmente); citar fonte (`path:line`, doc URL, ADR).
+
+## Track — Refatoração do driver de -apply — 2026-09-18
+
+Origem: revisão do fluxo `make apply` propôs 10 melhorias (P1–P10) consolidadas em 3 fases.
+
+### Fase 1 — Baseline + limpeza (P3 + início) — concluída 2026-09-18
+- **Baseline verificada**: `go vet ./...` limpo e `go test ./...` 100% PASS na raiz e em `tools/` antes de qualquer mudança.
+- **P3a — Código morto removido**: `cmd/agent-sync/hooks.go:161-171` continha 3 wrappers sem callers em nenhum lugar do repo (verificado por `grep -rn`, confirmado zero referências pós-remoção):
+  - `syncAgentStopHook` (L161) → chamava `syncStopHook`
+  - `syncAntigravityStopHook` (L165) → chamava `syncStopHook`
+  - `syncAgentPreInvocationHook` (L169) → chamava `syncPreInvocationReminderHook`
+- **P3b — Alvos `make lint` e `make fmt` adicionados** no `Makefile` (vet + gofmt -l em ambos os módulos).
+- **Achado incidental do `make lint` (primeira execução)**: 4 arquivos em `tools/` com formatação irregular (não tocados pelo trabalho atual — dívida pré-existente detectada):
+  - `tools/cmd/repo-map/main.go`, `main_test.go`
+  - `tools/internal/repomap/repomap.go`, `repomap_test.go`
+- **Correção aplicada via `make fmt`**: reformatados com `gofmt -w` (mecânico, sem mudança semântica).
+- **Verificação final da Fase 1**: `make lint` OK em ambos os módulos; `go test ./...` PASS raiz e tools/; `go build ./...` OK em ambos.
+
+### Fase 2 — Refactor (P1 + P2) — concluída 2026-09-18
+- **P1 — Driver de hooks tabulado** em `cmd/agent-sync/main.go`:
+  - Novo tipo `hookSpec{name, fn, formats, agentKinds, detail}` (~linha 251) com `appliesTo()` e `run()` que padronizam log de erro/sucesso.
+  - Tabela `standardHooks` (~linha 320) com 17 entries: context-guard, memory-nudge, agent-react, ctx-compact, ctx-handoff, shell-validate, docs-cache (Claude/Codex/Antigravity) + stop + preinvocation (Antigravity only) + 5 plugins OpenCode + 3 variantes bash-guardian.
+  - Bifurcação Cursor isolada em `runCursorHooks()` (~linha 525): `syncCursorAll` + `syncCtxCompactHook` + `syncCtxHandoffHook`, sem forçar abstração.
+  - `applyCommon()` (~linha 510) cuida de regras/skills/agentes fora da tabela porque têm lógica distinta (Cursor rules, isProtectedSkillsDir, syncAgents retorna contagem).
+  - `applyToTarget()` (~linha 540) é o ponto de entrada único por target.
+  - `workerLog` (~linha 234) acumula saída com lock interno — múltiplos `append()` no mesmo worker não competem entre workers.
+  - **Mensagens preservadas 100%** via `detail func(t TargetCLI) string`: cada hookSpec produz a mesma string de sucesso que o código antigo (`✅ [claude] Hook de context-guard instalado em: ~/.claude/settings.json`).
+- **P2 — Paralelismo por target CLI** com `sync.WaitGroup` (escolha sobre `errgroup`):
+  - **`go.mod` é minimalista (sem `require`)** — adicionar `golang.org/x/sync` seria a primeira dependência externa do projeto. Targets são independentes (sem contexto compartilhado a cancelar); `WaitGroup` + `sync.Mutex` curto só no append de `allLogs` é equivalente sem transitive deps e sem `go mod tidy`.
+  - Loop em `main()` (~linha 622) lança 1 goroutine por target que passou o filtro `-target`. Cada worker cria seu próprio `workerLog` e chama `applyToTarget`.
+  - Saída serializada no stdout principal após `wg.Wait()` — logs preservam ordem **dentro** de cada target; intercalação entre targets é aceitável (cada linha é auto-contida `[cli/hook]`).
+  - **`persistShellEnv()` permanece no escopo do `main`, fora do WaitGroup** — preserva ordem: primeiro roda todos os targets em paralelo, depois persiste env.
+  - `count` calculado pré-loop (target count que entra no filtro) para mensagem final "N CLI(s) sincronizada(s) com sucesso".
+- **Verificação pós-refactor**:
+  - `make lint` ✅ (vet + gofmt -l em ambos os módulos)
+  - `go test ./...` raiz ✅ + tools/ ✅
+  - `go build` raiz ✅
+  - Smoke `agent-sync -status`: 5 linhas idênticas ao baseline (claude/codex/antigravity/opencode/cursor com regras/skills/agentes).
+  - Smoke `agent-sync -help`: mesmas flags e mensagens.
+- **Diff**: `cmd/agent-sync/main.go` +450/−192 linhas. Lógica interna das funções `sync*Hook` **não foi tocada** — só rearranjo.
+
+### Fase 3 — Polish (P4, P7, P8, P9, P10) — concluída 2026-09-18
+
+- **P4 — Flag `-dry-run` + env `AGENT_SYNC_DRY_RUN=1`** em `cmd/agent-sync/main.go`:
+  - Variável de pacote `dryRunEnabled` (~L14) + helper `shouldDryRun()` (~L20) que combina flag CLI e env var.
+  - Flag CLI `-dry-run` + alias `-n` declaradas no `main()` (~L582) e propagadas para `dryRunEnabled` após `flag.Parse()`.
+  - Banner extra `⚠️ Modo dry-run: nenhuma escrita em disco será feita.` no início do apply.
+  - **6 pontos de I/O interceptados** (cada um imprime sua linha `[dry-run] <op>` e retorna nil):
+    - `copyFile` (`main.go:111`)
+    - `writeJSONObject` (`hooks.go:466`)
+    - `syncSkills` (`main.go:135`)
+    - `syncCursorRules` (`cursor.go:37`)
+    - `syncCursorAll` (`cursor.go:54`)
+    - `writeAgentFile` (`agents.go:162`)
+    - `persistShellEnv` (`main.go:750`)
+  - **Verificação real**: `agent-sync -apply -dry-run -target claude` → 11 linhas `[dry-run] write agent`, 8 linhas `[dry-run] write json`, mensagens ✅ dos hooks, **mtime de `~/.claude/settings.json`, `~/.claude/CLAUDE.md`, `~/.zshrc` inalterado** (verificado com `stat -c %Y` antes/depois).
+  - Env var testada: `AGENT_SYNC_DRY_RUN=1 agent-sync -apply -target cursor` → mesma saída.
+  - Alias testado: `agent-sync -apply -n -target antigravity` → mesma saída.
+
+- **P9 — `os.Lstat` antes de `os.Remove`** em `syncSkills` (`main.go:135`):
+  - Trocado `_ = os.Remove(targetSkill)` (sempre) por `if _, err := os.Lstat(targetSkill); err == nil { _ = os.Remove(targetSkill) }`.
+  - Em skill nova na primeira instalação: `Lstat` falha → pula `Remove`. Em re-applys: `Lstat` ok → `Remove` ocorre normalmente.
+
+- **P10 — `make sync` silencioso**:
+  - Removido `@echo "make sync é alias..."` (`Makefile:50-51`). Alias agora é realmente silencioso — saída vem do próprio `apply`.
+
+- **P7+P8 — Documentação**:
+  - **P7 já estava documentado**: `agent-sync-session.sh` tem seção dedicada no `README.pt-BR.md:251-255` (e `README.md:250+`). **Não era trabalho pendente** — eu propus baseado em suposição, não em leitura.
+  - **P8 parcialmente já documentado**: `AGENT_SYNC_HOME` aparecia em 1 linha no `README.pt-BR.md:276` (e `README.md:275`).
+  - **Trabalho real feito**: criada seção **"Variáveis de ambiente"** em ambos os READMEs (pt-BR e EN) agregando **3 env vars** com tabela:
+    - `AGENT_SYNC_HOME` — override da raiz do repo
+    - `AGENT_SYNC_DRY_RUN=1` — modo dry-run (nova nesta fase)
+    - `AGENT_SYNC_PRETOOLUSE_VALIDATE=1` — opt-in do hook shell-validate
+
+- **Verificação final da Fase 3**:
+  - `make lint` ✅ (vet + gofmt em ambos os módulos)
+  - `go test ./...` raiz ✅ + tools/ ✅
+  - `go build` ✅
+  - Smoke `-status`: 5 linhas idênticas ao baseline
+  - Smoke `-apply -dry-run -target claude/cursor/antigravity`: cada um listou operações esperadas, mtime preservado
+
+- **⚠️ Bug latente descoberto e corrigido pelo `-dry-run`** (lção registrada):
+  - **Causa**: na Fase 2, criei `applyContext` com `log: nil` no `main()` e a propagava por valor para as goroutines. Os testes unitários não pegaram porque testam as `sync*Hook` diretamente, **nunca `applyToTarget`**. Em serial o `c.log` nunca foi exercitado porque o `applyToTarget` serial nem usava `applyContext` na versão pré-Fase 2 — o caminho paralelo só foi exercitado pelo `-dry-run` no smoke test.
+  - **Sintoma**: `panic: runtime error: invalid memory address or nil pointer dereference` em `workerLog.append(0x0, ...)`.
+  - **Fix**: `applyContext` agora é construído **dentro de cada goroutine** com seu próprio `workerLog` (`main.go:707`). O `ctx` de fora serve só para compartilhar `baseDir`, `rulesSource`, `skillsSource`.
+  - **Lição**: testes verdes ≠ código correto. Os testes não cobrem o main loop. Para próximos tracks considerar um teste de integração que exerça `applyToTarget` com `t.TempDir()`.
+
+- **Diff acumulado das 3 fases**: 12 arquivos, +545/−198.
+- **Sem commits** entre fases (regra global: só commitar quando pedido explicitamente).
+
+### Validação real pós-track — `make install` + `agent-sync -apply` — 2026-09-18
+
+- **Comando executado pelo usuário**: `make install` (15 binários + 2 scripts em `~/.local/bin`) seguido de `agent-sync -apply`.
+- **Resultado**: `✨ Concluído! 5 CLI(s) sincronizada(s) com sucesso.` — 41 linhas `✅` + 1 linha `⚠️` (opencode/bash-guardian).
+- **Comportamento do paralelismo confirmado**: saída intercalada entre targets (cursor terminou primeiro, antigravity por último) com ordem **dentro** de cada target preservada. `agent-sync -status` pós-apply: 5/5 CLIs com regras/skills/agentes presentes.
+- **Erro pré-existente detectado (não regressão)**:
+  ```
+  ⚠️ [opencode/bash-guardian] /home/matheusdutra/.config/opencode/opencode.json: JSON inválido, corrija manualmente antes de sincronizar: invalid character '}' looking for beginning of object key string
+  ```
+  - **Causa**: `~/.config/opencode/opencode.json` tinha `,\n}\n` na linha 45-46 — vírgula extra após o `}` que fecha `permission.bash`, antes do `}` raiz. Sintaxe inválida.
+  - **Backup criado antes de qualquer mudança**: `~/.config/opencode/opencode.json.bak.20260918` (preservado junto com os 4 backups anteriores do usuário — `.bak.20260916-203431Z`, `.bak.20260918-134757Z`, `.tui-migration.bak`, etc.).
+  - **Correção aplicada**: removida a vírgula extra (linha 45) — diff mostra apenas essa 1 linha + newline final canônico. Conteúdo `permission.bash` (16 entradas) preservado idêntico.
+  - **Validação pós-fix**: `python3 -m json.tool` OK; `agent-sync -apply -target opencode` rodou 100% com `✅ [opencode/bash-guardian] instalado em: ...` — re-gravação do JSON normalizou vírgula e adicionou newline final.
+  - **Não foi segredo** (confirmado pelo usuário antes de qualquer leitura).
+- **Lição validada empiricamente**: o `-dry-run` (P4 da Fase 3) foi o que **evitou** que o bug latente do `applyContext.log = nil` (corrigido na Fase 3) chegasse ao apply real. Sem o `-dry-run` como smoke, o primeiro `apply` pós-Fase 2 teria crashado em vez de sincronizar. O dry-run vale cada linha de código que intercepta I/O.
+
+### Convenções do track
+- Cada fase termina com `go vet ./...` + `go test ./...` em raiz e `tools/` verdes antes de avançar.
+- Sem commit entre fases (regra global).
+- Não tocar em `receipts/`, `review-receipts/`, `docs/ADR-fim-de-turno-hooks.md` (preservar alterações pré-existentes).
+- Regras ativas: não consultar `.env`; não expor segredos; hipótese ≠ fato.

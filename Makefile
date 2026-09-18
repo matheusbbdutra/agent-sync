@@ -1,4 +1,4 @@
-.PHONY: help setup build install apply sync status vendor mcp mirror test clean
+.PHONY: help setup build install apply sync status vendor mcp mirror test lint fmt clean
 
 .DEFAULT_GOAL := help
 
@@ -47,8 +47,7 @@ apply: install ## Compila, instala e aplica agent-sync nas 5 CLIs (hooks + skill
 	# Preencher o token é manual — não expor segredo em log/commit.
 	~/.local/bin/memory-sync -init
 
-sync: apply ## Alias para apply (mantido para retrocompatibilidade)
-	@echo "make sync é alias de make apply — instalado e aplicado"
+sync: apply ## Alias silencioso de apply (mantido para retrocompatibilidade)
 
 status: ## Mostra o status de sincronização de cada CLI
 	~/.local/bin/agent-sync -status
@@ -65,6 +64,16 @@ mirror: ## Baixa/atualiza o cache offline de docs (mirror/sources.json)
 test: ## Roda os testes Go (raiz + tools)
 	go test ./...
 	cd tools && go test ./...
+
+lint: ## go vet + gofmt -l em ambos os módulos (nao mutativo)
+	go vet ./...
+	cd tools && go vet ./...
+	@gofmt -l . | tee /tmp/agent-sync-gofmt-root.out && [ ! -s /tmp/agent-sync-gofmt-root.out ]
+	cd tools && gofmt -l . | tee /tmp/agent-sync-gofmt-tools.out && [ ! -s /tmp/agent-sync-gofmt-tools.out ]
+
+fmt: ## Corrige formatação com gofmt -w em ambos os módulos
+	gofmt -w .
+	cd tools && gofmt -w .
 
 clean: ## Remove os binários compilados em bin/
 	rm -rf bin

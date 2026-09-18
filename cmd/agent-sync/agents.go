@@ -160,6 +160,10 @@ func renderAgent(kind string, agent agentSource) (string, string, error) {
 }
 
 func writeAgentFile(path, content string) error {
+	if shouldDryRun() {
+		fmt.Printf("[dry-run] write agent %s\n", path)
+		return nil
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}

@@ -273,7 +273,13 @@ make vendor
 agent-sync -vendor
 ```
 
-> A resolução da raiz do repositório pode ser forçada com a variável `AGENT_SYNC_HOME`.
+### Variáveis de ambiente
+
+| Variável | Default | Onde aplicar | O que faz |
+|---|---|---|---|
+| `AGENT_SYNC_HOME` | (heurística) | `agent-sync`, `agent-sync-session` | Força o caminho da raiz do repositório. Útil quando o binário é chamado de fora do repo (CI, symlinks, testes). Tem prioridade sobre o `cwd` e o `os.Executable()`. |
+| `AGENT_SYNC_DRY_RUN=1` | `0` | `agent-sync -apply` | Habilita modo dry-run (equivalente à flag `-dry-run`/`-n`): mostra o que seria feito sem escrever em disco. Útil para `make apply DRY_RUN=1`. |
+| `AGENT_SYNC_PRETOOLUSE_VALIDATE=1` | (não persistido) | `shell-validate` hook | Liga o hook `shell-validate` (sinaliza comandos shell provavelmente inválidos antes da execução). `make apply` persiste automaticamente em `~/.zshrc`/`~/.bashrc`; sem essa env, o hook é no-op silencioso. |
 
 ---
 

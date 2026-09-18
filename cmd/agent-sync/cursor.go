@@ -35,6 +35,10 @@ func cursorManagedHooks() []cursorHookDef {
 
 // syncCursorRules grava as regras globais como .mdc com alwaysApply no ~/.cursor/rules.
 func syncCursorRules(src, dst string) error {
+	if shouldDryRun() {
+		fmt.Printf("[dry-run] write mdc %s\n", dst)
+		return nil
+	}
 	body, err := os.ReadFile(src)
 	if err != nil {
 		return err
@@ -49,6 +53,10 @@ func syncCursorRules(src, dst string) error {
 // Também copia o patterns.txt usado pelo bash-guardian e o helper Python do docs-cache.
 func syncCursorAll(baseDir string, target TargetCLI) error {
 	if target.HooksFormat != "cursor" || target.HooksSettingsPath == "" {
+		return nil
+	}
+	if shouldDryRun() {
+		fmt.Printf("[dry-run] cursor hooks/scripts em %s\n", target.HooksSettingsPath)
 		return nil
 	}
 
