@@ -8,9 +8,11 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/matheusdutra/token-tools/internal/agentmemory"
 )
@@ -345,6 +347,21 @@ func handle(req rpcRequest, store *agentmemory.Store) (rpcResponse, bool) {
 	}
 }
 
+// runPrune executa a poda de memórias scratch expiradas e sai — não entra no
+// loop stdio do servidor MCP. É operação de manutenção local, não uma tool
+// MCP: o agente não deve poder disparar remoção em massa via protocolo.
+func runPrune(store *agentmemory.Store, args []string) {
+	fs := flag.NewFlagSet("prune", flag.ExitOnError)
+	olderThan := fs.Duration("older-than", 30*24*time.Hour, "idade mínima (accessed_at/updated_at) para remover memórias scratch")
+	fs.Parse(args)
+	n, err := store.PruneScratch(*olderThan)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "memory-mcp: prune: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("memory-mcp: %d memória(s) scratch removida(s) (mais antigas que %s)\n", n, *olderThan)
+}
+
 func main() {
 	dbPath, err := agentmemory.DefaultDBPath()
 	if err != nil {
@@ -357,6 +374,12 @@ func main() {
 		os.Exit(1)
 	}
 	defer store.Close()
+
+	if len(os.Args) > 1 && os.Args[1] == "prune" {
+		runPrune(store, os.Args[2:])
+		return
+	}
+
 	fmt.Fprintf(os.Stderr, "memory-mcp: servindo %s\n", dbPath)
 
 	scanner := bufio.NewScanner(os.Stdin)

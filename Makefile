@@ -41,6 +41,10 @@ apply: install ## Compila, instala e aplica agent-sync nas 5 CLIs (hooks + skill
 	# `agent-sync -apply` persiste a env em ~/.zshrc (ou ~/.bashrc) por
 	# conta própria, então não precisa setar manualmente aqui.
 	~/.local/bin/agent-sync -apply
+	# Garante o esqueleto de ~/.config/agent-sync/config.json (turso.url/token
+	# vazios) sem sobrescrever um já existente; EnsureConfig() é idempotente.
+	# Preencher o token é manual — não expor segredo em log/commit.
+	~/.local/bin/memory-sync -init
 
 sync: apply ## Alias para apply (mantido para retrocompatibilidade)
 	@echo "make sync é alias de make apply — instalado e aplicado"

@@ -229,7 +229,12 @@ build_runner() {
 
   case "$target-$mode" in
     opencode-print)
-      printf '%q run "$(cat %q)"\n' "$bin" "$prompt_file"
+      # --auto: sem TTY, se o OpenCode pedir aprovação sem essa flag ele
+      # trava esperando stdin que nunca chega (o processo fica vivo, mas
+      # sem CPU e sem consumir token — parece "rodando" mas está morto).
+      # A deny-list continua valendo; --auto só aprova o que não é negado,
+      # coerente com o perfil "permissivo" descrito na skill agent-delegate.
+      printf '%q run --auto "$(cat %q)"\n' "$bin" "$prompt_file"
       ;;
     opencode-session)
       cat <<EOF

@@ -9,8 +9,10 @@ package agentmemory
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -50,6 +52,26 @@ type Memory struct {
 	Scratch     bool // marca a memória como descartável; só memórias com Scratch=true podem ser removidas via Delete
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	// AccessedAt registra a última leitura ou escrita; alimenta o decaimento
+	// de relevância no Search e a poda de PruneScratch.
+	AccessedAt time.Time
+}
+
+// Meia-vida do decaimento de relevância (inspirado no Ebbinghaus/MemoryBank,
+// arXiv 2305.10250): memórias não acessadas há ~30 dias recebem pouca penalidade,
+// memórias tocadas ontem pesam mais que as tocadas há um mês.
+// Relevância textual (bm25) continua dominando; recência só desempata/dá empurrão.
+const searchDecayHalfLife = 30 * 24 * time.Hour
+
+// searchDecayWeight limita a contribuição máxima do frescor ao ranking.
+// bm25 típico fica em -1..-20; 0.5 move ~1 casa sem dominar a relevância textual.
+const searchDecayWeight = 0.5
+
+// scoredMemory é um resultado do Search com o score bm25 bruto preservado
+// para o re-rank em Go (a query SQL não aplica o decaimento direto).
+type scoredMemory struct {
+	Memory
+	bm25 float64 // bm25() do SQLite é NEGATIVO: menor = mais relevante
 }
 
 // schemaStatements executa uma DDL por vez: o driver libsql não aceita múltiplas
@@ -98,7 +120,7 @@ func applySchema(db *sql.DB) error {
 			return fmt.Errorf("agentmemory: migrar coluna scratch: %w", err)
 		}
 	}
-	for _, column := range []string{"pc", "project_path", "project_id"} {
+	for _, column := range []string{"pc", "project_path", "project_id", "accessed_at"} {
 		if _, err := db.Exec("ALTER TABLE memories ADD COLUMN " + column + " TEXT NOT NULL DEFAULT ''"); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			return fmt.Errorf("agentmemory: migrar coluna %s: %w", column, err)
 		}
@@ -145,8 +167,8 @@ func (s *Store) Upsert(m Memory) error {
 		m.ID = fmt.Sprintf("%s:%s:%d", m.Type, m.Name, time.Now().UnixNano())
 	}
 	_, err := s.db.Exec(`
-		INSERT INTO memories (id, agent, session_id, pc, project_path, project_id, type, name, description, content, scratch, embedding_json, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?)
+		INSERT INTO memories (id, agent, session_id, pc, project_path, project_id, type, name, description, content, scratch, embedding_json, created_at, updated_at, accessed_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?)
         ON CONFLICT(project_id, type, name) DO UPDATE SET
             agent = excluded.agent,
             session_id = excluded.session_id,
@@ -156,11 +178,46 @@ func (s *Store) Upsert(m Memory) error {
 			content = excluded.content,
 			scratch = excluded.scratch,
 			updated_at = excluded.updated_at
-	`, m.ID, m.Agent, m.SessionID, m.PC, m.ProjectPath, m.ProjectID, m.Type, m.Name, m.Description, m.Content, m.Scratch, now, now)
+	`, m.ID, m.Agent, m.SessionID, m.PC, m.ProjectPath, m.ProjectID, m.Type, m.Name, m.Description, m.Content, m.Scratch, now, now, now)
 	if err != nil {
 		return fmt.Errorf("agentmemory: upsert %s/%s: %w", m.Type, m.Name, err)
 	}
 	return nil
+}
+
+// Touch registra um acesso a uma memória (updated accessed_at para o timestamp
+// atual UTC RFC3339). O erro é retornado ao chamador; leituras (Get/Search)
+// chamam Touch mas não falham se ele falhar — apenas logam em stderr.
+func (s *Store) Touch(projectID, typ, name string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := s.db.Exec(`UPDATE memories SET accessed_at = ? WHERE project_id = ? AND type = ? AND name = ?`, now, projectID, typ, name); err != nil {
+		return fmt.Errorf("agentmemory: touch %s/%s: %w", typ, name, err)
+	}
+	return nil
+}
+
+// PruneScratch remove memórias descartáveis (scratch=true) cujo último acesso
+// seja mais antigo que olderThan, retornando quantas linhas foram removidas.
+// Para linhas legadas sem accessed_at, usa updated_at como aproximação.
+// Memórias permanentes (scratch=false) NUNCA são tocadas — mesma invariante
+// de Delete/DeleteScoped, que recusam remoção manual (ErrNotScratch).
+func (s *Store) PruneScratch(olderThan time.Duration) (int, error) {
+	if olderThan <= 0 {
+		return 0, fmt.Errorf("agentmemory: prune scratch com duração não-positiva")
+	}
+	cutoff := time.Now().UTC().Add(-olderThan).Format(time.RFC3339)
+	res, err := s.db.Exec(`
+		DELETE FROM memories WHERE scratch = 1 AND
+			((accessed_at != '' AND accessed_at < ?) OR (accessed_at = '' AND updated_at < ?))
+	`, cutoff, cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("agentmemory: prune scratch: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("agentmemory: prune scratch: %w", err)
+	}
+	return int(n), nil
 }
 
 // ErrNotScratch é retornado quando Delete é chamado numa memória com Scratch=false:
@@ -206,7 +263,7 @@ func (s *Store) DeleteScoped(name, projectID string) (bool, error) {
 
 // Get busca pelo nome quando ele identifica apenas uma memória.
 func (s *Store) Get(name string) (*Memory, error) {
-	rows, err := s.db.Query(`SELECT id, agent, session_id, pc, project_path, project_id, type, name, description, content, scratch, created_at, updated_at FROM memories WHERE name = ? LIMIT 2`, name)
+	rows, err := s.db.Query(`SELECT id, agent, session_id, pc, project_path, project_id, type, name, description, content, scratch, created_at, updated_at, accessed_at FROM memories WHERE name = ? LIMIT 2`, name)
 	if err != nil {
 		return nil, err
 	}
@@ -221,14 +278,15 @@ func (s *Store) Get(name string) (*Memory, error) {
 	if len(items) == 0 {
 		return nil, nil
 	}
+	s.touchHit(items[0])
 	return &items[0], nil
 }
 
 func (s *Store) GetScoped(name, projectID string) (*Memory, error) {
-	row := s.db.QueryRow(`SELECT id, agent, session_id, pc, project_path, project_id, type, name, description, content, scratch, created_at, updated_at FROM memories WHERE name = ? AND project_id = ? LIMIT 1`, name, projectID)
+	row := s.db.QueryRow(`SELECT id, agent, session_id, pc, project_path, project_id, type, name, description, content, scratch, created_at, updated_at, accessed_at FROM memories WHERE name = ? AND project_id = ? LIMIT 1`, name, projectID)
 	var m Memory
-	var created, updated string
-	if err := row.Scan(&m.ID, &m.Agent, &m.SessionID, &m.PC, &m.ProjectPath, &m.ProjectID, &m.Type, &m.Name, &m.Description, &m.Content, &m.Scratch, &created, &updated); err != nil {
+	var created, updated, accessed string
+	if err := row.Scan(&m.ID, &m.Agent, &m.SessionID, &m.PC, &m.ProjectPath, &m.ProjectID, &m.Type, &m.Name, &m.Description, &m.Content, &m.Scratch, &created, &updated, &accessed); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -236,7 +294,18 @@ func (s *Store) GetScoped(name, projectID string) (*Memory, error) {
 	}
 	m.CreatedAt, _ = time.Parse(time.RFC3339, created)
 	m.UpdatedAt, _ = time.Parse(time.RFC3339, updated)
+	m.AccessedAt, _ = time.Parse(time.RFC3339, accessed)
+	s.touchHit(m)
 	return &m, nil
+}
+
+// touchHit registra o acesso de uma leitura bem-sucedida. Falha de Touch não
+// derruba a leitura que já aconteceu — só avisa em stderr, já que o dado
+// pedido pelo chamador já foi retornado corretamente.
+func (s *Store) touchHit(m Memory) {
+	if err := s.Touch(m.ProjectID, m.Type, m.Name); err != nil {
+		fmt.Fprintf(os.Stderr, "agentmemory: touch %s/%s: %v\n", m.Type, m.Name, err)
+	}
 }
 
 // ScopeFilter restringe a origem sem alterar a busca textual.
@@ -252,7 +321,7 @@ func (s *Store) List(agent, typ string, limit int, filters ...ScopeFilter) ([]Me
 		limit = 100
 	}
 	rows, err := s.db.Query(`
-		SELECT id, agent, session_id, pc, project_path, project_id, type, name, description, content, scratch, created_at, updated_at
+		SELECT id, agent, session_id, pc, project_path, project_id, type, name, description, content, scratch, created_at, updated_at, accessed_at
 		FROM memories
 		WHERE (? = '' OR agent = ?) AND (? = '' OR type = ?)
             AND (? = '' OR project_id = ?) AND (? = '' OR pc = ?) AND (? = '' OR project_path = ?)
@@ -266,7 +335,13 @@ func (s *Store) List(agent, typ string, limit int, filters ...ScopeFilter) ([]Me
 	return scanMemories(rows)
 }
 
-// Search faz busca por relevância (FTS5/BM25) em name+description+content.
+// Search faz busca por relevância (FTS5/BM25) em name+description+content,
+// com um boost de recência (decaimento exponencial sobre accessed_at) que só
+// desempata/ajusta o ranking — bm25 textual continua dominando.
+//
+// O decaimento não é expresso em SQL puro (libSQL sem funções exp/pow
+// estáveis entre versões seria frágil); em vez disso trazemos até 3x o limite
+// pedido já ordenado por bm25 e reordenamos em Go, que é simples de testar.
 func (s *Store) Search(query, agent, typ string, limit int, filters ...ScopeFilter) ([]Memory, error) {
 	var filter ScopeFilter
 	if len(filters) > 0 {
@@ -275,8 +350,9 @@ func (s *Store) Search(query, agent, typ string, limit int, filters ...ScopeFilt
 	if limit <= 0 {
 		limit = 10
 	}
+	fetchLimit := limit * 3
 	rows, err := s.db.Query(`
-		SELECT m.id, m.agent, m.session_id, m.pc, m.project_path, m.project_id, m.type, m.name, m.description, m.content, m.scratch, m.created_at, m.updated_at
+		SELECT m.id, m.agent, m.session_id, m.pc, m.project_path, m.project_id, m.type, m.name, m.description, m.content, m.scratch, m.created_at, m.updated_at, m.accessed_at, bm25(memories_fts) AS bm25
 		FROM memories_fts f
 		JOIN memories m ON m.rowid = f.rowid
 		WHERE memories_fts MATCH ?
@@ -285,12 +361,52 @@ func (s *Store) Search(query, agent, typ string, limit int, filters ...ScopeFilt
             AND (? = '' OR m.project_id = ?) AND (? = '' OR m.pc = ?) AND (? = '' OR m.project_path = ?)
 		ORDER BY bm25(memories_fts)
 		LIMIT ?
-	`, ftsQuery(query), agent, agent, typ, typ, filter.ProjectID, filter.ProjectID, filter.PC, filter.PC, filter.ProjectPath, filter.ProjectPath, limit)
+	`, ftsQuery(query), agent, agent, typ, typ, filter.ProjectID, filter.ProjectID, filter.PC, filter.PC, filter.ProjectPath, filter.ProjectPath, fetchLimit)
 	if err != nil {
 		return nil, fmt.Errorf("agentmemory: search %q: %w", query, err)
 	}
 	defer rows.Close()
-	return scanMemories(rows)
+	scored, err := scanScoredMemories(rows)
+	if err != nil {
+		return nil, err
+	}
+	rankSearchResults(scored)
+	if len(scored) > limit {
+		scored = scored[:limit]
+	}
+	out := make([]Memory, len(scored))
+	for i, sm := range scored {
+		out[i] = sm.Memory
+		s.touchHit(sm.Memory)
+	}
+	return out, nil
+}
+
+// rankSearchResults reordena por bm25 ajustado pelo decaimento de recência.
+// bm25 do SQLite é NEGATIVO (mais negativo = mais relevante); o ajuste soma
+// um valor >= 0 que cresce com a idade do acesso, então nunca torna um item
+// mais relevante que outro com bm25 melhor por uma margem maior que
+// searchDecayWeight — só desempata/reordena vizinhos próximos.
+func rankSearchResults(scored []scoredMemory) {
+	now := time.Now().UTC()
+	sort.SliceStable(scored, func(i, j int) bool {
+		return adjustedScore(scored[i], now) < adjustedScore(scored[j], now)
+	})
+}
+
+func adjustedScore(sm scoredMemory, now time.Time) float64 {
+	if sm.AccessedAt.IsZero() {
+		return sm.bm25
+	}
+	age := now.Sub(sm.AccessedAt)
+	if age < 0 {
+		age = 0
+	}
+	decay := math.Exp2(-age.Hours() / searchDecayHalfLife.Hours())
+	// decay em [0,1]: 1 = acesso agora, ->0 quanto mais velho. Penalidade
+	// (valor positivo somado ao bm25 negativo) cresce conforme o acesso
+	// envelhece: (1-decay) vai de 0 (recente) a 1 (muito antigo).
+	return sm.bm25 + searchDecayWeight*(1-decay)
 }
 
 // ftsQuery escapa a query do usuário para MATCH tratando cada palavra como termo
@@ -312,13 +428,30 @@ func scanMemories(rows *sql.Rows) ([]Memory, error) {
 	var out []Memory
 	for rows.Next() {
 		var m Memory
-		var created, updated string
-		if err := rows.Scan(&m.ID, &m.Agent, &m.SessionID, &m.PC, &m.ProjectPath, &m.ProjectID, &m.Type, &m.Name, &m.Description, &m.Content, &m.Scratch, &created, &updated); err != nil {
+		var created, updated, accessed string
+		if err := rows.Scan(&m.ID, &m.Agent, &m.SessionID, &m.PC, &m.ProjectPath, &m.ProjectID, &m.Type, &m.Name, &m.Description, &m.Content, &m.Scratch, &created, &updated, &accessed); err != nil {
 			return nil, fmt.Errorf("agentmemory: scan: %w", err)
 		}
 		m.CreatedAt, _ = time.Parse(time.RFC3339, created)
 		m.UpdatedAt, _ = time.Parse(time.RFC3339, updated)
+		m.AccessedAt, _ = time.Parse(time.RFC3339, accessed)
 		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+func scanScoredMemories(rows *sql.Rows) ([]scoredMemory, error) {
+	var out []scoredMemory
+	for rows.Next() {
+		var sm scoredMemory
+		var created, updated, accessed string
+		if err := rows.Scan(&sm.ID, &sm.Agent, &sm.SessionID, &sm.PC, &sm.ProjectPath, &sm.ProjectID, &sm.Type, &sm.Name, &sm.Description, &sm.Content, &sm.Scratch, &created, &updated, &accessed, &sm.bm25); err != nil {
+			return nil, fmt.Errorf("agentmemory: scan: %w", err)
+		}
+		sm.CreatedAt, _ = time.Parse(time.RFC3339, created)
+		sm.UpdatedAt, _ = time.Parse(time.RFC3339, updated)
+		sm.AccessedAt, _ = time.Parse(time.RFC3339, accessed)
+		out = append(out, sm)
 	}
 	return out, rows.Err()
 }
