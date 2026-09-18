@@ -93,6 +93,20 @@ Implementar a estratégia **sliding window + incremental summary**, alinhada ao 
 | Plugin OpenCode (TS) | `hooks/ctx-compact.opencode.ts` | `tool.execute.after` (best-effort) — único que permanece fora do Go: o hook do OpenCode **é** o runtime de plugin TS, sem equivalente para trocar |
 | Sync nas 5 CLIs | `cmd/agent-sync/hooks.go` (`syncCtxCompactHook`, `syncOpenCodeCtxCompactPlugin`) | Instalação automática via `-apply`; para claude/codex/cursor/antigravity instala o comando `ctx-window hook <cli>` diretamente no settings.json (sem script intermediário em disco) |
 
+### Atualização de execução — 2026-09-18
+
+1. **Eliminação do desperdício de tokens**: `on-tool-call-llm` agora apenas registra o turno em disco (`working memory`), sem chamadas aninhadas de LLM. O resumo estruturado é gerado sob demanda pelo comando `ctx-window summarize` (ou com detecção automática do projeto atual).
+2. **Abordagem B — Handoff local por projeto (`.agent-sync/summary.md`)**:
+   - `ctx-window summarize` salva o resumo do projeto em `<projectRoot>/.agent-sync/summary.md` (com `.gitignore` contendo `*` gerado automaticamente).
+   - `ctx-window handoff` prioriza essa leitura local antes de inspecionar caches de sessões globais, garantindo isolamento total entre repositórios e branches.
+3. **Mapeamento de Handoff e Nudges nas 5 CLIs**:
+   - **Claude Code**: Handoff em `SessionStart` via `hookSpecificOutput.additionalContext`. Nudge em `PostToolUse` via transcript.
+   - **Codex**: Handoff em `SessionStart` via `hookSpecificOutput.additionalContext`. Nudge em `PostToolUse` via leitura dos rollouts JSONL locais (`~/.codex/sessions/`).
+   - **Cursor**: Handoff em `sessionStart` via `additional_context`. Hook `preCompact` observacional orienta resumo manual.
+   - **Antigravity CLI**: Como o evento `SessionStart` é ignorado pelo runtime da CLI, migrou-se para o hook oficial `PreInvocation`. No turno 1 (`invocationNum == 1`), injeta o resumo e working memory via `ephemeralMessage` (sem poluir o transcript); nos turnos seguintes, retorna `{}` sem custo.
+   - **OpenCode**: Plugin TS em `~/.config/opencode/plugins/ctx-compact.ts` registra turnos em `tool.execute.after` e injeta o snapshot local no array `output.context` em `experimental.session.compacting`. Nudge lê tokens da tabela `session` do SQLite local (`~/.local/share/opencode/opencode.db`).
+4. **Defensividade**: `runHandoff` e `runHook` retornam `{}` e exit code 0 em qualquer falha de leitura ou payload vazio, impedindo que falhas auxiliares quebrem a inicialização das CLIs.
+
 ## Limites conhecidos
 
 1. **Mini-projeto não reproduz o paper completo** (50+ tool calls). Ganho percentual exato (91.6% vs 71%) **não foi medido** neste ambiente — exige Claude Opus / GPT-5 com sessão longa (custo proibitivo para validação local).

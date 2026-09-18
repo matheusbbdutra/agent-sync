@@ -87,16 +87,18 @@ export AGENT_SYNC_SUMMARIZER=heuristic
 ### 6. Tool commands
 
 ```bash
-ctx-window show <session>          # shows summary + working memory + versions
-ctx-window compact <session>       # forces compaction now
-ctx-window set-k <session> <N>     # adjusts K (working memory)
-ctx-window doctor                  # detects Ollama/models/summarizer in use
+ctx-window summarize               # generates project summary and saves to <projectRoot>/.agent-sync/summary.md
+ctx-window show [session]          # shows summary + working memory + versions
+ctx-window set-k <session> <N>     # adjusts K (working memory, default 5)
+ctx-window doctor                  # detects models, local configs, and summarizers
 ctx-window benchmark <dataset>     # runs empirical battery (Phase 0)
 ```
 
-### 7. Trigger hook
+### 7. Trigger hooks and Handoff
 
-`hooks/ctx-compact.sh` (Phase 2): every N tool calls, checks the budget and triggers `-compact` if needed. Idempotent.
+- **PostToolUse / tool.execute.after**: captures arguments and outputs into the local working memory (zero LLM overhead).
+- **SessionStart / PreInvocation**: restores the project's `.agent-sync/summary.md` and working memory turns automatically when starting a new session.
+- **Nudge**: warns when token consumption crosses the threshold so the agent/user can run `ctx-window summarize` on demand.
 
 ## Limits and care
 

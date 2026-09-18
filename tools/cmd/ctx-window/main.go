@@ -34,7 +34,7 @@ Usage:
       --tool <name>                          tool name (required)
       [--input <text>]                       truncated input (optional)
       [--cli <name>]                         claude|codex|opencode|cursor|antigravity (persisted on the session)
-  ctx-window on-tool-call-llm <session>      same but compacts via the owning CLI's own model
+  ctx-window on-tool-call-llm <session>      records a tool call without automatic LLM summarization
       --cli <name>                           claude|codex|opencode|cursor|antigravity (required first call)
   ctx-window hook <cli>                      reads a PostToolUse-style payload from stdin, extracts session/tool/
                                               input/result for that CLI's schema, and calls on-tool-call-llm.
@@ -44,6 +44,7 @@ Usage:
                                               (its hook IS a TS plugin, no Go equivalent to swap in there).
   ctx-window summarize --cli <name> <session>  forces LLM summarization now (flags must come before <session>: the
                                                 stdlib flag parser stops at the first positional argument)
+  ctx-window handoff <cli>                   reads a SessionStart payload from stdin and returns the latest project summary
   ctx-window doctor                          detects available configuration
   ctx-window benchmark <dataset>             runs empirical battery (placeholder)
   ctx-window -help
@@ -53,6 +54,7 @@ Environment variables:
   AGENT_SYNC_CTX_K=5                       working memory size
   AGENT_SYNC_CTX_BUDGET=1000               summary token budget
   AGENT_SYNC_CTX_COMPACT_AT=200            estimated chars threshold for auto-compaction
+  AGENT_SYNC_CTX_NUDGE_TOKENS=150000        Claude Code token threshold for one manual-summary reminder
 
 Persistent config:
   ~/.config/agent-sync/config.json (fields "summarizer", "ctx_k", "ctx_budget")
@@ -78,6 +80,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runOnToolCallLLM(rest, stdout, stderr)
 	case "hook":
 		return runHook(rest, os.Stdin, stdout, stderr)
+	case "handoff":
+		return runHandoff(rest, os.Stdin, stdout, stderr)
 	case "summarize":
 		return runSummarize(rest, stdout, stderr)
 	case "doctor":
@@ -203,6 +207,12 @@ func runOnToolCall(args []string, stdout, stderr io.Writer) error {
 	}
 	if err := s.Save(); err != nil {
 		return err
+	}
+	if cli := strings.TrimSpace(*cliFlag); cli == "opencode" {
+		if nudge, _ := checkOpenCodeNudge(session); nudge != "" {
+			fmt.Fprintf(stdout, "[AVISO agent-sync] %s\n", nudge)
+			return nil
+		}
 	}
 	// Auto-compact if estimated size exceeds budget
 	estimated := s.EstimatedChars()

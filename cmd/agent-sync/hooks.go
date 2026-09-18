@@ -13,6 +13,8 @@ const docsCacheHookName = "agent-sync-docs-cache"
 const memoryNudgeHookName = "agent-sync-memory-nudge"
 const agentReactNudgeHookName = "agent-sync-agent-react-nudge"
 const ctxCompactHookName = "agent-sync-ctx-compact"
+const ctxHandoffHookName = "agent-sync-ctx-handoff"
+const ctxNudgeHookName = "agent-sync-ctx-nudge"
 const shellValidateHookName = "agent-sync-shell-validate"
 
 // hookEntry é o formato comum a Claude Code e Gemini CLI para um item de hooks.<Evento>[].
@@ -69,28 +71,85 @@ func syncAgentReactNudgeHook(baseDir string, target TargetCLI) error {
 	return syncStandardHook(baseDir, target, agentReactNudgeHookName, "agent-react-nudge.sh", "*")
 }
 
-// syncCtxCompactHook instala o hook que registra tool calls no working memory
-// do ctx-window e dispara auto-compactacao (via LLM da propria CLI) quando o
-// budget estimado e atingido. O comando instalado e o proprio binario
-// ctx-window (`ctx-window hook <cli>`, ja esperado no PATH — mesma premissa
-// dos outros subcomandos chamados por hooks neste projeto): ele le o payload
-// da hook via stdin, extrai session/tool/input/resultado do schema daquela
-// CLI e decide, internamente, se compacta via `claude -p`/`codex exec`/
-// `cursor-agent -p`/`agy -p`. Nao ha script bash/python intermediario aqui
-// de proposito — manter essa logica em uma linguagem so (Go) facilita
-// depurar; antes cada CLI tinha um .sh + .py so pra isso. Cobre Claude,
-// Codex, Antigravity e Cursor. OpenCode fica no plugin TS
-// (syncOpenCodeCtxCompactPlugin) porque o hook dele E o runtime de plugin,
-// sem equivalente em Go pra trocar.
+// syncCtxCompactHook registra chamadas de ferramenta para um resumo manual e hooks de nudge.
 func syncCtxCompactHook(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" || target.HooksEvent == "" {
 		return nil
 	}
 	command := "ctx-window hook " + target.AgentKind
+	if target.HooksFormat == "cursor" {
+		if err := syncCursorCommandAtEvent(target.HooksSettingsPath, "postToolUse", command); err != nil {
+			return err
+		}
+		return syncCursorCommandAtEvent(target.HooksSettingsPath, "preCompact", command+" precompact")
+	}
 	if target.HooksFormat == "antigravity" {
-		return syncAntigravityHookCommand(target, ctxCompactHookName, command, "*")
+		targetCopy := target
+		targetCopy.HooksEvent = "PostToolUse"
+		if err := syncAntigravityHookCommand(targetCopy, ctxCompactHookName, command, "*"); err != nil {
+			return err
+		}
+		root, err := readJSONObject(target.HooksSettingsPath)
+		if err == nil {
+			if g, ok := root[ctxCompactHookName].(map[string]interface{}); ok {
+				delete(g, "PreInvocation")
+				_ = writeJSONObject(target.HooksSettingsPath, root)
+			}
+		}
+		return syncAntigravityPreInvocation(target, ctxNudgeHookName, command+" preinvocation")
 	}
 	return syncStandardHookCommand(baseDir, target, ctxCompactHookName, command, "*")
+}
+
+func syncAntigravityPreInvocation(target TargetCLI, hookName, command string) error {
+	root, err := readJSONObject(target.HooksSettingsPath)
+	if err != nil {
+		return err
+	}
+	group, _ := root[hookName].(map[string]interface{})
+	if group == nil {
+		group = map[string]interface{}{}
+	}
+	delete(group, "SessionStart")
+	group["PreInvocation"] = []hookCmd{{Type: "command", Command: command, Name: hookName, Timeout: 10}}
+	root[hookName] = group
+	return writeJSONObject(target.HooksSettingsPath, root)
+}
+
+func syncCtxHandoffHook(baseDir string, target TargetCLI) error {
+	if target.HooksSettingsPath == "" {
+		return nil
+	}
+	command := "ctx-window handoff " + target.AgentKind
+	switch target.HooksFormat {
+	case "cursor":
+		return syncCursorCommandAtEvent(target.HooksSettingsPath, "sessionStart", command)
+	case "antigravity":
+		return syncAntigravityPreInvocation(target, ctxHandoffHookName, command)
+	default:
+		return syncHookCommandAtEvent(baseDir, target, ctxHandoffHookName, command, ".*", "SessionStart")
+	}
+}
+
+func syncCursorCommandAtEvent(path, event, command string) error {
+	root, err := readJSONObject(path)
+	if err != nil {
+		return err
+	}
+	hooks, _ := root["hooks"].(map[string]interface{})
+	if hooks == nil {
+		hooks = map[string]interface{}{}
+	}
+	entries := decodeCursorHookEntries(hooks[event])
+	kept := entries[:0:0]
+	for _, entry := range entries {
+		if entry.Command != command {
+			kept = append(kept, entry)
+		}
+	}
+	hooks[event] = encodeCursorHookEntries(append(kept, cursorHookEntry{Command: command}))
+	root["hooks"] = hooks
+	return writeJSONObject(path, root)
 }
 
 // syncShellValidateHook instala o hook PreToolUse que sinaliza comandos
@@ -127,9 +186,8 @@ func syncShellValidateHook(baseDir string, target TargetCLI) error {
 	return syncHookCommandAtEvent(baseDir, target, shellValidateHookName, command, "Bash", "PreToolUse")
 }
 
-// syncOpenCodeCtxCompactPlugin instala o plugin TS best-effort para OpenCode
-// (mesma limitacao documentada em syncOpenCodePlugin — output do hook nem
-// sempre chega ao modelo ate a issue upstream #13574 fechar).
+// syncOpenCodeCtxCompactPlugin instala o plugin TS para tracking e para o
+// callback de compactação nativa. A limitação #13574 afeta tool.execute.after.
 func syncOpenCodeCtxCompactPlugin(baseDir string, target TargetCLI) error {
 	if target.OpenCodePluginDir == "" {
 		return nil

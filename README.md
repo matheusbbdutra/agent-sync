@@ -121,7 +121,26 @@ In addition to the vendored ones, there are **12 authored skills in Portuguese (
   - **Antigravity CLI**: `PostToolUse` hook (`hooks/docs-cache.antigravity.sh`) matching `read_url_content|call_mcp_tool`. Antigravity's hook payload doesn't include the tool's result — the script reads it from the documented `transcriptPath` (JSONL), locating the entry at `step_index + 1`, confirmed by live-testing against a real `agy` session. The `read_url_content` argument name (`Url`) is a reasonable inference from that tool's PascalCase convention, **not confirmed live** (permission testing for it was blocked by this session's own safety classifier before confirmation).
   - **OpenCode**: `tool.execute.after` plugin (`hooks/docs-cache.opencode.ts`), same best-effort caveat as `context-guard-nudge.ts`.
   - **Cursor**: `postToolUse` matcher `WebFetch` + `afterMCPExecution` matcher `query-docs` (`hooks/docs-cache.cursor.sh` / `docs-cache-mcp.cursor.sh`).
-- **`context-window-strategy`** (skill + `tools/cmd/ctx-window/` tool): sliding window + incremental summary for long sessions. Implements the pattern from arXiv [2606.10209v1](https://arxiv.org/html/2606.10209v1) (Microsoft — Lodha et al.) — 91.6% completion vs 71% with full context. Three summarizer paths: own model (default — each CLI's own non-interactive mode: `claude -p`, `codex exec`, `opencode run --pure`, `cursor-agent -p`, `agy -p`, so the running session's LLM generates the summary with no extra dependency), Ollama local (privacy), or pure local heuristic (regex fallback). See [ADR](docs/ADR-context-window-strategy.md) for the empirical validation. Auto-compact hook installed in all 5 CLIs: claude/codex/cursor/antigravity install the `ctx-window hook <cli>` subcommand directly (single Go binary — no intermediate script, keeps the whole path in one language for easier debugging); OpenCode stays on `hooks/ctx-compact.opencode.ts`, since its hook is the plugin runtime itself.
+- **`context-window-strategy`** (skill + tool `tools/cmd/ctx-window/`): context window management infrastructure based on *Sliding Window + Incremental Summary*, designed for long-horizon autonomous AI coding sessions.
+  - **Objective**: Prevent the *lost in the middle* phenomenon (where models overlook earlier decisions in bloated contexts) and eliminate token waste from frequent background auto-compaction. Retains high-fidelity *working memory* of the last $K$ actions while compressing decisions into structured summaries on demand.
+  - **Paper Reference (Microsoft Research)**: Based on *"Less Context, Better Agents: Efficient Context Engineering for Long-Horizon Tool-Using LLM Agents"* (Lodha, Pahlavikhah Varnosfaderani, Chakraborty, Mithal — 2026, [arXiv:2606.10209v1](https://arxiv.org/html/2606.10209v1)). The study demonstrated that restricting the active window to the last 5 tool calls combined with an incremental summary (**C4**) achieves **91.6% task completion** compared to **71.0%** for full unpruned context (**C2**), while reducing token consumption by **63.9%**.
+  - **How it works across the 5 CLIs**:
+    - **Continuous recording (zero extra LLM calls)**: On each tool execution, lightweight hooks capture invocation arguments and truncated outputs, indexing the last $K$ steps (default $K=5$) locally without background LLM overhead.
+    - **On-demand summarization (`.agent-sync/summary.md`)**: When the context fills or a phase finishes, `ctx-window summarize` is invoked. It prompts the active model to produce a structured 6-section YAML summary (*decisions, active_hypotheses, artifacts, resolved_errors, next_steps, constraints*) saved to `<projectRoot>/.agent-sync/summary.md` (protected by automatic `.gitignore`).
+    - **Automatic session handoff**: When opening a new chat or restarting the CLI within the project folder, the summary and recent working memory turns are automatically restored into the initial context:
+      - **Claude Code**: `SessionStart` hook injects via `hookSpecificOutput.additionalContext`. Nudge based on actual transcript token usage via `PostToolUse`.
+      - **Codex**: `SessionStart` hook injects via `hookSpecificOutput.additionalContext`. Nudge based on rollout token usage via `PostToolUse`.
+      - **Cursor**: `sessionStart` hook injects via `additional_context`. Observational `preCompact` hook advises manual compaction.
+      - **Antigravity CLI**: Official `PreInvocation` hook injects during the first turn (`invocationNum == 1`) as an `ephemeralMessage` (without transcript pollution).
+      - **OpenCode**: TypeScript plugin (`~/.config/opencode/plugins/ctx-compact.ts`) records turns on `tool.execute.after` and pushes local state into `output.context` during native `experimental.session.compacting`.
+  - **Key commands**:
+    ```bash
+    ctx-window summarize          # Summarize current project session and save to .agent-sync/summary.md
+    ctx-window show [session]     # Inspect working memory and stored summaries
+    ctx-window set-k <session> <N># Adjust the sliding window size K (default: 5)
+    ctx-window doctor             # Verify configuration, cache, and available summarizers
+    ```
+    See the [full ADR](docs/ADR-context-window-strategy.md).
 
 ### Research and documentation
 

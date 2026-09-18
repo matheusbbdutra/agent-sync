@@ -90,6 +90,14 @@ func TestParseAntigravityPayloadMissingTranscriptIsSafe(t *testing.T) {
 	}
 }
 
+func TestParseAntigravityPayloadConversationID(t *testing.T) {
+	raw := []byte(`{"conversationId":"agy-current","workspacePaths":["/project"],"toolCall":{"name":"run_command"}}`)
+	sessionID, toolName, _ := parseAntigravityPayload(raw)
+	if sessionID != "agy-current" || toolName != "run_command" {
+		t.Fatalf("unexpected sessionID/toolName: %q/%q", sessionID, toolName)
+	}
+}
+
 func TestParseClaudeCodexPayloadFlagsEmptyToolResponse(t *testing.T) {
 	raw := []byte(`{"session_id":"s1","tool_name":"Bash","tool_input":{"command":"ls"},"tool_response":""}`)
 	_, _, content := parseClaudeCodexPayload(raw)
@@ -182,5 +190,43 @@ func TestRunHookEndToEndRecordsTurn(t *testing.T) {
 	}
 	if !strings.Contains(s.Turns[0].Content, "go test") {
 		t.Errorf("turn content missing tool input: %q", s.Turns[0].Content)
+	}
+}
+
+func TestRunCursorPreCompactHook(t *testing.T) {
+	var stdout, stderr strings.Builder
+	payload := `{"context_tokens":165000,"session_id":"cur-123"}`
+	err := runHook([]string{"cursor", "precompact"}, strings.NewReader(payload), &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "user_message") || !strings.Contains(out, "165000 tokens") || !strings.Contains(out, "ctx-window summarize") {
+		t.Fatalf("unexpected cursor precompact output: %s", out)
+	}
+}
+
+func TestRunAntigravityPreInvocationHook(t *testing.T) {
+	withTempCache(t)
+	t.Setenv("AGENT_SYNC_CTX_NUDGE_INVOCATIONS", "10")
+	var stdout, stderr strings.Builder
+	payload := `{"conversationId":"agy-123","invocationNum":12,"initialNumSteps":25}`
+	err := runHook([]string{"antigravity", "preinvocation"}, strings.NewReader(payload), &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "injectSteps") || !strings.Contains(out, "ephemeralMessage") || !strings.Contains(out, "12 invocações") {
+		t.Fatalf("unexpected antigravity preinvocation output: %s", out)
+	}
+
+	// Segundo disparo deve ser silencioso ({})
+	stdout.Reset()
+	err = runHook([]string{"antigravity", "preinvocation"}, strings.NewReader(payload), &stdout, &stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stdout.String() != "{}" {
+		t.Fatalf("expected {} on second invocation, got: %s", stdout.String())
 	}
 }

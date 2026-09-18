@@ -110,15 +110,34 @@ func runSummarize(args []string, stdout, stderr io.Writer) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if fs.NArg() != 1 {
-		return errors.New("summarize requires <session>")
-	}
-	s, err := Load(fs.Arg(0))
-	if err != nil {
-		return err
+	var s *Session
+	if fs.NArg() == 0 {
+		wd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("summarize without <session> requires working directory: %w", err)
+		}
+		s, err = LatestSessionForProject(wd)
+		if err != nil {
+			return fmt.Errorf("summarize: %w (pass <session> explicitly)", err)
+		}
+	} else if fs.NArg() == 1 {
+		var err error
+		s, err = Load(fs.Arg(0))
+		if err != nil {
+			return err
+		}
+	} else {
+		return errors.New("summarize accepts at most 1 argument: [session]")
 	}
 	if len(s.Turns) == 0 {
 		return errors.New("session has no tool calls — nothing to summarize")
+	}
+	if s.ProjectPath == "" {
+		projectPath, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		s.ProjectPath = projectPath
 	}
 	cliName := strings.TrimSpace(*cliFlag)
 	if cliName == "" {
@@ -155,6 +174,13 @@ func runSummarize(args []string, stdout, stderr io.Writer) error {
 	}
 	if err := s.Save(); err != nil {
 		return err
+	}
+	projPath := s.ProjectPath
+	if projPath == "" {
+		projPath, _ = os.Getwd()
+	}
+	if err := SaveProjectSummary(projPath, yaml); err != nil {
+		fmt.Fprintf(stderr, "ctx-window: salvar resumo local do projeto: %v\n", err)
 	}
 	fmt.Fprintf(stdout, "summarized: version %d (previous %d); cli=%s; model=%s; turns=%d\n",
 		s.Version, prev, cliName, promptModel, len(s.Turns))
@@ -206,9 +232,8 @@ func rememberSummary(sessionID, cliName, yaml string, stderr io.Writer) (int, er
 	return store.UpsertSummary(origin.ProjectID, cliName, sessionID, yaml)
 }
 
-// runOnToolCallLLM is like runOnToolCall but uses the LLM summarizer (via
-// opencode run) instead of the local heuristic. Used by the OpenCode hook
-// to keep the default summarizer = own model working end-to-end.
+// runOnToolCallLLM records tool calls without starting a nested LLM request.
+// Summarization is only triggered explicitly by the summarize subcommand.
 func runOnToolCallLLM(args []string, stdout, stderr io.Writer) error {
 	if len(args) < 1 {
 		return errors.New("on-tool-call-llm requires <session>")
@@ -219,6 +244,7 @@ func runOnToolCallLLM(args []string, stdout, stderr io.Writer) error {
 	tool := fs.String("tool", "", "tool name (required)")
 	input := fs.String("input", "", "truncated tool input (optional)")
 	cliFlag := fs.String("cli", "", "CLI that owns this session: claude, codex, opencode, cursor, antigravity")
+	projectFlag := fs.String("project", "", "project working directory")
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -231,6 +257,9 @@ func runOnToolCallLLM(args []string, stdout, stderr io.Writer) error {
 	}
 	if cli := strings.TrimSpace(*cliFlag); cli != "" {
 		s.CLIName = cli
+	}
+	if project := strings.TrimSpace(*projectFlag); project != "" {
+		s.ProjectPath = project
 	}
 	content := *tool
 	if *input != "" {
@@ -247,10 +276,7 @@ func runOnToolCallLLM(args []string, stdout, stderr io.Writer) error {
 	if err := s.Save(); err != nil {
 		return err
 	}
-	if s.EstimatedChars() >= compactAtThreshold() {
-		return runSummarize([]string{session}, stdout, stderr)
-	}
-	fmt.Fprintf(stdout, `{"auto_summarized":false,"estimated_chars":%d,"turns":%d}`+"\n",
+	fmt.Fprintf(stdout, `{"recorded":true,"estimated_chars":%d,"turns":%d}`+"\n",
 		s.EstimatedChars(), len(s.Turns))
 	return nil
 }

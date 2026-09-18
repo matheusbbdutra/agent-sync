@@ -263,10 +263,17 @@ EOF
       printf '%q --workspace %q "$(cat %q)"\n' "$bin" "$workspace" "$prompt_file"
       ;;
     codex-print)
+      # < /dev/null: mesmo recebendo o prompt como argumento, `codex exec`
+      # ainda tenta ler um bloco <stdin> extra se detectar stdin "piped"
+      # (confirmado no --help: "If stdin is piped ... stdin is appended as
+      # a <stdin> block"). Sem TTY, sem fechar o stdin herdado, ele trava
+      # pra sempre esperando EOF que nunca chega (mesma classe de bug do
+      # opencode sem --auto, mas causa diferente: aqui é leitura de stdin,
+      # não aprovação de permissão).
       if "$bin" exec --help >/dev/null 2>&1; then
-        printf '%q exec "$(cat %q)"\n' "$bin" "$prompt_file"
+        printf '%q exec "$(cat %q)" < /dev/null\n' "$bin" "$prompt_file"
       else
-        printf '%q "$(cat %q)"\n' "$bin" "$prompt_file"
+        printf '%q "$(cat %q)" < /dev/null\n' "$bin" "$prompt_file"
       fi
       ;;
     codex-session)

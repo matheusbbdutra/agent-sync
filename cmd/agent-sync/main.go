@@ -340,6 +340,12 @@ func main() {
 			} else {
 				fmt.Printf("✅ [%s] Hooks (context-guard, memory, agent-react, docs-cache, bash-guardian) em: %s\n", t.Name, t.HooksSettingsPath)
 			}
+			if err := syncCtxCompactHook(baseDir, t); err != nil {
+				fmt.Printf("⚠️  [%s] Falha ao sincronizar tracking ctx-window: %v\n", t.Name, err)
+			}
+			if err := syncCtxHandoffHook(baseDir, t); err != nil {
+				fmt.Printf("⚠️  [%s] Falha ao sincronizar handoff ctx-window: %v\n", t.Name, err)
+			}
 			count++
 			continue
 		}
@@ -371,6 +377,9 @@ func main() {
 			fmt.Printf("⚠️  [%s] Falha ao sincronizar hook ctx-compact: %v\n", t.Name, err)
 		} else if t.HooksSettingsPath != "" {
 			fmt.Printf("✅ [%s] Hook de ctx-compact instalado em: %s\n", t.Name, t.HooksSettingsPath)
+		}
+		if err := syncCtxHandoffHook(baseDir, t); err != nil {
+			fmt.Printf("⚠️  [%s] Falha ao sincronizar handoff ctx-window: %v\n", t.Name, err)
 		}
 
 		// Instala o hook PreToolUse do shell-validate. É opt-in: só ativa

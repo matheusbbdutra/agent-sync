@@ -1,5 +1,5 @@
 import type { Plugin } from "@opencode-ai/plugin"
-import { execSync } from "node:child_process"
+import { execFileSync } from "node:child_process"
 
 // Pos-tool: a cada chamada de ferramenta, registra o tool call no working
 // memory do ctx-window, incluindo input e output (truncados) para que a
@@ -16,12 +16,7 @@ import { execSync } from "node:child_process"
 
 const MAX_CONTENT_CHARS = 16000
 
-function safeShellSingleQuote(s: string): string {
-  // shell single-quote escape: ' -> '\''
-  return "'" + s.replace(/'/g, "'\\''") + "'"
-}
-
-export const CtxCompact: Plugin = async () => {
+export const CtxCompact: Plugin = async ({ directory, client }: { directory: string; client?: any }) => {
   return {
     "tool.execute.after": async (input, output) => {
       try {
@@ -35,13 +30,40 @@ export const CtxCompact: Plugin = async () => {
             ? ((output as { output: string }).output).slice(0, MAX_CONTENT_CHARS)
             : ""
         const parts = [argsStr, outputStr].filter((s) => s.length > 0)
-        const inputArg = parts.length > 0 ? safeShellSingleQuote(parts.join(" | ")) : ""
-        const cmd = inputArg
-          ? `ctx-window on-tool-call-llm "${sessionID}" --cli opencode --tool "${toolName}" --input ${inputArg}`
-          : `ctx-window on-tool-call-llm "${sessionID}" --cli opencode --tool "${toolName}"`
-        execSync(cmd, { stdio: "ignore", timeout: 90000 })
+        const commandArgs = ["on-tool-call-llm", sessionID, "--cli", "opencode", "--tool", toolName, "--project", directory]
+        if (parts.length > 0) commandArgs.push("--input", parts.join(" | "))
+        const stdout = execFileSync("ctx-window", commandArgs, { encoding: "utf8", timeout: 10000 })
+        if (stdout && stdout.includes("[AVISO agent-sync]")) {
+          const lines = stdout.split("\n")
+          const nudge = lines.find((l) => l.includes("[AVISO agent-sync]"))
+          if (nudge) {
+            if (output && typeof (output as { output?: unknown }).output === "string") {
+              (output as { output: string }).output += `\n\n${nudge}`
+            }
+            if (client?.tui?.showToast) {
+              client.tui.showToast({
+                title: "agent-sync: Contexto Alto",
+                message: nudge,
+                type: "warning",
+              })
+            }
+          }
+        }
       } catch {
         // best-effort: nunca bloqueia o tool call
+      }
+    },
+    "experimental.session.compacting": async (input, output) => {
+      try {
+        const sessionID = (input as { sessionID?: string }).sessionID
+        if (!sessionID) return
+        const snapshot = execFileSync("ctx-window", ["show", sessionID], {
+          encoding: "utf8",
+          timeout: 10000,
+        }).slice(0, MAX_CONTENT_CHARS)
+        if (snapshot.trim()) output.context.push(`ctx-window (estado local da sessão):\n${snapshot}`)
+      } catch {
+        // sem snapshot local, a compactação nativa continua
       }
     },
   }

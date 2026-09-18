@@ -15,3 +15,10 @@ bin/
 
 # Logs temporários
 *.log
+
+# Recibos e logs de execução local
+receipts/
+review-receipts/
+
+# Contexto de sessão local
+.agent-sync/

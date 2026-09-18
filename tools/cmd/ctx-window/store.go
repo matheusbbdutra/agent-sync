@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,15 +16,17 @@ import (
 // Session represents the state of a session: working memory (last K
 // tool calls) + incremental summary + metadata.
 type Session struct {
-	ID         string    `json:"id"`
-	K          int       `json:"k"`
-	Summarizer string    `json:"summarizer"`
-	CLIName    string    `json:"cli_name"` // which CLI owns this session: claude | codex | opencode | cursor | antigravity
-	Budget     int       `json:"budget"`
-	Version    int       `json:"version"`
-	Turns      []Turn    `json:"turns"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID          string    `json:"id"`
+	K           int       `json:"k"`
+	Summarizer  string    `json:"summarizer"`
+	CLIName     string    `json:"cli_name"` // which CLI owns this session: claude | codex | opencode | cursor | antigravity
+	ProjectPath string    `json:"project_path,omitempty"`
+	NudgeSent   bool      `json:"nudge_sent,omitempty"`
+	Budget      int       `json:"budget"`
+	Version     int       `json:"version"`
+	Turns       []Turn    `json:"turns"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // Turn is one entry of the working memory (verbatim).
@@ -352,4 +355,110 @@ func SummarizerFromConfig() string {
 func ollamaAvailable() bool {
 	_, err := exec.LookPath("ollama")
 	return err == nil
+}
+
+// LatestSessionForProject encontra a sessão mais recente salva no ctx-window para o caminho do projeto dado.
+func LatestSessionForProject(projectPath string) (*Session, error) {
+	if projectPath == "" {
+		return nil, errors.New("ctx-window: caminho do projeto vazio")
+	}
+	projectPath = filepath.Clean(projectPath)
+	root, err := SessionDir("placeholder")
+	if err != nil {
+		return nil, err
+	}
+	entries, err := os.ReadDir(filepath.Dir(root))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("ctx-window: nenhuma sessão encontrada para o projeto %s", projectPath)
+		}
+		return nil, err
+	}
+	var latestID string
+	var latestTime time.Time
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		dir := filepath.Join(filepath.Dir(root), entry.Name())
+		meta, err := os.ReadFile(metaPath(dir))
+		if err != nil {
+			continue
+		}
+		var session Session
+		if json.Unmarshal(meta, &session) != nil || filepath.Clean(session.ProjectPath) != projectPath {
+			continue
+		}
+		if session.UpdatedAt.After(latestTime) || latestID == "" {
+			latestID = session.ID
+			latestTime = session.UpdatedAt
+		}
+	}
+	if latestID == "" {
+		return nil, fmt.Errorf("ctx-window: nenhuma sessão encontrada para o projeto %s", projectPath)
+	}
+	return Load(latestID)
+}
+
+// FindProjectRoot locates the git repository root of dir, or falls back to dir.
+func FindProjectRoot(dir string) string {
+	if dir == "" {
+		dir, _ = os.Getwd()
+	}
+	if dir == "" {
+		return ""
+	}
+	dir = filepath.Clean(dir)
+	cmd := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel")
+	out, err := cmd.Output()
+	if err == nil {
+		root := strings.TrimSpace(string(out))
+		if root != "" {
+			return root
+		}
+	}
+	return dir
+}
+
+// ProjectSummaryPath returns the path to <projectRoot>/.agent-sync/summary.md
+func ProjectSummaryPath(projectPath string) string {
+	root := FindProjectRoot(projectPath)
+	if root == "" {
+		return ""
+	}
+	return filepath.Join(root, ".agent-sync", "summary.md")
+}
+
+// SaveProjectSummary writes the summary to <projectRoot>/.agent-sync/summary.md
+// and ensures .agent-sync/.gitignore has "*" so it is never committed.
+func SaveProjectSummary(projectPath, yaml string) error {
+	root := FindProjectRoot(projectPath)
+	if root == "" {
+		return errors.New("ctx-window: project root not found")
+	}
+	agentSyncDir := filepath.Join(root, ".agent-sync")
+	if err := os.MkdirAll(agentSyncDir, 0o755); err != nil {
+		return fmt.Errorf("ctx-window: mkdir %s: %w", agentSyncDir, err)
+	}
+	gitignore := filepath.Join(agentSyncDir, ".gitignore")
+	if _, err := os.Stat(gitignore); os.IsNotExist(err) {
+		_ = os.WriteFile(gitignore, []byte("*\n"), 0o644)
+	}
+	return os.WriteFile(filepath.Join(agentSyncDir, "summary.md"), []byte(yaml), 0o644)
+}
+
+// LoadProjectSummary reads <projectRoot>/.agent-sync/summary.md if it exists.
+func LoadProjectSummary(projectPath string) (string, error) {
+	p := ProjectSummaryPath(projectPath)
+	if p == "" {
+		return "", nil
+	}
+	data, err := os.ReadFile(p)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", err
+	}
+	return strings.TrimSpace(string(data)), nil
 }

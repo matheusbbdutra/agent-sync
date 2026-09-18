@@ -17,7 +17,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -57,10 +59,8 @@ func toolFailureMarker(responseText string) string {
 
 // runHook reads a raw hook payload from stdin, extracts the tool call +
 // result for the given CLI's schema, and forwards it to the existing
-// on-tool-call-llm path (same recording + auto-compact logic already used
-// by `ctx-window on-tool-call-llm`). Never returns an error to the caller
-// in practice — main() swallows it — because a hook must never block the
-// tool call it's attached to; failures are only visible via stderr.
+// on-tool-call-llm path, which only records the turn. For Claude it also
+// checks transcript token usage and may return one manual-summary reminder.
 func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if len(args) < 1 {
 		return errors.New("hook requires <cli> (claude, codex, cursor, antigravity)")
@@ -70,6 +70,13 @@ func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	raw, err := io.ReadAll(stdin)
 	if err != nil {
 		return fmt.Errorf("ctx-window: read hook payload: %w", err)
+	}
+
+	if cli == "cursor" && len(args) > 1 && args[1] == "precompact" {
+		return runCursorPreCompactHook(raw, stdout, stderr)
+	}
+	if cli == "antigravity" && len(args) > 1 && args[1] == "preinvocation" {
+		return runAntigravityPreInvocationHook(raw, stdout, stderr)
 	}
 
 	var sessionID, toolName, content string
@@ -89,13 +96,53 @@ func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if toolName == "" {
 		toolName = "unknown"
 	}
+	var common struct {
+		CWD            string   `json:"cwd"`
+		WorkspacePaths []string `json:"workspacePaths"`
+	}
+	_ = json.Unmarshal(raw, &common)
+	projectPath := common.CWD
+	if cli == "antigravity" && len(common.WorkspacePaths) == 1 {
+		projectPath = common.WorkspacePaths[0]
+	}
+	if cli == "antigravity" && len(common.WorkspacePaths) > 1 {
+		projectPath = ""
+	}
+	if cli == "cursor" && projectPath == "" {
+		projectPath = os.Getenv("CURSOR_PROJECT_DIR")
+	}
+	if projectPath == "" && cli != "cursor" && cli != "antigravity" {
+		projectPath, _ = os.Getwd()
+	}
+	if projectPath != "" {
+		projectPath, _ = filepath.Abs(projectPath)
+	}
 
-	hookArgs := []string{sessionID, "--cli", cli, "--tool", toolName}
+	hookArgs := []string{sessionID, "--cli", cli, "--tool", toolName, "--project", projectPath}
 	if content != "" {
 		hookArgs = append(hookArgs, "--input", content)
 	}
+	if err := runOnToolCallLLM(hookArgs, io.Discard, stderr); err != nil {
+		fmt.Fprintf(stderr, "ctx-window: hook record: %v\n", err)
+		fmt.Fprint(stdout, "{}")
+		return nil
+	}
+	if cli == "claude" {
+		if err := writeClaudeNudge(raw, sessionID, stdout); err != nil {
+			fmt.Fprintf(stderr, "ctx-window: claude nudge: %v\n", err)
+			fmt.Fprint(stdout, "{}")
+		}
+		return nil
+	}
+	if cli == "codex" {
+		if err := writeCodexNudge(raw, sessionID, stdout); err != nil {
+			fmt.Fprintf(stderr, "ctx-window: codex nudge: %v\n", err)
+			fmt.Fprint(stdout, "{}")
+		}
+		return nil
+	}
 	fmt.Fprint(stdout, "{}")
-	return runOnToolCallLLM(hookArgs, io.Discard, stderr)
+	return nil
 }
 
 // asText mirrors the equivalent helper previously duplicated in
@@ -223,6 +270,7 @@ func parseCursorPayload(raw []byte) (sessionID, toolName, content string) {
 type antigravityPayload struct {
 	SessionID      string `json:"session_id"`
 	SessionIDCamel string `json:"sessionId"`
+	ConversationID string `json:"conversationId"`
 	ToolCall       struct {
 		Name string          `json:"name"`
 		Args json.RawMessage `json:"args"`
@@ -239,6 +287,9 @@ func parseAntigravityPayload(raw []byte) (sessionID, toolName, content string) {
 	sessionID = p.SessionIDCamel
 	if sessionID == "" {
 		sessionID = p.SessionID
+	}
+	if sessionID == "" {
+		sessionID = p.ConversationID
 	}
 	var result string
 	if p.StepIdx != nil && p.TranscriptPath != "" {
@@ -276,4 +327,72 @@ func findAntigravityResult(path string, targetStep int) string {
 		}
 	}
 	return ""
+}
+
+func runCursorPreCompactHook(raw []byte, stdout, stderr io.Writer) error {
+	if len(raw) == 0 {
+		fmt.Fprint(stdout, "{}")
+		return nil
+	}
+	var p struct {
+		ContextTokens  int    `json:"context_tokens"`
+		SessionID      string `json:"session_id"`
+		ConversationID string `json:"conversation_id"`
+	}
+	_ = json.Unmarshal(raw, &p)
+	tokens := p.ContextTokens
+	var msg string
+	if tokens > 0 {
+		msg = fmt.Sprintf("[AVISO agent-sync] Limite de contexto atingido (%d tokens). Para evitar perda de contexto e respeitar o sliding window, considere cancelar a compactação automática, executar `ctx-window summarize` e iniciar nova sessão com o resumo.", tokens)
+	} else {
+		msg = "[AVISO agent-sync] Compactação nativa acionada. Para manter o fluxo estruturado, considere executar `ctx-window summarize` e iniciar nova sessão."
+	}
+	return json.NewEncoder(stdout).Encode(map[string]string{
+		"user_message": msg,
+	})
+}
+
+func runAntigravityPreInvocationHook(raw []byte, stdout, stderr io.Writer) error {
+	if len(raw) == 0 {
+		fmt.Fprint(stdout, "{}")
+		return nil
+	}
+	var p struct {
+		ConversationID  string `json:"conversationId"`
+		InvocationNum   int    `json:"invocationNum"`
+		InitialNumSteps int    `json:"initialNumSteps"`
+		TranscriptPath  string `json:"transcriptPath"`
+	}
+	if err := json.Unmarshal(raw, &p); err != nil {
+		fmt.Fprint(stdout, "{}")
+		return nil
+	}
+	threshold := 30
+	if envVal := strings.TrimSpace(os.Getenv("AGENT_SYNC_CTX_NUDGE_INVOCATIONS")); envVal != "" {
+		if n, err := strconv.Atoi(envVal); err == nil && n > 0 {
+			threshold = n
+		}
+	}
+	sessionID := p.ConversationID
+	if sessionID == "" {
+		sessionID = "default"
+	}
+	s, err := Load(sessionID)
+	if err != nil || s.NudgeSent {
+		fmt.Fprint(stdout, "{}")
+		return nil
+	}
+	if p.InvocationNum < threshold && p.InitialNumSteps < threshold*2 {
+		fmt.Fprint(stdout, "{}")
+		return nil
+	}
+	s.NudgeSent = true
+	_ = s.Save()
+
+	msg := fmt.Sprintf("[AVISO agent-sync] Limite de interações atingido (%d invocações). Considere executar `ctx-window summarize` e iniciar uma nova sessão.", p.InvocationNum)
+	return json.NewEncoder(stdout).Encode(map[string]any{
+		"injectSteps": []map[string]string{
+			{"ephemeralMessage": msg},
+		},
+	})
 }

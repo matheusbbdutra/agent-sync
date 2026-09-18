@@ -2,6 +2,126 @@
 
 > Fonte de verdade para retomar o trabalho entre sessões/compactions.
 
+## Execução do plano consolidado — 2026-09-18
+
+- Revisão defensiva aplicada: `runHandoff` em `tools/cmd/ctx-window/handoff.go` foi blindado para aceitar `stderr`, engolir payloads vazios ou JSONs inválidos e sempre retornar exit code 0 com `{}` quando não houver resumo a injetar, prevenindo quebrar o `SessionStart` da CLI hospedeira. `runHook` em `hook.go` agora loga falhas de gravação em `stderr` e retorna `nil` com `{}` (em vez de propagar erro e causar `os.Exit(1)`). Casos defensivos cobertos por testes unitários em `handoff_test.go`. `go test`, `go vet` e `make build` aprovados.
+- Aplicação global concluída: `GOCACHE=/tmp/agent-sync-go-cache make apply` terminou com exit 0 e sincronizou as 5 CLIs. Verificação read-only do JSON global confirmou `ctx-window hook` e `ctx-window handoff` em Claude, Codex, Cursor e Antigravity; hashes do binário `ctx-window` e do plugin OpenCode instalado coincidem com os arquivos compilado/fonte do repositório. `agent-sync -status` confirmou regras, skills e agentes presentes. O fluxo `make apply` também sincronizou regras/skills/scripts e atualizou o bloco gerenciado de shell-validate em `~/.zshrc`.
+- Correção antes da aplicação: `main.go` saía do loop no ramo Cursor antes de chamar `syncCtxCompactHook` e `syncCtxHandoffHook`; além disso, `syncCtxCompactHook` usava o formato de configuração Claude/Codex para Cursor. Causa raiz comprovada pela leitura de `main.go` e pelo schema Cursor. O ramo agora chama ambos antes do `continue`, usando o formato de comandos diretos em `hooks.postToolUse` e `hooks.sessionStart`. Testes de sync, `go test ./...`, `go vet ./...`, `make build` e `git diff --check` passaram.
+
+- Implementação de Handoff com Working Memory (arXiv 2606.10209v1): `latestProjectHandoff` em `tools/cmd/ctx-window/handoff.go` recupera tanto o `summary.md` consolidado quanto as últimas K interações da sessão (`session.Turns`), formatando-as como `Histórico Recente (Working Memory)`. Testes em `handoff_test.go` cobrem o fluxo completo com 100% de aprovação.
+- Resumo automático por projeto: `ctx-window summarize` agora suporta execução sem argumentos posicionais de sessão, autodetectando a sessão mais recente do projeto corrente (`LatestSessionForProject`).
+- Nudges implementados e sincronizados em todas as CLIs:
+  - **Codex**: Implementado leitor em `codex_usage.go` lendo tokens dos rollouts locais (`~/.codex/sessions/`). Hook `PostToolUse` emite `hookSpecificOutput.additionalContext` ao ultrapassar threshold.
+  - **OpenCode**: Implementado leitor em `opencode_usage.go` consultando a tabela `session` do SQLite (`~/.local/share/opencode/opencode.db`). Plugin TS atualizado para injetar aviso no retorno do tool call e disparar `showToast` na TUI.
+  - **Cursor**: Hook `preCompact` registrado em `.cursor/hooks.json` retornando `user_message` para orientar cancelamento do compact automático e execução manual do summarize.
+  - **Antigravity**: Hook `PreInvocation` registrado em `hooks.json` monitorando turnos (`invocationNum`) e injetando `ephemeralMessage` sem poluição de transcript.
+- Sincronização global executada via `make apply`, confirmada com testes unitários em raiz e `tools/` (100% PASS), compilação limpa de binários e `git diff --check` sem warnings.
+
+- Implementação de Handoff Local por Projeto (Abordagem B) — 2026-09-18:
+  - `ctx-window summarize` agora grava o resumo consolidado em `<projectRoot>/.agent-sync/summary.md` (com `.gitignore` contendo `*` gerado automaticamente na pasta `.agent-sync/`), além de manter a cópia histórica no cache de sessões.
+  - `ctx-window handoff` prioriza a leitura de `<projectRoot>/.agent-sync/summary.md` quando presente, eliminando riscos de colisão entre tarefas/agentes no mesmo repositório ou heurísticas no cache global.
+  - Antigravity CLI: o evento `SessionStart` (ignorado pelo runtime oficial do `agy`) foi substituído pelo evento oficial `PreInvocation` para handoff em `cmd/agent-sync/hooks.go` e `~/.gemini/config/hooks.json`. `runHandoff` checa `invocationNum`: no turno 1 (`invocationNum == 1` ou payload inicial), injeta o resumo via `injectSteps` (`ephemeralMessage`); em turnos posteriores (`invocationNum > 1`), retorna `{}` sem custo.
+  - Verificação: `go test ./...` (100% PASS na raiz e em `tools/`), `go vet ./...` limpo, `git diff --check` sem alertas, `make apply` executado com sucesso e smoke tests executados no terminal confirmando a injeção correta no turno 1 e silêncio no turno 2.
+
+- Validações reais de OpenCode e Codex — 2026-09-18:
+  - **OpenCode**: Validado carregamento dos 5 plugins TS via `opencode debug info` (v1.18.31). Testes sintéticos executados para `tool.execute.after` (indexação no working memory) e `experimental.session.compacting` (injeção no array `output.context`). Teste unitário de leitura do SQLite (`~/.local/share/opencode/opencode.db`) 100% PASS.
+  - **Codex**: Validado ambiente via `codex doctor` (18 checks aprovados). Testado `SessionStart` via payload sintético de `ctx-window handoff codex` gerando `hookSpecificOutput.additionalContext` compatível com o schema oficial. Testado `PostToolUse` com resposta `{}` defensiva e indexação do turno. Testes unitários do Go para rollouts JSONL (`TestCodexNudgeUsesLatestUsageOnce`) 100% PASS.
+  - **Isolamento de teste**: Corrigido `TestHandoffDefensiveOnEmptyOrInvalidPayload` em `tools/cmd/ctx-window/handoff_test.go` para isolar o diretório de trabalho com `t.TempDir()`, prevenindo que a existência do `.agent-sync/summary.md` real no diretório raiz do repositório contaminasse a asserção de payload vazio.
+
+- Documentação consolidada — 2026-09-18:
+  - `README.pt-BR.md`, `README.md`, `docs/ADR-context-window-strategy.md` e `skills/context-window-strategy/SKILL.md` atualizados para explicitar:
+    1. **Objetivo**: Mitigação do efeito *lost in the middle*, eliminação de compactações LLM automáticas redundantes e controle do working memory (K últimos tool calls) com resumos estruturados sob demanda.
+    2. **Referência do Artigo**: Paper da Microsoft Research (*"Less Context, Better Agents: Efficient Context Engineering for Long-Horizon Tool-Using LLM Agents"*, arXiv:2606.10209v1) destacando os resultados de 91.6% de sucesso (C4) vs 71.0% (C2) e redução de 63.9% de tokens.
+    3. **Guia de uso nas 5 CLIs**: Detalhamento prático dos hooks (`SessionStart`/`PreInvocation`/`experimental.session.compacting`), formato do `.agent-sync/summary.md` e comandos da CLI (`ctx-window summarize`, `show`, `set-k`, `doctor`).
+
+### Pendências abertas
+
+- Fazer smoke real interativo nas 5 CLIs em sessões reais de trabalho.
+
+- Fase 0: `runOnToolCallLLM` agora só registra turnos; resumo LLM exige `ctx-window summarize <sessão>` explícito. O nome antigo do subcomando foi mantido para não quebrar hooks instalados.
+- Fase 2: plugin OpenCode usa `experimental.session.compacting` com `output.context.push()` e injeta o snapshot local retornado por `ctx-window show`.
+- Fase 3: `ctx-window handoff <cli>` lê o `summary.md` local mais recente do mesmo `project_path`; `-apply` instala `SessionStart` em Claude/Codex, `sessionStart` em Cursor e `SessionStart` interno em Antigravity. `agentmemory` não guarda o YAML completo e é opt-in, então não serve como fonte automática do handoff. Cursor usa `CURSOR_PROJECT_DIR`, confirmado na documentação oficial. Antigravity usa API interna sem contrato publicado; integração não foi validada em execução real.
+- Correção de schema Antigravity: a documentação oficial de hooks expõe `conversationId` e `workspacePaths` nos campos comuns, enquanto o parser anterior só lia `sessionId`/`session_id` e o novo código inicialmente usava `cwd`. Causa: assumir sem confirmar o formato do payload. Agora o tracking identifica a sessão por `conversationId`, e o handoff seleciona o único `workspacePaths[0]` quando há um workspace; com múltiplos workspaces, não injeta resumo para evitar misturar projetos. Fonte: https://antigravity.google/docs/hooks (Common Input Fields). Testes sintéticos cobrem o formato; a API interna de `SessionStart` ainda não foi exercitada no CLI real.
+- Fase 4: Claude Code emite uma sugestão única em `PostToolUse` ao atingir `AGENT_SYNC_CTX_NUDGE_TOKENS` (padrão 150000), lendo `message.usage` nos 2 MiB finais do transcript. Pesquisa das demais CLIs: Cursor informa `context_tokens` apenas no evento observacional `preCompact`; Antigravity informa uso na API de status line, não no hook; Codex documenta `transcript_path` com formato instável e não expõe tokens no schema de hook; plugin OpenCode consultado não documenta uso de tokens no callback legado usado aqui. Não foi implementado nudge por token nelas sem contrato validado.
+- Verificação: `go test ./...` e `go vet ./...` passaram na raiz e em `tools/`; `make build` passou; `git diff --check` sem alertas. O plugin TS foi carregado com o strip de tipos do Node e expôs os dois callbacks esperados; não houve typecheck, pois este repositório não tem `package.json`/`tsconfig.json` e `bun`/`tsc` não estão instalados. Configuração global aplicada e verificada conforme registro acima.
+- Erro de ambiente durante verificação: primeiro `gofmt` recebeu caminhos relativos ao diretório errado; corrigido com caminhos do módulo `tools/`. `go test` falhou ao tentar usar o cache Go em `~/.cache/go-build` somente leitura no sandbox; repetido com `GOCACHE=/tmp/agent-sync-go-cache` e passou. Não era falha do código.
+- Regras ativas: não consultar `.env`; não executar LLM automático; não fazer commit sem pedido; preservar alterações pré-existentes em `scripts/delegate-run.sh`, `receipts/`, `review-receipts/` e `docs/ADR-fim-de-turno-hooks.md`.
+
+## Pesquisa de equivalência de hooks — 2026-09-18
+
+- Escopo: somente pesquisa em documentação oficial, sem alteração de implementação.
+- Codex: `PreCompact` existe e dispara antes da compactação, mas a especificação documenta stdout ignorado e somente saída comum (`continue`, `stopReason`, etc.); não documenta `additionalContext` para esse evento. Portanto: evento pré-compactação encontrado, mas equivalente funcional ao PreCompact do Claude Code (injeção de contexto que influencia o resumo) **não encontrado**. `SessionStart` existe para `startup`, `resume`, `clear` e `compact`, e aceita `hookSpecificOutput.additionalContext`, inclusive na continuação imediata após compactação. Fonte: https://developers.openai.com/codex/hooks (redireciona para https://learn.chatgpt.com/docs/hooks; seções `PreCompact` e `SessionStart`).
+- Cursor Agent: `preCompact` existe antes da compactação, mas a documentação o classifica explicitamente como observacional e diz que não pode bloquear nem modificar a compactação; portanto, equivalente funcional ao PreCompact com injeção de contexto **não encontrado**. `sessionStart` existe na criação da conversa e aceita `additional_context` no contexto inicial. Fonte: https://prod.cursor.com/docs/hooks.
+- Antigravity CLI (`agy`): a referência oficial documenta `/hooks` como “pre-flight/post-format script hooks”, sem eventos documentados `PreCompact`, `SessionStart` ou contrato de `additionalContext` para esses pontos. Resultado: ambos **não encontrados** na documentação do CLI. O SDK separado pode ter lifecycle próprio, mas não prova suporte no `agy`. Fontes: https://www.antigravity.google/docs/cli/reference/ e https://antigravity.google/docs/hooks?tab=cli.
+- OpenCode: o plugin system documenta `experimental.session.compacting`, disparado antes de o LLM gerar o resumo, com `output.context.push(...)` e substituição via `output.prompt`; é equivalente funcional a pré-compactação com injeção. Também lista `session.created`, mas não encontrei contrato documentado de saída que injete contexto adicional no início/retomada; portanto equivalente funcional a `SessionStart` **não encontrado**. Fonte: https://dev.opencode.ai/docs/plugins/.
+- Verificação: não consultei `.env`, não rodei testes (tarefa somente pesquisa), não alterei implementação; mudanças pré-existentes no worktree foram preservadas. Fontes foram verificadas em 2026-09-18.
+
+## Implementação de compactação via hooks — bloqueio de schema — 2026-09-18
+
+- Tarefa recebida: remover o disparo LLM automático por threshold e integrar compactação real em Claude/OpenCode, além de handoff em Codex/Cursor.
+- Leitura realizada antes de codar: `tools/cmd/ctx-window/hook.go`, `summarize.go`, `store.go`, `main.go`, testes relevantes, `cmd/agent-sync/hooks.go`, `hooks/ctx-compact.opencode.ts` e alvos de sincronização.
+- Causa do bloqueio: a documentação oficial atual do Claude Code (`https://code.claude.com/docs/en/hooks`) confirma o input de `PreCompact` (`session_id`, `transcript_path`, `cwd`, `hook_event_name`, `trigger`, `custom_instructions`), mas a tabela oficial de saída classifica somente `SessionStart`, `SubagentStart` e `PostModelSwitch` como eventos que aceitam `hookSpecificOutput.additionalContext`; `PreCompact` não está nessa lista. Implementar a saída pedida como se fosse suportada contradiz o schema verificado.
+- Evidência complementar: issue oficial do repositório `anthropics/claude-code` sobre `additionalContext` em `PreCompact` foi fechada como “not planned”: https://github.com/anthropics/claude-code/issues/46191. Não tratar exemplos de terceiros como contrato.
+- Estado: nenhuma alteração de implementação foi feita nesta tarefa; somente este checkpoint foi atualizado. Alterações anteriores do worktree foram preservadas.
+- Próximo passo bloqueado: usuário deve escolher entre (a) não injetar contexto no Claude `PreCompact` e manter apenas tracking/registro, (b) usar outro evento oficialmente suportado para injeção, se compatível com o objetivo, ou (c) aceitar uma integração experimental não garantida pelo schema.
+- Regras ativas: não consultar `.env`; não tocar em Antigravity; não criar commit; não afirmar funcionamento sem schema/teste; registrar causa raiz de bloqueios.
+
+## Implementação aprovada após bloqueio — 2026-09-18
+
+- Decisão do usuário: opção (a). Implementar Fases 0, 2 e 3; Claude `PreCompact` fica somente como tracking/observabilidade, sem tentar injetar `additionalContext` não suportado pelo schema oficial.
+- Antigravity permanece fora do escopo e não será alterado.
+- Próximas verificações: remover LLM automático do `on-tool-call-llm`; validar/implementar plugin OpenCode de compactação; implementar saída de handoff para Codex/Cursor e registrar os eventos; executar gofmt, vet, testes e builds exigidos.
+
+### Validação independente pelo próprio Antigravity (agy) — 2026-09-18
+
+- O usuário rodou o prompt de validação diretamente no `agy` interativo (sem `delegate-run`). Resultado mais profundo que a pesquisa do Codex: além de checar docs públicas, o agy inspecionou símbolos protobuf do próprio binário instalado (`/usr/bin/agy`, `google3/third_party/jetski/hooks_pb/hooks_go_proto.(*SessionStartHookResult).GetInjectSteps`).
+- **`PreCompact` (ou equivalente)**: confirmado **ausente** no CLI `agy` — bate com o achado do Codex. O guia oficial (`hooks.md`, via skill `agy-customizations` e `google-antigravity-sdk`) só documenta `PreToolUse`, `PostToolUse`, `PreInvocation`, `PostInvocation`, `Stop`. O SDK Python separado (`google.antigravity.hooks`) tem `@hooks.on_compaction`, mas é estritamente observacional (`async def on_compact(data)`, sem retorno de injeção/substituição) — SDK não prova capacidade do CLI, como já era a ressalva.
+- **`SessionStart` — achado novo e importante**: **existe de verdade no motor Go interno do agy** (`SessionStartHookArgs`/`SessionStartHookResult`), permitindo `injectSteps` (`userMessage`, `ephemeralMessage`) — mesmo mecanismo de injeção usado pelo `PreInvocation`. **Porém não está documentado no `hooks.md` público** — foi encontrado via inspeção de símbolos do binário, não da doc oficial.
+- **Implicação pro plano**: Antigravity NÃO entra nas Fases 1/2 (sem lever de compactação), mas **entra na Fase 3** (handoff via SessionStart) igual Codex/Cursor — com a ressalva de que é API interna não documentada: pode mudar sem aviso em atualizações do agy, sem contrato de suporte oficial. **Decisão do usuário (2026-09-18): incluir mesmo assim, aceitando o risco** — sem feature flag experimental, tratado igual Codex/Cursor. Implementação a cargo do próprio `agy` (prompt separado, rodado diretamente pelo usuário, fora do escopo que o Codex está implementando).
+- Fontes citadas pelo próprio agy: `file:///home/matheusdutra/.gemini/antigravity-cli/builtin/skills/agy-customizations/docs/hooks.md`, `file:///home/matheusdutra/.gemini/config/plugins/google-antigravity-sdk/skills/google-antigravity-sdk/examples/getting_started/hooks.md`, símbolos do binário `/usr/bin/agy`.
+
+### Correção crítica — Claude Code `PreCompact` NÃO suporta `additionalContext` — 2026-09-18
+
+- **Achado do Codex durante a implementação da Fase 1**: bloqueou a implementação e reportou que a doc oficial do Claude Code confirma o payload de entrada do `PreCompact`, mas **não lista esse evento como capaz de retornar `hookSpecificOutput.additionalContext`** — essa capacidade só existe para `SessionStart`, `SubagentStart` e `PostModelSwitch`. Citou a issue https://github.com/anthropics/claude-code/issues/46191, fechada como "not planned".
+- **Verificação independente feita agora** (API do GitHub, não a página web): confirmado. Issue "Feature request: support additionalContext in PreCompact/PostCompact hook output", `state: closed`, `state_reason: not_planned`. Corpo da issue: "`PreCompact` and `PostCompact` hook events do not support `hookSpecificOutput.additionalContext` [...] Currently the only valid output field for these events is `systemMessage` (a display-only notification)."
+- **Correção da minha afirmação anterior nesta sessão**: eu tinha confirmado (via HTML bruto do code.claude.com/docs/en/hooks) que o EVENTO `PreCompact` existe de verdade, mas nunca verifiquei o texto exato da capacidade de `additionalContext` especificamente para ele — confiei no resumo do WebFetch pra esse detalhe, que estava errado nesse ponto específico (os nomes de evento estavam certos, a tabela de capacidades não).
+- **Decisão**: Fase 1 original (injeção em `PreCompact` do Claude Code) é **inviável hoje** — não é falta de documentação, é rejeição deliberada da Anthropic. Claude Code passa a usar o **mesmo padrão da Fase 3** (handoff via `SessionStart`, que está confirmado que aceita `additionalContext`) em vez de injeção ao vivo.
+- **Implicação geral no plano**: nenhuma das 5 CLIs consegue injeção ao vivo durante compactação, exceto **OpenCode** (`experimental.session.compacting` com `output.prompt`, único caso real de "Fase 1/2"). Claude Code, Codex, Cursor e Antigravity caem todos no mesmo padrão: handoff via evento de início de sessão (`SessionStart`/`sessionStart`), não redução de tokens dentro da mesma sessão.
+- Instrução passada ao Codex: prosseguir com a opção 1 dele mesmo (Fases 0, 2, 3 — incluindo agora Claude Code na Fase 3 via `SessionStart`, em vez de tentar algo experimental contra uma API oficialmente recusada).
+
+## PLANO CONSOLIDADO — handoff para outro agente — 2026-09-18
+
+Sessão encerrando por cota de horas. Este é o resumo definitivo pra quem pegar o trabalho a partir daqui — não repetir a pesquisa já feita, só implementar.
+
+### Problema original (confirmado, não hipótese)
+`ctx-window` gastava 1 chamada de LLM aninhada por tool call acima de 200 chars, gravava resumo em disco, e **nunca devolvia isso pro contexto real** (`hook.go` sempre retornava `{}`). Puro desperdício de tokens, comprovado numa sessão real com 9 compactações silenciosas.
+
+### Fases a implementar (Codex já está executando 0, 2, 3 — verificar progresso antes de continuar)
+
+**Fase 0 (todas as CLIs):** Remover o disparo automático de `runSummarize` em `runOnToolCallLLM` (`tools/cmd/ctx-window/summarize.go`). Manter só o tracking barato (`AddTurn`, sem LLM).
+
+**Fase 1 — Claude Code: CANCELADA.** `PreCompact` não suporta `additionalContext` (confirmado via issue oficial fechada como "not planned": https://github.com/anthropics/claude-code/issues/46191). Claude Code migra pra Fase 3 (usa `SessionStart`, que confirmadamente aceita `additionalContext`).
+
+**Fase 2 — OpenCode:** único caso de injeção viva real. Estender `hooks/ctx-compact.opencode.ts` pro evento `experimental.session.compacting`, usando `output.prompt` (substitui o prompt de compactação nativo) ou `output.context.push()`. Fonte: https://dev.opencode.ai/docs/plugins/.
+
+**Fase 3 — handoff via SessionStart (Claude Code + Codex + Cursor + Antigravity):** Nenhuma CLI consegue injeção ao vivo durante compactação (exceto OpenCode, Fase 2). Todas as outras 4 usam o mesmo padrão: hook em `SessionStart`/`sessionStart` lê o último resumo estruturado persistido (via `internal/agentmemory`, já implementado) e devolve como `additionalContext`/`additional_context`/`injectSteps` (formato varia por CLI — **verificar schema exato de cada uma antes de codar, não assumir simetria**).
+  - Claude Code: `SessionStart`, aceita `additionalContext`. Fonte: https://code.claude.com/docs/en/hooks
+  - Codex: `SessionStart` (`startup`/`resume`/`clear`/`compact`), aceita `hookSpecificOutput.additionalContext`. Fonte: https://developers.openai.com/codex/hooks
+  - Cursor: `sessionStart`, aceita `additional_context`. Fonte: https://prod.cursor.com/docs/hooks
+  - Antigravity (agy): **API interna não documentada** (achada via símbolos do binário `/usr/bin/agy`: `SessionStartHookArgs`/`SessionStartHookResult`, campo `injectSteps` com `userMessage`/`ephemeralMessage`). Decisão do usuário: incluir mesmo assim, aceitando risco de quebrar em updates futuros sem aviso.
+
+**Fase 4 — nudge de tamanho de contexto real (proposta do usuário, ainda não iniciada):**
+- Achado importante: o transcript do Claude Code (`transcript_path`, já lido hoje pelo `false-success-guard`) tem uso de token **real** por turno da API: `usage.input_tokens + usage.cache_creation_input_tokens + usage.cache_read_input_tokens` ≈ tamanho real do contexto atual (verificado nesta própria sessão: ~400k tokens). Muito melhor que estimativa por caractere.
+- Design: hook barato (sem LLM) que lê a última entrada `assistant` do transcript, soma os campos de usage, compara contra um threshold configurável, e se cruzar, devolve `additionalContext` sugerindo rodar `ctx-window summarize <session>` (comando manual, decisão do usuário de não automatizar o resumo — o usuário/agente decide quando vale gastar a chamada de LLM) e começar sessão nova (que aí sim pega o resumo automaticamente via Fase 3).
+- **Pendência real**: só verificado o formato de transcript do Claude Code. Não verificado se Codex/Cursor/Antigravity/OpenCode expõem uso de token real em algum log/transcript acessível a hook — precisa checar cada um antes de implementar lá (não assumir simetria, mesmo padrão de cautela das fases anteriores).
+- Comando manual: `ctx-window summarize <session>` já existe (não precisa criar) — só considerar expor com nome mais claro tipo alias `compact-now` se fizer sentido.
+
+### Regras que valem pra quem for continuar
+- Não fazer commit sem pedido explícito.
+- Verificar schema exato de cada hook (payload de entrada/saída) direto na doc oficial ou nos internals reais antes de codar — várias suposições iniciais desta sessão já se provaram erradas (PreCompact do Claude Code é o exemplo mais caro).
+- `gofmt`/`go vet`/`go test`/`go build` obrigatórios antes de reportar qualquer fase como concluída.
+- Antigravity: nunca rodar comando destrutivo/manual contra dado real sem sandbox (lição cara desta sessão, ver `[[feedback_destructive_test_needs_sandbox]]`).
+
 ## Diagnóstico de hooks — 2026-09-16
 
 - Status: implementação concluída no repositório; configuração global pendente de ressincronização.
@@ -15,6 +135,14 @@
 - Fonte do contrato: https://developers.openai.com/codex/hooks (PreToolUse/PostToolUse).
 - Verificação: leitura de configuração/código e execução isolada dos dois subcomandos; não reproduzida a sessão original completa. Durante a análise, receipts/ e review-receipts/ apareceram como não rastreados; não foram removidos.
 - Regras ativas: não consultar .env; não expor segredos; não alterar gates de segurança nem criar commits nesta análise; preservar evidências e validar antes de concluir.
+
+## Verificação atual dos hooks — 2026-09-18
+
+- Configuração confirmada: `~/.codex/config.toml:213-226` mantém `protect-mcp` e `review-agent-governance` habilitados. Os hooks ativos dos plugins ainda chamam `npx protect-mcp@0.7.4` diretamente em `~/.codex/plugins/{protect-mcp,review-agent-governance}/hooks/hooks.json:9,20`.
+- Timeout reproduzido: os comandos `npx ... evaluate` e `npx ... sign`, com entrada sintética e `timeout 12s`, terminaram com status 124; execução direta do CLI instalado terminou em aproximadamente 40 ms. Portanto, o timeout de 10 s é causado pelo caminho `npx`/resolução do pacote, não pelo JSON do payload.
+- Schema incompatível confirmado no CLI instalado: `dist/cli.js:11172-11173` emite `{"allowed":true,...}` e `:11237` emite `{"signed":...}`. A documentação do Codex exige, para decisão de hook, `hookSpecificOutput` com `hookEventName` e `permissionDecision` (`https://developers.openai.com/codex/hooks`, seção PreToolUse). JSON válido não implica JSON de hook válido.
+- Lacuna de sincronização: `cmd/agent-sync/hooks.go:198-205` só adapta entradas já presentes no `hooks` do arquivo-alvo; não altera os `hooks.json` dos plugins ativos. Assim, o adaptador do repositório não corrige os comandos que o Codex está carregando diretamente dos plugins.
+- Verificação: não consultei `.env`, não alterei implementação, não executei testes unitários; usei apenas arquivos de configuração, leitura do CLI instalado e reproduções sintéticas locais. Nenhum segredo foi registrado.
 
 ## Meta anterior
 
@@ -341,3 +469,23 @@ Pendência das seções anteriores fechada: o verificador de Look Before You Lea
 - **Incidente durante a verificação manual do `prune`**: rodei `/tmp/memory-mcp-test prune --older-than 1h` esquecendo que o binário usa `agentmemory.DefaultDBPath()` (banco real do usuário, não sandbox) — deletou 8 memórias `scratch=true` reais sem confirmação prévia. Usuário aceitou a perda (scratch=true é descartável por definição, "de qualquer forma era lixo"), não tentamos recuperação forense. Lição registrada em `[[feedback_destructive_test_needs_sandbox]]`: nunca rodar comando destrutivo manual contra dado real, mesmo pra "confirmar visualmente" algo que os testes automatizados (`t.TempDir()`) já cobrem.
 - **Efeito colateral bom desta sessão**: `Makefile` (`apply` agora chama `memory-sync -init` também, criando `~/.config/agent-sync/config.json` automaticamente) e `scripts/delegate-run.sh` (`opencode run --auto` em vez de sem a flag) ficaram permanentemente melhores, independente do resultado da tarefa principal.
 - Pendências reais: nenhum commit foi feito (regra: só commitar quando pedido explicitamente). `receipts/` e `review-receipts/` continuam não rastreados (não mexidos, não são desta tarefa).
+
+## Commit do MemoryBank — 2026-09-17
+
+- Commit `5815d9d` registrado: 7 arquivos, 325 insertions(+), 16 deletions(-).
+- Mensagem em Conventional Commit PT-BR (alinhada com `c29bfe7` e anteriores): feat/decay com bullets por responsabilidade + colaterais (`make apply` chama `memory-sync -init`, `delegate-run.sh` usa `--auto`) + regras ativas.
+- Identity local: `Matheus Dutra <matheusbbdutra@gmail.com>` (verificado antes do commit).
+
+## Hooks de fim de turno (Cursor `stop` + OpenCode `session.idle`) — proposta — 2026-09-17
+
+- Origem: usuário pediu para pensar o que fazer sobre OpenCode + hook do Cursor. Investigação puxou documentação oficial via `docs-fetch`:
+  - **Cursor** (https://cursor.com/docs/hooks, baixado agora): o agent-sync usa só 3 dos ~17 eventos disponíveis. Faltam `stop` (com `loop_limit` e `followup_message`), `afterAgentResponse`, `afterAgentThought`, `preCompact`, `postToolUseFailure`, `sessionStart`/`sessionEnd`, `subagentStart`/`Stop`, `afterShellExecution`, `beforeReadFile`, `afterFileEdit`, `beforeSubmitPrompt`, `workspaceOpen`.
+  - **OpenCode** (https://opencode.ai/docs/plugins/, baixado agora): o agent-sync usa só `tool.execute.after`. Faltam `session.idle` (equivalente direto do `stop` do Cursor), `session.compacted` (útil para ctx-window), `tool.execute.before`, `message.updated`, `permission.asked/replied`, `session.created/deleted/error/status/updated/diff`.
+- **ADR criada**: `docs/ADR-fim-de-turno-hooks.md` (Status: Proposto). Estrutura padrão igual à `ADR-context-window-strategy.md`: Contexto / Decisão / Consequências / Evidência consultada / Implementação proposta / Limites / Próximos passos.
+- Três trilhas registradas na ADR (não implementadas — só a decisão arquitetural foi fechada):
+  - **Trilha A (Cursor `stop`)**: baixo risco, documentação oficial, schema conhecido. Hook `agent-react-nudge.stop.cursor.sh` emitindo `followup_message` em `~/.cursor/hooks.json` no evento `stop`. Migrar `false-success-guard` para o Cursor. Smoke real pendente antes de fechar ADR.
+  - **Trilha B (OpenCode `session.idle`)**: risco não verificado — a doc do OpenCode não explicita se o callback pode injetar texto no contexto. Antes de implementar, **plugin mínimo de teste** para confirmar. Se não permitir injeção, manter `tool.execute.after` e tratar `session.idle` só como observabilidade.
+  - **Trilha C (OpenCode `session.compacted`)**: fecha gap do ctx-window quando o OpenCode compacta autonomamente. Depende do resultado da B.
+- Não verificado: como `agy` (Antigravity) trata "fim de turno" — não consultado nesta rodada. Pendência separada, marcada na ADR.
+- Pendência anterior do STATE.md:27 ("camada extra `stop`/`afterAgentResponse` no Cursor não implementada") agora documentada na ADR — não sumiu, virou referência estruturada. Próximo passo é implementar Trilha A com smoke real, fechar ADR como Aceita.
+- Regras ativas: não consultar `.env`; não expor segredos; não commitar sem pedido; não implementar com base em hipótese não validada (Trilha B especialmente); citar fonte (`path:line`, doc URL, ADR).

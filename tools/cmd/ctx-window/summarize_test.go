@@ -62,3 +62,24 @@ func TestSummarizerCommandUnknownCLI(t *testing.T) {
 		t.Fatal("expected error for unknown CLI, got nil")
 	}
 }
+
+func TestLatestSessionForProject(t *testing.T) {
+	withTempCache(t)
+	proj := "/tmp/test-project"
+	s1, err := Load("sess-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s1.ProjectPath = proj
+	if err := s1.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	found, err := LatestSessionForProject(proj)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if found.ID != "sess-1" {
+		t.Fatalf("expected sess-1, got %s", found.ID)
+	}
+}
