@@ -19,7 +19,7 @@ Reduzir retrabalho por interpretação errada, produzindo um resumo do plano (o 
 
 ## Fluxo
 
-1. **Entender** — localizar o código relevante; mapear arquivos, dependências e testes existentes.
+1. **Entender** — localizar o código relevante; mapear arquivos e dependências com `repo-map --focus <arquivo>` e testes existentes.
 2. **Detectar escopo** — pequeno/direto (segue) vs. grande/ambíguo (planeja e confirma).
 3. **Planejar** — listar passos, arquivos afetados, riscos e como verificar cada passo.
 4. **Confirmar** — apresentar o plano em poucas linhas e pedir aprovação; só então liberar a implementação.

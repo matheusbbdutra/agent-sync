@@ -25,6 +25,7 @@ build: ## Compila agent-sync e as ferramentas em bin/
 	cd tools && go build -o ../bin/ctx-window ./cmd/ctx-window
 	cd tools && go build -o ../bin/false-success-guard ./cmd/false-success-guard
 	cd tools && go build -o ../bin/shell-validate ./cmd/shell-validate
+	cd tools && go build -o ../bin/repo-map ./cmd/repo-map
 
 install: build ## Compila e instala os binários/scripts em ~/.local/bin
 	mkdir -p ~/.local/bin

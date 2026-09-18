@@ -1,6 +1,6 @@
 ---
 name: token-saving-toolkit
-description: "Ferramentas de alta performance (ast-outline, trace-strip) para redução drástica de tokens."
+description: "Ferramentas de alta performance (repo-map, ast-outline, trace-strip) para redução drástica de tokens e navegação estrutural."
 ---
 
 # Token-Saving Toolkit & Data Guardians
@@ -9,7 +9,16 @@ Esta skill instrui o agente a utilizar utilitários nativos de alto desempenho i
 
 ## Utilitários Disponíveis
 
-### 1. `ast-outline`
+### 1. `repo-map`
+Mapa estrutural e relacional do repositório com cache incremental determinístico (<20ms):
+- **Quando usar:** Ao iniciar tarefas, investigar arquitetura ou descobrir dependências sem despejar arquivos inteiros no contexto.
+- **Suporte multi-linguagem nativo:** Go (`.go`), TypeScript/JavaScript (`.ts`, `.tsx`, `.js`, `.jsx`), PHP (`.php`) e Python (`.py`).
+- **Comandos principais:**
+  - `repo-map --focus <caminho/arquivo>`: Subgrafo textual em torno do arquivo (símbolos declarados, imports e chamadas/importers).
+  - `repo-map --summary`: Top hubs estruturais do projeto (símbolos mais referenciados no repositório).
+  - `repo-map --update`: Re-indexa silenciosamente apenas os arquivos modificados (delta).
+
+### 2. `ast-outline`
 Gera o esqueleto do arquivo (classes, métodos, interfaces, funções com números de linha) em vez de ler o arquivo inteiro.
 - **Quando usar:** Sempre antes de ler arquivos com mais de 100 linhas.
 - **Comando:** `ast-outline <caminho_do_arquivo>`
@@ -35,7 +44,8 @@ Resume diffs unificados do Git, extraindo arquivos modificados, adicionados ou d
 
 ## Fluxo Recomendado de Resolução com Baixo Consumo de Tokens
 
-1. **Mapeamento:** Use `ast-outline <arquivo>` para descobrir em que linhas a função desejada está.
-2. **Foco:** Use `view_file` especificando `StartLine` e `EndLine` no trecho identificado.
-3. **Debug:** Passe a saída de erros pelo `trace-strip` para persistir no contexto apenas a causa raiz e o stack trace útil.
-4. **Revisão:** Use `git-diff-summary` para validar o impacto das mudanças de código sem poluir o histórico.
+1. **Orientação:** Use `repo-map --focus <arquivo>` ou `repo-map --summary` para entender a vizinhança e dependências sem ler múltiplos arquivos.
+2. **Mapeamento:** Use `ast-outline <arquivo>` para descobrir em que linhas a função desejada está.
+3. **Foco:** Use `view_file` especificando `StartLine` e `EndLine` no trecho identificado.
+4. **Debug:** Passe a saída de erros pelo `trace-strip` para persistir no contexto apenas a causa raiz e o stack trace útil.
+5. **Revisão:** Use `git-diff-summary` para validar o impacto das mudanças de código sem poluir o histórico.

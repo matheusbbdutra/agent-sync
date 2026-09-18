@@ -19,6 +19,7 @@ Responder perguntas sobre código/logs usando ferramentas de outline e filtragem
 
 ## Ferramentas
 
+- **`repo-map --focus <arquivo>` / `--summary`** — subgrafo de dependências/hubs do repositório.
 - **`ast-outline <arquivo>`** — estrutura de classes/funções com linhas (Go, Python, JS/TS, PHP).
 - **`trace-strip [arquivo|-]`** — remove frames de bibliotecas/frameworks do stack trace.
 - Leitura seletiva de linhas específicas após o outline.
