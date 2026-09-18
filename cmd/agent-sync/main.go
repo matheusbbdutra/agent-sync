@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -372,6 +373,14 @@ func main() {
 			fmt.Printf("✅ [%s] Hook de ctx-compact instalado em: %s\n", t.Name, t.HooksSettingsPath)
 		}
 
+		// Instala o hook PreToolUse do shell-validate. É opt-in: só ativa
+		// quando AGENT_SYNC_PRETOOLUSE_VALIDATE=1 estiver setado no ambiente.
+		if err := syncShellValidateHook(baseDir, t); err != nil {
+			fmt.Printf("⚠️  [%s] Falha ao sincronizar hook shell-validate: %v\n", t.Name, err)
+		} else if t.HooksSettingsPath != "" {
+			fmt.Printf("✅ [%s] Hook de shell-validate instalado em: %s\n", t.Name, t.HooksSettingsPath)
+		}
+
 		// OpenCode: plugin TS best-effort (ver limitação documentada no hooks.go)
 		if err := syncOpenCodePlugin(baseDir, t); err != nil {
 			fmt.Printf("⚠️  [%s] Falha ao sincronizar plugin: %v\n", t.Name, err)
@@ -432,5 +441,89 @@ func main() {
 		count++
 	}
 
+	// Persiste AGENT_SYNC_PRETOOLUSE_VALIDATE=1 no shell rc do usuário, para
+	// que o shell-validate hook saia do no-op nas próximas sessões sem precisar
+	// exportar manualmente. Idempotente: não duplica a linha em chamadas
+	// repetidas de `apply`. Detecta `~/.zshrc` se existir, senão `~/.bashrc`.
+	if err := persistShellEnv(); err != nil {
+		fmt.Fprintf(os.Stderr, "⚠️  Falha ao persistir env no shell rc: %v\n", err)
+	}
+
 	fmt.Printf("\n✨ Concluído! %d CLI(s) sincronizada(s) com sucesso.\n", count)
+}
+
+// shellEnvMarker é a linha que marca o bloco gerenciado por este agente.
+// Usada para tornar a escrita idempotente: se já existir um bloco com este
+// marcador, substitui em vez de duplicar; se não existir, anexa.
+const shellEnvMarker = "# agent-sync: shell-validate hook (gerenciado por `agent-sync -apply`)"
+
+// persistShellEnv escreve `export AGENT_SYNC_PRETOOLUSE_VALIDATE=1` no shell
+// rc do usuário. Idempotente: detecta bloco anterior pelo marcador, substitui
+// se já existe, anexa se não. Tenta ~/.zshrc primeiro, depois ~/.bashrc.
+//
+// Falhas são reportadas mas não abortam o `apply` — o usuário ainda fica com
+// o hook instalado no settings.json, só fica no-op até setar a env manualmente.
+func persistShellEnv() error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("encontrar HOME: %w", err)
+	}
+	rcPath := filepath.Join(home, ".zshrc")
+	if _, err := os.Stat(rcPath); err != nil {
+		rcPath = filepath.Join(home, ".bashrc")
+	}
+
+	existing, err := os.ReadFile(rcPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("ler %s: %w", rcPath, err)
+	}
+
+	block := shellEnvMarker + "\nexport AGENT_SYNC_PRETOOLUSE_VALIDATE=1\n"
+	var out []byte
+	if bytes.Contains(existing, []byte(shellEnvMarker)) {
+		// Substitui o bloco existente (marcador + 1 linha) por uma versão nova.
+		out = replaceBlock(existing, shellEnvMarker, block)
+		fmt.Printf("✅ env atualizada em %s\n", rcPath)
+	} else {
+		// Anexa novo bloco com separador para legibilidade.
+		sep := []byte("\n")
+		if len(existing) > 0 && existing[len(existing)-1] != '\n' {
+			sep = []byte("\n\n")
+		}
+		out = append(existing, sep...)
+		out = append(out, []byte(block)...)
+		fmt.Printf("✅ env persistida em %s (próxima sessão já ativa)\n", rcPath)
+	}
+
+	info, err := os.Stat(rcPath)
+	mode := os.FileMode(0o644)
+	if err == nil {
+		mode = info.Mode().Perm()
+	}
+	return os.WriteFile(rcPath, out, mode)
+}
+
+// replaceBlock substitui em data o trecho que começa com markerStart e vai
+// até o próximo "\n\n" ou fim do arquivo, pelo novo conteúdo newBlock. Usado
+// para reescrever o bloco gerenciado quando o `apply` roda de novo.
+func replaceBlock(data []byte, markerStart string, newBlock string) []byte {
+	idx := bytes.Index(data, []byte(markerStart))
+	if idx < 0 {
+		return data
+	}
+	end := idx + len(markerStart)
+	// Procura fim do bloco: próxima linha em branco dupla ou fim do arquivo.
+	rest := data[end:]
+	endOffset := len(data)
+	for i := 0; i < len(rest); i++ {
+		if i+1 < len(rest) && rest[i] == '\n' && rest[i+1] == '\n' {
+			endOffset = end + i + 1
+			break
+		}
+	}
+	out := make([]byte, 0, len(data))
+	out = append(out, data[:idx]...)
+	out = append(out, []byte(newBlock)...)
+	out = append(out, data[endOffset:]...)
+	return out
 }

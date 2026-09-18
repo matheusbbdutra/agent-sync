@@ -13,6 +13,7 @@ const docsCacheHookName = "agent-sync-docs-cache"
 const memoryNudgeHookName = "agent-sync-memory-nudge"
 const agentReactNudgeHookName = "agent-sync-agent-react-nudge"
 const ctxCompactHookName = "agent-sync-ctx-compact"
+const shellValidateHookName = "agent-sync-shell-validate"
 
 // hookEntry é o formato comum a Claude Code e Gemini CLI para um item de hooks.<Evento>[].
 type hookEntry struct {
@@ -92,6 +93,40 @@ func syncCtxCompactHook(baseDir string, target TargetCLI) error {
 	return syncStandardHookCommand(baseDir, target, ctxCompactHookName, command, "*")
 }
 
+// syncShellValidateHook instala o hook PreToolUse que sinaliza comandos
+// shell provavelmente inválidos (binário sem argumento posicional). É
+// opt-in: o binário só emite aviso se AGENT_SYNC_PRETOOLUSE_VALIDATE=1
+// estiver setado no ambiente. Por isso o hook é seguro de registrar —
+// sem essa env, ele é no-op silencioso.
+//
+// Importante: este hook tem que ir em PreToolUse (verificar ANTES da
+// execução), não no HooksEvent padrão da CLI (que é PostToolUse).
+//
+// Mapping de eventos por CLI (verificado no settings.json/schema oficial):
+//   - Claude Code / Codex:  "PreToolUse" / matcher "Bash" (schema padrão)
+//   - Cursor:               shell-validate não se aplica — Cursor já tem
+//     `beforeShellExecution` com bash-guardian que faz
+//     papel equivalente (instalado por syncBash- ou
+//     outro helper específico do Cursor). Não escreve.
+//   - Antigravity:          usa syncAntigravityHookCommand direto, formato
+//     top-level já gravado em HooksEvent="PreInvocation".
+func syncShellValidateHook(baseDir string, target TargetCLI) error {
+	if target.HooksSettingsPath == "" {
+		return nil
+	}
+	if target.HooksFormat == "cursor" {
+		// bash-guardian já cobre a checagem pré-execução em
+		// beforeShellExecution; shell-validate seria redundante aqui.
+		return nil
+	}
+	command := "shell-validate hook"
+	if target.HooksFormat == "antigravity" {
+		return syncAntigravityHookCommand(target, shellValidateHookName, command, "*")
+	}
+	// Claude, Codex (e qualquer outro que use schema padrão)
+	return syncHookCommandAtEvent(baseDir, target, shellValidateHookName, command, "Bash", "PreToolUse")
+}
+
 // syncOpenCodeCtxCompactPlugin instala o plugin TS best-effort para OpenCode
 // (mesma limitacao documentada em syncOpenCodePlugin — output do hook nem
 // sempre chega ao modelo ate a issue upstream #13574 fechar).
@@ -137,7 +172,19 @@ func syncStandardHook(baseDir string, target TargetCLI, hookName, scriptName, ma
 // syncStandardHookCommand é a versão sem exigência de arquivo em disco:
 // `command` é gravado literalmente no settings.json (pode ser um script ou
 // um comando de binário já esperado no PATH, ex. "ctx-window hook claude").
+// Sempre grava no evento padrão do target (HooksEvent).
 func syncStandardHookCommand(baseDir string, target TargetCLI, hookName, command, matcher string) error {
+	return syncHookCommandAtEvent(baseDir, target, hookName, command, matcher, target.HooksEvent)
+}
+
+// syncHookCommandAtEvent grava o hook em um evento específico, não
+// necessariamente o HooksEvent padrão do target. Usado pelo shell-validate,
+// que precisa ir em PreToolUse (verificar antes de executar) enquanto o
+// event padrão das CLIs é PostToolUse.
+func syncHookCommandAtEvent(baseDir string, target TargetCLI, hookName, command, matcher, event string) error {
+	if target.HooksSettingsPath == "" {
+		return nil
+	}
 	settings, err := readJSONObject(target.HooksSettingsPath)
 	if err != nil {
 		return err
@@ -148,15 +195,15 @@ func syncStandardHookCommand(baseDir string, target TargetCLI, hookName, command
 		hooksRoot = map[string]interface{}{}
 	}
 
-	entries := decodeHookEntries(hooksRoot[target.HooksEvent])
+	entries := decodeHookEntries(hooksRoot[event])
 	if target.AgentKind == "codex" {
 		adapterPath := filepath.Join(baseDir, "hooks", "codex-protect-mcp-adapter.sh")
 		entries = adaptCodexProtectionHooks(entries, adapterPath)
-		if target.HooksEvent != "PreToolUse" {
+		if event != "PreToolUse" {
 			hooksRoot["PreToolUse"] = adaptCodexProtectionHooks(decodeHookEntries(hooksRoot["PreToolUse"]), adapterPath)
 		}
 	}
-	hooksRoot[target.HooksEvent] = upsertHookEntry(entries, command, hookName, matcher)
+	hooksRoot[event] = upsertHookEntry(entries, command, hookName, matcher)
 	settings["hooks"] = hooksRoot
 
 	return writeJSONObject(target.HooksSettingsPath, settings)

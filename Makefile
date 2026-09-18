@@ -1,4 +1,4 @@
-.PHONY: help setup build install sync status vendor mcp mirror test clean
+.PHONY: help setup build install apply sync status vendor mcp mirror test clean
 
 .DEFAULT_GOAL := help
 
@@ -23,6 +23,8 @@ build: ## Compila agent-sync e as ferramentas em bin/
 	cd tools && go build -o ../bin/mr-review-local ./cmd/mr-review-local
 	cd tools && go build -o ../bin/memory-sync ./cmd/memory-sync
 	cd tools && go build -o ../bin/ctx-window ./cmd/ctx-window
+	cd tools && go build -o ../bin/false-success-guard ./cmd/false-success-guard
+	cd tools && go build -o ../bin/shell-validate ./cmd/shell-validate
 
 install: build ## Compila e instala os binários/scripts em ~/.local/bin
 	mkdir -p ~/.local/bin
@@ -34,8 +36,14 @@ install: build ## Compila e instala os binários/scripts em ~/.local/bin
 	install -m 0755 scripts/agent-sync-session.sh ~/.local/bin/agent-sync-session
 	@echo "Binários instalados em ~/.local/bin com sucesso!"
 
-sync: install ## Instala e roda agent-sync -apply (sincroniza as 5 CLIs)
+apply: install ## Compila, instala e aplica agent-sync nas 5 CLIs (hooks + skills + regras)
+	# shell-validate é opt-in via env (AGENT_SYNC_PRETOOLUSE_VALIDATE=1).
+	# `agent-sync -apply` persiste a env em ~/.zshrc (ou ~/.bashrc) por
+	# conta própria, então não precisa setar manualmente aqui.
 	~/.local/bin/agent-sync -apply
+
+sync: apply ## Alias para apply (mantido para retrocompatibilidade)
+	@echo "make sync é alias de make apply — instalado e aplicado"
 
 status: ## Mostra o status de sincronização de cada CLI
 	~/.local/bin/agent-sync -status
