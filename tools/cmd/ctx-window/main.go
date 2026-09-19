@@ -8,6 +8,8 @@
 //	ctx-window set-k <session> <N>    adjusts K (working memory)
 //	ctx-window doctor                 detects summarizer/configuration
 //	ctx-window benchmark <dataset>    runs empirical battery (Phase 0)
+//	ctx-window track-docs [--snapshot-dir DIR]  monitors CLI docs/forum/GitHub
+//	                                              for token field reappearance (K reopen signal)
 //
 // The default summarizer is the session's own model; this CLI implements
 // the pure local heuristic fallback (no external LLM dependency).
@@ -22,6 +24,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/matheusdutra/token-tools/cmd/ctx-window/track-docs"
 )
 
 const usage = `ctx-window — manages context window (sliding window + summary)
@@ -47,6 +51,10 @@ Usage:
   ctx-window handoff <cli>                   reads a SessionStart payload from stdin and returns the latest project summary
   ctx-window doctor                          detects available configuration
   ctx-window benchmark <dataset>             runs empirical battery (placeholder)
+  ctx-window track-docs [--snapshot-dir DIR] scans Cursor + Antigravity docs/forum/issues
+                                               for token-field reappearance (K reopen signal).
+                                               Exit 0 = no change, 1 = positive match (reopen),
+                                               2 = network error.
   ctx-window -help
 
 Environment variables:
@@ -88,6 +96,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runDoctor(stdout, stderr)
 	case "benchmark":
 		return runBenchmark(rest, stdout, stderr)
+	case "track-docs":
+		return trackdocs.Run(rest, stdout, stderr)
 	case "-help", "--help", "help":
 		fmt.Fprint(stdout, usage)
 		return nil
