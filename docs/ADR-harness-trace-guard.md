@@ -1,6 +1,6 @@
 # ADR: Harness Trace Guard — Verificação Causal e Evidência de Transição de Estado em Fim de Turno
 
-**Status**: Proposto  
+**Status**: Implementado (Fases 1-2)  
 **Data**: 2026-09-18  
 **Decisor**: Matheus Dutra  
 **Fundamentação Teórica**: arXiv:2606.06324v2 (*HarnessFix: Diagnosing and Repairing Harness Flaws via HTIR*)  
@@ -27,8 +27,8 @@ Atualmente, o `agent-sync` possui o binário `false-success-guard` (`tools/cmd/f
 Evoluir o `false-success-guard` de um classificador puramente léxico para um **Harness Trace Guard** baseado no princípio de **State-Effect Alignment** do HarnessFix:
 
 ### 2.1 Inspeção Baseada em TraceSteps
-O hook de fim de turno não lerá apenas a prosa do último texto do assistente, mas inspecionará o histórico recente do `transcript_path`:
-1. **Verificação de Mutação (*Artifact/State Effect*)**: Se o agente alegar conclusão de código/bugfix, o transcript recente deve conter ao menos 1 invocação de ferramenta de escrita (`write_to_file`, `replace_file_content`, `patch` ou comando shell com mutação).
+O hook de fim de turno não lerá apenas a prosa do último texto do assistente, mas inspecionará o histórico do turno atual do `transcript_path`:
+1. **Verificação de Mutação (*Artifact/State Effect*)**: Se o agente alegar conclusão de código/bugfix, o transcript do turno atual deve conter ao menos 1 invocação de ferramenta de escrita (`write_to_file`, `replace_file_content`, `patch` ou comando shell com mutação).
 2. **Verificação de Execução & Saída de Ferramenta (*Tool Exit Code*)**: Se um comando de verificação foi chamado, o status de execução deve ser limpo (`exit code 0`), sem conter marcadores `[TOOL_STATUS: FAILED]` ou erros não tratados.
 3. **Decisão Combinada**:
    - **Caso 1 (Léxico + Evidência de Rastreamento)**: Prosa confiante + arquivo alterado + teste verde $\rightarrow$ **Passa silencioso (`{}`)**.
@@ -42,18 +42,27 @@ Mantendo o princípio de nunca abortar destrutivamente o processo, o hook retorn
 {
   "hookSpecificOutput": {
     "hookEventName": "Stop",
-    "additionalContext": "[agent-sync:harness-guard] Alegação de conclusão detectada, mas não há registro de mutação de arquivo ou comando de validação bem-sucedido no turno recente. Verifique o resultado na prática antes de finalizar."
+    "additionalContext": "[agent-sync:harness-guard] Alegação de conclusão detectada, mas não há registro de mutação de arquivo ou comando de validação bem-sucedido no turno atual. Verifique o resultado na prática antes de finalizar."
   }
 }
 ```
+
+### 2.3 Contrato de Janelamento por Turno
+O **turno atual** é definido como a janela entre a última entrada `role=user` que contém um bloco `content.type=text` e o `Stop` final do hook.
+
+**Mecanismo**: `inspectTranscript` (`tools/cmd/false-success-guard/hook.go`) mantém um acumulador `ExecutionEvidence` enquanto percorre o JSONL do transcript. Ao encontrar um bloco `type=text` dentro de uma entrada `role=user`, o acumulador é zerado (`ev = ExecutionEvidence{HasTraceData: false}`). Blocos `tool_result` isolados não disparam reset — eles apenas alimentam o acumulador do turno atual.
+
+**Edge case conhecido**: uma entrada `role=user` com `content=[text, tool_result]` misturados dispara o reset pelo bloco `text`. O `tool_result` que aparece na mesma entrada é descartado do turno atual — porque o loop processa todos os blocos antes de checar `hasUserText`, e o reset zera o estado após o loop. Esse comportamento é desejado: tool_results entregues junto com um prompt textual do usuário pertencem ao turno anterior, não ao novo turno.
+
+**Justificativa**: optou-se por reset-por-texto em vez de janela deslizante de N tool calls pelo menor custo cognitivo de explicar e porque satisfaz diretamente o caso de uso do bug original (erros antigos contaminando o veredito do turno atual). N tool calls exigiria um parâmetro mágico e ainda falharia em cenários onde o usuário reage com texto entre execuções.
 
 ---
 
 ## 3. Plano de Execução em Fases
 
 ### Fase 1 — Extrator de TraceSteps no Módulo Go (`tools/cmd/false-success-guard/`)
-- [ ] Adicionar parser de blocos de `tool_use` e `tool_result` no JSONL de transcripts (`Claude Code`, `Antigravity`, `Cursor`).
-- [ ] Criar struct de evidência:
+- [x] Adicionar parser de blocos de `tool_use` e `tool_result` no JSONL de transcripts (`Claude Code`, `Antigravity`, `Cursor`).
+- [x] Criar struct de evidência:
   ```go
   type ExecutionEvidence struct {
       MutatedFiles   bool
@@ -62,16 +71,16 @@ Mantendo o princípio de nunca abortar destrutivamente o processo, o hook retorn
       HasToolErrors  bool
   }
   ```
-- [ ] Integrar no `detector.go`: `ClassifyWithTrace(text string, ev ExecutionEvidence) Verdict`.
-- [ ] Testes unitários com casos reais extraídos de transcripts com erros silenciosos.
+- [x] Integrar no `detector.go`: `ClassifyWithTrace(text string, ev ExecutionEvidence) Verdict`.
+- [x] Testes unitários com casos reais extraídos de transcripts com erros silenciosos.
 
 ### Fase 2 — Cobertura Unificada nas CLIs via Hooks Existentes
-- [ ] **Claude Code**: Atualizar handler de `Stop` (`tools/cmd/false-success-guard/hook.go`).
-- [ ] **Google Antigravity**: Conectar no hook `hooks/agent-stop.antigravity.sh` passando o `transcript.jsonl` da sessão.
-- [ ] **Cursor**: Integrar ao hook `stop` em `hooks/agent-react-nudge.stop.cursor.sh` (conforme Trilha A da ADR anterior).
+- [x] **Claude Code**: Atualizar handler de `Stop` (`tools/cmd/false-success-guard/hook.go`).
+- [x] **Google Antigravity**: Conectar no hook `hooks/agent-stop.antigravity.sh` passando o `transcript.jsonl` da sessão.
+- [x] **Cursor**: Integrar ao hook `stop` em `hooks/agent-stop.cursor.sh`.
 
 ### Fase 3 — Validação Prática & Benchmark Interno
-- [ ] Rodar `make test` em todo o workspace `agent-sync`.
+- [x] Rodar `go test ./...` no módulo `tools` (todos os pacotes, incluindo `false-success-guard` e `cmd/agent-sync`).
 - [ ] Medir consumo de tokens em tarefas com e sem o hook ativo (avaliar se o nudge imediato previne ciclos longos de retrabalho).
 
 ---

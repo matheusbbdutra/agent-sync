@@ -141,7 +141,11 @@ func inspectTranscript(path string) (string, ExecutionEvidence) {
 				}
 			}
 		} else if role == "user" || role == "tool" {
+			hasUserText := false
 			for _, b := range blocks {
+				if b.Type == "text" {
+					hasUserText = true
+				}
 				if b.Type == "tool_result" {
 					ev.HasTraceData = true
 					if b.IsError {
@@ -152,6 +156,9 @@ func inspectTranscript(path string) (string, ExecutionEvidence) {
 						ev.HasToolError = true
 					}
 				}
+			}
+			if role == "user" && hasUserText {
+				ev = ExecutionEvidence{HasTraceData: false}
 			}
 		}
 	}
