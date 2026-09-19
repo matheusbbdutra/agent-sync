@@ -477,6 +477,11 @@ func applyToTarget(c applyContext, t TargetCLI) error {
 	} else {
 		runStandardHooks(c, t)
 	}
+	if t.AgentKind == "codex" {
+		if err := adaptCodexPlugins(c.baseDir); err != nil {
+			c.log.append("⚠️  [%s/codex-plugins] %v", t.Name, err)
+		}
+	}
 	return nil
 }
 
