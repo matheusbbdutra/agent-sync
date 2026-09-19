@@ -99,12 +99,12 @@ Implementar a estratégia **sliding window + incremental summary**, alinhada ao 
 2. **Abordagem B — Handoff local por projeto (`.agent-sync/summary.md`)**:
    - `ctx-window summarize` salva o resumo do projeto em `<projectRoot>/.agent-sync/summary.md` (com `.gitignore` contendo `*` gerado automaticamente).
    - `ctx-window handoff` prioriza essa leitura local antes de inspecionar caches de sessões globais, garantindo isolamento total entre repositórios e branches.
-3. **Mapeamento de Handoff e Nudges nas 5 CLIs**:
-   - **Claude Code**: Handoff em `SessionStart` via `hookSpecificOutput.additionalContext`. Nudge em `PostToolUse` via transcript.
-   - **Codex**: Handoff em `SessionStart` via `hookSpecificOutput.additionalContext`. Nudge em `PostToolUse` via leitura dos rollouts JSONL locais (`~/.codex/sessions/`).
-   - **Cursor**: Handoff em `sessionStart` via `additional_context`. Hook `preCompact` observacional orienta resumo manual.
-   - **Antigravity CLI**: Como o evento `SessionStart` é ignorado pelo runtime da CLI, migrou-se para o hook oficial `PreInvocation`. No turno 1 (`invocationNum == 1`), injeta o resumo e working memory via `ephemeralMessage` (sem poluir o transcript); nos turnos seguintes, retorna `{}` sem custo.
-   - **OpenCode**: Plugin TS em `~/.config/opencode/plugins/ctx-compact.ts` registra turnos em `tool.execute.after` e injeta o snapshot local no array `output.context` em `experimental.session.compacting`. Nudge lê tokens da tabela `session` do SQLite local (`~/.local/share/opencode/opencode.db`).
+3. **Mapeamento de Handoff e Nudges nas 5 CLIs** (status atualizado em 2026-09-19):
+   - **Claude Code**: Handoff em `SessionStart` via `hookSpecificOutput.additionalContext`. Nudge em `PostToolUse` via transcript (`tools/cmd/ctx-window/claude_usage.go`).
+   - **Codex**: Handoff em `SessionStart` via `hookSpecificOutput.additionalContext`. Nudge em `PostToolUse` via leitura dos rollouts JSONL locais (`~/.codex/sessions/` — `tools/cmd/ctx-window/codex_usage.go` + `hook.go:writeCodexNudge`). ✅ **fechado**
+   - **Cursor**: Handoff em `sessionStart` via `additional_context`. Hook `preCompact` observacional orienta resumo manual. **Nudge de tokens**: tracking-only — `preCompact` é observacional e não pode modificar a compactação (`https://prod.cursor.com/docs/hooks`); aguardar Cursor documentar `tokens` em `postToolUse`. 🔭
+   - **Antigravity CLI**: Como o evento `SessionStart` é ignorado pelo runtime da CLI, migrou-se para o hook oficial `PreInvocation`. No turno 1 (`invocationNum == 1`), injeta o resumo e working memory via `ephemeralMessage` (sem poluir o transcript); nos turnos seguintes, retorna `{}` sem custo. **Nudge de tokens**: tracking-only — uso exposto apenas na API de status line, não em hook; aguardar `agy` documentar campo de tokens em payload. 🔭
+   - **OpenCode**: Plugin TS em `~/.config/opencode/plugins/ctx-compact.ts` registra turnos em `tool.execute.after` e injeta o snapshot local no array `output.context` em `experimental.session.compacting`. Nudge lê tokens da tabela `session` do SQLite local (`~/.local/share/opencode/opencode.db` — `tools/cmd/ctx-window/opencode_usage.go` + `main.go:checkOpenCodeNudge`). ✅ **fechado**
 4. **Defensividade**: `runHandoff` e `runHook` retornam `{}` e exit code 0 em qualquer falha de leitura ou payload vazio, impedindo que falhas auxiliares quebrem a inicialização das CLIs.
 
 ## Limites conhecidos

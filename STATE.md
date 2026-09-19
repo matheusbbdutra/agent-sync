@@ -94,9 +94,13 @@
 - **I.** OpenCode plugin TS sem typecheck formal — repo sem `tsconfig.json`/`package.json`, bun/tsc ausentes (STATE.md:73). Strip de tipos Node funciona mas não substitui typecheck.
 
 **Pendências declaradas (já em "Pendências abertas" acima):**
-- **J.** Smoke real interativo nas 5 CLIs em sessões de verdade — **em andamento** (manual, usuário).
-- **K.** Nudge de tokens em Cursor/Antigravity/Codex/OpenCode (Fase 4; sem contrato de payload validado nessas CLIs) — **em andamento** (pesquisa de schema por CLI).
-- **L.** Handoff Antigravity via `SessionStart` interno (API sem contrato publicado, achada via símbolos do binário `/usr/bin/agy`) — **em andamento** (validação manual com agy).
+- **J.** Smoke real interativo nas 5 CLIs em sessões de verdade — **em andamento** (manual, usuário). Ver checklist objetivo em `docs/SMOKE-TEST-J.md`.
+- **K.** Nudge de tokens por CLI (Fase 4) — **parcialmente fechado 2026-09-19**:
+  - **Codex**: ✅ fechado — `tools/cmd/ctx-window/codex_usage.go` + `hook.go:writeCodexNudge` lendo rollouts JSONL de `~/.codex/sessions/`. Coberto por `TestCodexNudgeUsesLatestUsageOnce` e `TestCodexNudgeBelowThreshold` (PASS).
+  - **OpenCode**: ✅ fechado — `tools/cmd/ctx-window/opencode_usage.go` + `main.go:checkOpenCodeNudge` lendo tabela `session` do SQLite local `~/.local/share/opencode/opencode.db`. Coberto por `TestOpenCodeNudgeFromSQLite` e `TestOpenCodeNudgeBelowThreshold` (PASS).
+  - **Cursor**: 🔭 tracking-only — `preCompact` é observacional e não pode modificar a compactação (`https://prod.cursor.com/docs/hooks`); parsear `context_tokens` de preCompact para inferir tokens fora de hora é frágil. Aguarda Cursor documentar `tokens`/`context_window` em `postToolUse`. Tracking em [#2](https://github.com/matheusbbdutra/agent-sync/issues/2) (sem implementação).
+  - **Antigravity CLI**: 🔭 tracking-only — uso de tokens exposto apenas na API de status line (`agy status`), não em hook. Aguarda `agy` documentar campo de tokens em payload de hook. Mesma issue de tracking.
+- **L.** Handoff Antigravity via `PreInvocation` — código já está correto e coerente com a doc oficial; validação em uso real caiu dentro do smoke J (turno 1 `invocationNum==1` injeta `ephemeralMessage`; turnos seguintes `{}`). **Fundido em J** — não é item de trabalho separado, é uma linha do checklist.
 
 ## Pesquisa de equivalência de hooks — 2026-09-18
 
