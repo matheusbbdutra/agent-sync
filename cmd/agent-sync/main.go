@@ -485,7 +485,8 @@ func main() {
 	targetFlag := flag.String("target", "", "Aplica para uma CLI específica (claude, codex, antigravity, opencode, cursor)")
 	statusFlag := flag.Bool("status", false, "Exibe o status de sincronização com as CLIs")
 	vendorFlag := flag.Bool("vendor", false, "Importa as skills curadas do catálogo definido em skills/manifest.json")
-	observabilityFlag := flag.Bool("observability", false, "Exibe resumo dos erros persistidos pelos hooks")
+	observabilityFlag := flag.Bool("observability", false, "Exibe resumo dos erros persistidos pelos hooks (texto)")
+	observabilityJSONFlag := flag.Bool("observability-json", false, "Exibe resumo dos erros persistidos pelos hooks em JSON estruturado")
 	sourceFlag := flag.String("source", "", "Diretório de origem das skills para -vendor (default: skillsDir do manifest)")
 	dryRunFlag := flag.Bool("dry-run", false, "Mostra o que seria feito sem escrever em disco (alias: -n)")
 	dryRunShortFlag := flag.Bool("n", false, "Alias curto para -dry-run")
@@ -504,7 +505,7 @@ func main() {
 	rulesSource := filepath.Join(baseDir, "rules", "global-rules.md")
 	skillsSource := filepath.Join(baseDir, "skills")
 
-	if !*applyFlag && !*statusFlag && !*vendorFlag && !*observabilityFlag && *targetFlag == "" {
+	if !*applyFlag && !*statusFlag && !*vendorFlag && !*observabilityFlag && !*observabilityJSONFlag && *targetFlag == "" {
 		fmt.Println("🚀 Agent-Sync: Gerenciador Unificado de Regras e Skills para Agentes AI")
 		fmt.Println("\nUso:")
 		fmt.Println("  agent-sync -apply              # Sincroniza em todas as CLIs instaladas")
@@ -512,6 +513,7 @@ func main() {
 		fmt.Println("  agent-sync -status             # Verifica o status atual de cada CLI")
 		fmt.Println("  agent-sync -vendor             # Importa as skills curadas do manifest")
 		fmt.Println("  agent-sync -observability      # Resume erros persistidos pelos hooks")
+		fmt.Println("  agent-sync -observability-json # Idem, saída JSON estruturada")
 		return
 	}
 
@@ -524,6 +526,14 @@ func main() {
 	}
 
 	targets := getTargets()
+	if *observabilityJSONFlag {
+		if err := printHookObservabilityJSON(); err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Falha ao ler observabilidade: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	if *observabilityFlag {
 		if err := printHookObservability(); err != nil {
 			fmt.Fprintf(os.Stderr, "❌ Falha ao ler observabilidade: %v\n", err)

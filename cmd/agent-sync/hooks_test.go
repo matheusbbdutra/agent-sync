@@ -71,8 +71,9 @@ func TestSyncAntigravityStopHook(t *testing.T) {
 		t.Fatalf("elemento inválido em Stop: %v", stopList[0])
 	}
 
-	if entry["command"] != scriptPath {
-		t.Errorf("command incorreto: obteve %v, esperado %v", entry["command"], scriptPath)
+	wrappedCmd := wrapHookCommand(tempBase, "Stop", "agent-stop.antigravity", scriptPath)
+	if entry["command"] != wrappedCmd {
+		t.Errorf("command incorreto: obteve %v, esperado %v", entry["command"], wrappedCmd)
 	}
 	if entry["type"] != "command" {
 		t.Errorf("type incorreto: obteve %v, esperado 'command'", entry["type"])
@@ -135,8 +136,9 @@ func TestSyncAntigravityPreInvocationReminderHook(t *testing.T) {
 		t.Fatalf("elemento inválido em PreInvocation: %v", preList[0])
 	}
 
-	if entry["command"] != scriptPath {
-		t.Errorf("command incorreto: obteve %v, esperado %v", entry["command"], scriptPath)
+	wrappedCmd := wrapHookCommand(tempBase, "PreInvocation", "agent-preinvocation.antigravity", scriptPath)
+	if entry["command"] != wrappedCmd {
+		t.Errorf("command incorreto: obteve %v, esperado %v", entry["command"], wrappedCmd)
 	}
 	if entry["type"] != "command" {
 		t.Errorf("type incorreto: obteve %v, esperado 'command'", entry["type"])

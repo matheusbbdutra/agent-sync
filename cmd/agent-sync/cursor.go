@@ -17,20 +17,21 @@ alwaysApply: true
 
 // cursorHookDef descreve uma entrada em ~/.cursor/hooks.json gerenciada pelo agent-sync.
 type cursorHookDef struct {
-	Event   string
-	Script  string // nome do arquivo em hooks/ (repo) e em ~/.cursor/hooks/
-	Matcher string // opcional
+	Event     string
+	Script    string // nome do arquivo em hooks/ (repo) e em ~/.cursor/hooks/
+	Matcher   string // opcional
+	WrapStage string // não-vazio: comando é envelopado via ./hooks/wrap-hook.sh <WrapStage> <Script> <Script>
 }
 
 func cursorManagedHooks() []cursorHookDef {
 	return []cursorHookDef{
-		{Event: "postToolUse", Script: "context-guard-nudge.cursor.sh"},
-		{Event: "postToolUse", Script: "memory-nudge.cursor.sh"},
-		{Event: "postToolUse", Script: "agent-react-nudge.cursor.sh"},
-		{Event: "postToolUse", Script: "docs-cache.cursor.sh", Matcher: "WebFetch"},
-		{Event: "afterMCPExecution", Script: "docs-cache-mcp.cursor.sh", Matcher: "query-docs"},
-		{Event: "beforeShellExecution", Script: "bash-guardian.cursor.sh"},
-		{Event: "stop", Script: "agent-stop.cursor.sh"},
+		{Event: "postToolUse", Script: "context-guard-nudge.cursor.sh", WrapStage: "postToolUse"},
+		{Event: "postToolUse", Script: "memory-nudge.cursor.sh", WrapStage: "postToolUse"},
+		{Event: "postToolUse", Script: "agent-react-nudge.cursor.sh", WrapStage: "postToolUse"},
+		{Event: "postToolUse", Script: "docs-cache.cursor.sh", Matcher: "WebFetch", WrapStage: "postToolUse"},
+		{Event: "afterMCPExecution", Script: "docs-cache-mcp.cursor.sh", Matcher: "query-docs", WrapStage: "afterMCPExecution"},
+		{Event: "beforeShellExecution", Script: "bash-guardian.cursor.sh", WrapStage: "beforeShellExecution"},
+		{Event: "stop", Script: "agent-stop.cursor.sh", WrapStage: "stop"},
 	}
 }
 
@@ -69,14 +70,21 @@ func syncCursorAll(baseDir string, target TargetCLI) error {
 	extras := []string{
 		"bash-guardian-patterns.txt",
 		"docs-cache.cursor.py",
+		"wrap-hook.sh",
 	}
 	for _, name := range extras {
 		src := filepath.Join(baseDir, "hooks", name)
 		if _, err := os.Stat(src); err != nil {
 			return fmt.Errorf("arquivo auxiliar Cursor não encontrado: %s", src)
 		}
-		if err := copyFile(src, filepath.Join(hooksDir, name)); err != nil {
+		dst := filepath.Join(hooksDir, name)
+		if err := copyFile(src, dst); err != nil {
 			return err
+		}
+		if name == "wrap-hook.sh" {
+			if err := os.Chmod(dst, 0o755); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -134,7 +142,12 @@ func mergeCursorHooksJSON(path string) error {
 
 	// Reinsere a versão atual (comandos relativos a ~/.cursor/).
 	for _, h := range cursorManagedHooks() {
-		cmd := "./hooks/" + h.Script
+		var cmd string
+		if h.WrapStage != "" {
+			cmd = "./hooks/wrap-hook.sh " + h.WrapStage + " " + h.Script + " " + h.Script
+		} else {
+			cmd = "./hooks/" + h.Script
+		}
 		list := decodeCursorHookEntries(hooksRoot[h.Event])
 		list = append(list, cursorHookEntry{Command: cmd, Matcher: h.Matcher})
 		hooksRoot[h.Event] = encodeCursorHookEntries(list)
@@ -194,7 +207,15 @@ func encodeCursorHookEntries(entries []cursorHookEntry) []map[string]interface{}
 }
 
 func isCursorManagedCommand(command string, managed map[string]cursorHookDef) bool {
-	base := filepath.Base(strings.TrimSpace(command))
-	_, ok := managed[base]
-	return ok
+	trimmed := strings.TrimSpace(command)
+	base := filepath.Base(trimmed)
+	if _, ok := managed[base]; ok {
+		return true
+	}
+	for _, h := range managed {
+		if h.WrapStage != "" && trimmed == "./hooks/wrap-hook.sh "+h.WrapStage+" "+h.Script+" "+h.Script {
+			return true
+		}
+	}
+	return false
 }

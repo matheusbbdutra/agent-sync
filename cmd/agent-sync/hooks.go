@@ -126,6 +126,14 @@ func syncAntigravityStop(target TargetCLI, hookName, command string) error {
 	return syncAntigravityFlatHook(target, hookName, "Stop", command)
 }
 
+// wrapHookCommand envelopa scriptPath com wrap-hook.sh para captura de
+// exit code/stderr/duration_ms via observe-error.sh. Retorna o comando
+// absoluto pronto para gravar no settings.json do target.
+func wrapHookCommand(baseDir, stage, hookName, scriptPath string) string {
+	wrapper := filepath.Join(baseDir, "hooks", "wrap-hook.sh")
+	return wrapper + " " + stage + " " + hookName + " " + scriptPath
+}
+
 // syncStopHook instala o hook para o evento oficial Stop no Antigravity, Claude Code e Codex.
 func syncStopHook(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" {
@@ -136,7 +144,8 @@ func syncStopHook(baseDir string, target TargetCLI) error {
 		if _, err := os.Stat(scriptPath); err != nil {
 			return fmt.Errorf("script do hook stop não encontrado: %s", scriptPath)
 		}
-		return syncAntigravityStop(target, agentStopHookName, scriptPath)
+		wrapped := wrapHookCommand(baseDir, "Stop", "agent-stop.antigravity", scriptPath)
+		return syncAntigravityStop(target, agentStopHookName, wrapped)
 	}
 	if target.AgentKind == "claude" || target.AgentKind == "codex" {
 		return syncHookCommandAtEvent(baseDir, target, "agent-sync-false-success-guard", "false-success-guard hook", "*", "Stop")
@@ -155,7 +164,8 @@ func syncPreInvocationReminderHook(baseDir string, target TargetCLI) error {
 		if _, err := os.Stat(scriptPath); err != nil {
 			return fmt.Errorf("script do hook preinvocation não encontrado: %s", scriptPath)
 		}
-		return syncAntigravityPreInvocation(target, preInvocationReminderHookName, scriptPath)
+		wrapped := wrapHookCommand(baseDir, "PreInvocation", "agent-preinvocation.antigravity", scriptPath)
+		return syncAntigravityPreInvocation(target, preInvocationReminderHookName, wrapped)
 	}
 	return nil
 }
@@ -330,12 +340,18 @@ func adaptCodexProtectionHooks(entries []hookEntry, adapterPath string) []hookEn
 // "hooks" de topo: {"<nome-do-hook>": {"<Evento>": [{"matcher", "hooks": [...]}]}}.
 // Espera um script em disco (hooks/<scriptName>); para um comando literal
 // (sem arquivo), use syncAntigravityHookCommand diretamente.
+//
+// O scriptPath é envelopado via wrap-hook.sh para captura de exit code /
+// stderr / duration_ms; o nome lógico do wrapper é o scriptName sem o sufixo
+// .sh (ex.: "context-guard-nudge.antigravity"). O stage usado é o
+// target.HooksEvent já configurado pelo caller (PostToolUse ou PreToolUse).
 func syncAntigravityHook(baseDir string, target TargetCLI, hookName, scriptName, matcher string) error {
 	scriptPath := filepath.Join(baseDir, "hooks", scriptName)
 	if _, err := os.Stat(scriptPath); err != nil {
 		return fmt.Errorf("script do hook não encontrado: %s", scriptPath)
 	}
-	return syncAntigravityHookCommand(target, hookName, scriptPath, matcher)
+	wrapped := wrapHookCommand(baseDir, target.HooksEvent, strings.TrimSuffix(scriptName, ".sh"), scriptPath)
+	return syncAntigravityHookCommand(target, hookName, wrapped, matcher)
 }
 
 // syncAntigravityHookCommand é a versão sem exigência de arquivo em disco.
