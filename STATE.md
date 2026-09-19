@@ -4,6 +4,21 @@
 
 ## Execução do plano consolidado — 2026-09-18
 
+- Implementação do Harness Trace Guard (HarnessFix — arXiv:2606.06324v2) — 2026-09-18:
+  - **ADR Documentada**: Criada `docs/ADR-harness-trace-guard.md` definindo o princípio de *State-Effect Alignment* e verificação causal de fim de turno para as 5 CLIs.
+  - **Evolução do `false-success-guard` (`tools/cmd/false-success-guard/`)**:
+    - `detector.go`: Adicionadas struct `ExecutionEvidence` e função `ClassifyWithTrace(text, ev)`. Se houver dados de transcript, o guarda valida se houve mutação de arquivo (`write`, `edit`, `replace`, `patch`) ou comando de verificação (`test`, `bash`, `command`) e barra se houver erro não tratado (`[TOOL_STATUS: FAILED]`, exit 1). Mantido fallback para classificador léxico quando não houver trace.
+    - `hook.go`: Atualizado `runHook` e adicionado `inspectTranscript(path)` para carregar blocos de `tool_use` e `tool_result` do transcript JSONL.
+    - `main.go`: Subcomando `check` ganhou suporte à flag `--transcript <path>`.
+    - `detector_test.go`: Suite de testes unitários expandida com 5 novos casos para `ClassifyWithTrace`, cobrindo mutação válida, comando de teste, erro não tratado e alegação sem evidência. 100% PASS.
+  - **Integração de Hooks Multi-CLI (Cobertura 100% de Fim de Turno)**:
+    - `Antigravity`: `hooks/agent-stop.antigravity.sh` invoca `false-success-guard check --transcript "$transcript_path"` no evento flat `Stop`.
+    - `Cursor`: Criado `hooks/agent-stop.cursor.sh` e registrado no evento nativo `stop` em `cursorManagedHooks()` (`cmd/agent-sync/cursor.go`), emitindo `followup_message` corretiva.
+    - `Claude Code` & `Codex`: `syncStopHook` em `cmd/agent-sync/hooks.go` atualizado para injetar `false-success-guard hook` no evento oficial `Stop`.
+    - `agent-sync -apply`: Executado e validado em disco (`~/.cursor/hooks.json`, `~/.codex/hooks.json`, `~/.claude/settings.json`, `~/.gemini/config/hooks.json`).
+  - **Verificação**: `go test ./...` e `go test ./cmd/false-success-guard/...` 100% PASS, `make build`, `make install` e `./bin/agent-sync -apply` executados com sucesso total.
+
+
 - Otimização de Regras Globais e Skills (Princípios Karpathy & Context Reduction) — 2026-09-18:
   - **Regras Globais (`rules/global-rules.md`)**: Enxugadas cirurgicamente de ~15 KB para ~2.2 KB (~85% de redução de tokens de entrada em todo turno das 5 CLIs), mantendo rigorosamente PT-BR, proibições de segurança (.env, git destrutivo), anti-alucinação estrita (*Hipótese ≠ Fato*) e Clean Code cirúrgico.
   - **Poda de Skills Desnecessárias/Redundantes**: Removidas do repositório e de `manifest.json` as skills fora da stack do usuário (`python-pro`, `python-testing-patterns`), redundâncias de contexto genéricas (`context-management-context-save`, `context-manager`) e sobreposições (`codebase-cleanup-tech-debt`, `incident-response-smart-fix`). Mantidas linguagens ativas (PHP, Go, TypeScript, JavaScript).

@@ -152,20 +152,50 @@ func TestSyncAntigravityPreInvocationReminderHook(t *testing.T) {
 	}
 }
 
-func TestSyncStopHookNonAntigravityIsNoOp(t *testing.T) {
+func TestSyncStopHookNonSupportedIsNoOp(t *testing.T) {
 	tempHooksPath := filepath.Join(t.TempDir(), "settings.json")
 	target := TargetCLI{
-		Name:              "claude",
-		AgentKind:         "claude",
+		Name:              "opencode",
+		AgentKind:         "opencode",
 		HooksSettingsPath: tempHooksPath,
 		HooksFormat:       "",
 		HooksEvent:        "PostToolUse",
 	}
 	if err := syncStopHook(t.TempDir(), target); err != nil {
-		t.Fatalf("esperado nil para target não-antigravity, obteve: %v", err)
+		t.Fatalf("esperado nil para target não suportado, obteve: %v", err)
 	}
 	if _, err := os.Stat(tempHooksPath); !os.IsNotExist(err) {
-		t.Fatalf("arquivo não deveria ter sido criado para claude")
+		t.Fatalf("arquivo não deveria ter sido criado para target não suportado")
+	}
+}
+
+func TestSyncStopHookClaudeAndCodex(t *testing.T) {
+	for _, kind := range []string{"claude", "codex"} {
+		t.Run(kind, func(t *testing.T) {
+			tempHooksPath := filepath.Join(t.TempDir(), "settings.json")
+			target := TargetCLI{
+				Name:              kind,
+				AgentKind:         kind,
+				HooksSettingsPath: tempHooksPath,
+				HooksFormat:       "",
+				HooksEvent:        "PostToolUse",
+			}
+			if err := syncStopHook(t.TempDir(), target); err != nil {
+				t.Fatalf("falha ao sincronizar stop hook para %s: %v", kind, err)
+			}
+			data, err := os.ReadFile(tempHooksPath)
+			if err != nil {
+				t.Fatalf("arquivo settings não foi criado para %s", kind)
+			}
+			var root map[string]interface{}
+			if err := json.Unmarshal(data, &root); err != nil {
+				t.Fatalf("json inválido: %v", err)
+			}
+			hooks, _ := root["hooks"].(map[string]interface{})
+			if hooks == nil || hooks["Stop"] == nil {
+				t.Fatalf("Stop hook não encontrado no json para %s: %s", kind, string(data))
+			}
+		})
 	}
 }
 

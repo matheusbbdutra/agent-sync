@@ -126,8 +126,7 @@ func syncAntigravityStop(target TargetCLI, hookName, command string) error {
 	return syncAntigravityFlatHook(target, hookName, "Stop", command)
 }
 
-// syncStopHook instala o hook para o evento oficial Stop do Antigravity CLI
-// (flat handler direto: command, timeout, type) apontando para o verificador de parada prematura.
+// syncStopHook instala o hook para o evento oficial Stop no Antigravity, Claude Code e Codex.
 func syncStopHook(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" {
 		return nil
@@ -138,6 +137,9 @@ func syncStopHook(baseDir string, target TargetCLI) error {
 			return fmt.Errorf("script do hook stop não encontrado: %s", scriptPath)
 		}
 		return syncAntigravityStop(target, agentStopHookName, scriptPath)
+	}
+	if target.AgentKind == "claude" || target.AgentKind == "codex" {
+		return syncHookCommandAtEvent(baseDir, target, "agent-sync-false-success-guard", "false-success-guard hook", "*", "Stop")
 	}
 	return nil
 }

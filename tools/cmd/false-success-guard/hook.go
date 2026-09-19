@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 type stopPayload struct {
@@ -33,6 +34,18 @@ type transcriptEntry struct {
 	Message transcriptMessage `json:"message"`
 }
 
+type toolUseBlock struct {
+	Type  string          `json:"type"`
+	Name  string          `json:"name"`
+	Input json.RawMessage `json:"input"`
+}
+
+type toolResultBlock struct {
+	Type      string `json:"type"`
+	Content   string `json:"content"`
+	IsError   bool   `json:"isError"`
+}
+
 // runHook reads a Stop hook payload from stdin and writes a hook response
 // to stdout. It never returns an error to the caller in practice — a hook
 // must never fail the Stop event it's attached to.
@@ -50,13 +63,13 @@ func runHook(stdin io.Reader, stdout, stderr io.Writer) error {
 		return nil
 	}
 
-	text := lastAssistantText(payload.TranscriptPath)
+	text, ev := inspectTranscript(payload.TranscriptPath)
 	if text == "" {
 		fmt.Fprint(stdout, "{}")
 		return nil
 	}
 
-	verdict := Classify(text)
+	verdict := ClassifyWithTrace(text, ev)
 	if !verdict.Flagged {
 		fmt.Fprint(stdout, "{}")
 		return nil
@@ -67,32 +80,82 @@ func runHook(stdin io.Reader, stdout, stderr io.Writer) error {
 	return nil
 }
 
-// lastAssistantText scans the transcript JSONL and returns the text of the
-// last assistant message with a "text" content block (thinking/tool_use
-// blocks are skipped).
-func lastAssistantText(path string) string {
+// inspectTranscript scans the transcript JSONL and returns the last assistant text
+// alongside execution evidence from recent trace steps (HarnessFix TraceStep alignment).
+func inspectTranscript(path string) (string, ExecutionEvidence) {
 	f, err := os.Open(path)
 	if err != nil {
-		return ""
+		return "", ExecutionEvidence{}
 	}
 	defer f.Close()
 
-	var last string
+	var lastText string
+	ev := ExecutionEvidence{HasTraceData: false}
+
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
+
 	for scanner.Scan() {
-		var entry transcriptEntry
-		if err := json.Unmarshal(scanner.Bytes(), &entry); err != nil {
+		line := scanner.Bytes()
+		var entry struct {
+			Type    string `json:"type"`
+			Role    string `json:"role"`
+			Message struct {
+				Role    string `json:"role"`
+				Content []struct {
+					Type    string `json:"type"`
+					Text    string `json:"text"`
+					Name    string `json:"name"`
+					Content string `json:"content"`
+					IsError bool   `json:"isError"`
+				} `json:"content"`
+			} `json:"message"`
+		}
+
+		if err := json.Unmarshal(line, &entry); err != nil {
 			continue
 		}
-		if entry.Message.Role != "assistant" {
-			continue
+
+		role := entry.Role
+		if role == "" {
+			role = entry.Message.Role
 		}
-		for _, block := range entry.Message.Content {
-			if block.Type == "text" && block.Text != "" {
-				last = block.Text
+
+		blocks := entry.Message.Content
+		if role == "assistant" || role == "MODEL" {
+			for _, b := range blocks {
+				if b.Type == "text" && b.Text != "" {
+					lastText = b.Text
+				}
+				if b.Type == "tool_use" || b.Type == "call" {
+					ev.HasTraceData = true
+					toolName := strings.ToLower(b.Name)
+					if strings.Contains(toolName, "write") || strings.Contains(toolName, "edit") ||
+						strings.Contains(toolName, "replace") || strings.Contains(toolName, "patch") {
+						ev.HasMutation = true
+					}
+					if strings.Contains(toolName, "test") || strings.Contains(toolName, "bash") ||
+						strings.Contains(toolName, "command") {
+						ev.RanTestCommand = true
+					}
+				}
+			}
+		} else if role == "user" || role == "tool" {
+			for _, b := range blocks {
+				if b.Type == "tool_result" {
+					ev.HasTraceData = true
+					if b.IsError {
+						ev.HasToolError = true
+					}
+					res := strings.ToLower(b.Content)
+					if strings.Contains(res, "[tool_status: failed]") || strings.Contains(res, "exit code 1") {
+						ev.HasToolError = true
+					}
+				}
 			}
 		}
 	}
-	return last
+
+	return lastText, ev
 }
+

@@ -376,8 +376,8 @@ var standardHooks = []hookSpec{
 	},
 	{name: "shell-validate", fn: syncShellValidateHook, detail: settingsPathDetail},
 	{name: "docs-cache", fn: syncDocsCacheHook, detail: settingsPathDetail},
-	// Exclusivos do Antigravity CLI (sync*Hook retornam nil para outros).
-	{name: "stop", fn: syncStopHook, formats: []string{"antigravity"}, detail: settingsPathDetail},
+	// Hooks de término/Stop suportados em Antigravity CLI, Claude Code e Codex.
+	{name: "stop", fn: syncStopHook, agentKinds: []string{"antigravity", "claude", "codex"}, detail: settingsPathDetail},
 	{name: "preinvocation", fn: syncPreInvocationReminderHook, formats: []string{"antigravity"}, detail: settingsPathDetail},
 	// Plugins TS best-effort do OpenCode (issue #13574 documentada no README).
 	{name: "opencode-context-guard", fn: syncOpenCodePlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetailNote},

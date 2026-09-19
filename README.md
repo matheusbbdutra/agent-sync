@@ -36,8 +36,8 @@ agent-sync/
 ├── cmd/agent-sync/         # CLI sync orchestrator (+ skill vendor + agent generator)
 ├── scripts/setup-go.sh     # Go (>= 1.24) bootstrap via mise or official tarball
 ├── scripts/setup-mcp.sh    # Configures Context7, local docs MCP, and Sentry (optional)
-├── LICENSE / NOTICE        # MIT license and third-party skill attribution
 ├── Makefile                # Automation commands
+├── docs/                    # Architecture Decision Records (ADRs) & Multi-CLI Hook Patterns
 └── README.md / README.pt-BR.md  # docs (EN default, PT-BR)
 ```
 

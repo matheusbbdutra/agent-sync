@@ -39,6 +39,7 @@ agent-sync/
 ├── scripts/setup-mcp.sh    # Configura Context7, MCP local de docs, memória compartilhada e Sentry (opcional)
 ├── LICENSE / NOTICE        # Licença MIT e atribuição das skills de terceiros
 ├── Makefile                # Comandos de automação
+├── docs/                   # Architecture Decision Records (ADRs) e Padrão de Hooks Multi-CLI
 └── README.md / README.pt-BR.md  # docs (EN padrão, PT-BR)
 ```
 

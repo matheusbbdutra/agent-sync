@@ -53,14 +53,11 @@ done
 transcript_path="$(printf '%s' "$input" | grep -o '"transcriptPath"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n1 | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/' || echo "")"
 if [ -n "$transcript_path" ] && [ -f "$transcript_path" ] && [ "${AGENT_SYNC_STOP_CHECK_TRANSCRIPT:-0}" = "1" ]; then
   if command -v false-success-guard >/dev/null 2>&1; then
-    last_text="$(grep -E '"(source|role)"[[:space:]]*:[[:space:]]*"(MODEL|assistant)"' "$transcript_path" | tail -n1 || true)"
-    if [ -n "$last_text" ]; then
-      verdict="$(printf '%s' "$last_text" | false-success-guard check 2>/dev/null || echo "{}")"
-      if printf '%s' "$verdict" | grep -q '"flagged":true'; then
-        reason="$(printf '%s' "$verdict" | grep -o '"reason":*"[^"]*"' | head -n1 | sed -E 's/.*:"(.*)"/\1/' || echo "Alegação de conclusão sem evidência anexada.")"
-        printf '{"decision":"continue","reason":"[agent-sync] %s. Valide com testes/leitura antes de concluir."}' "$reason"
-        exit 0
-      fi
+    verdict="$(false-success-guard check --transcript "$transcript_path" 2>/dev/null || echo "{}")"
+    if printf '%s' "$verdict" | grep -q '"flagged":true'; then
+      reason="$(printf '%s' "$verdict" | grep -o '"reason":*"[^"]*"' | head -n1 | sed -E 's/.*:"(.*)"/\1/' || echo "Alegação de conclusão sem evidência anexada.")"
+      printf '{"decision":"continue","reason":"[agent-sync] %s. Valide com testes/leitura antes de concluir."}' "$reason"
+      exit 0
     fi
   fi
 fi

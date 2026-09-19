@@ -30,6 +30,7 @@ func cursorManagedHooks() []cursorHookDef {
 		{Event: "postToolUse", Script: "docs-cache.cursor.sh", Matcher: "WebFetch"},
 		{Event: "afterMCPExecution", Script: "docs-cache-mcp.cursor.sh", Matcher: "query-docs"},
 		{Event: "beforeShellExecution", Script: "bash-guardian.cursor.sh"},
+		{Event: "stop", Script: "agent-stop.cursor.sh"},
 	}
 }
 

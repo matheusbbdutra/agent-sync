@@ -30,21 +30,64 @@ var honestFailurePattern = regexp.MustCompile(`(?i)\b(não consegui|não foi pos
 // citing `go test`/`gofmt` was flagged before this pattern existed).
 var evidencePattern = regexp.MustCompile(`(?i)(\S+\.\w+:\d+|exit code|passed|failed|passou|` + "```|`[^`\n]+`" + `|\$ \S+)`)
 
+// ExecutionEvidence captures observable runtime trace step evidence
+// inspired by the HarnessFix framework (arXiv 2606.06324v2).
+// When available from the transcript, it grounds success assertions
+// in verified state changes or successful verification tool execution.
+type ExecutionEvidence struct {
+	HasTraceData   bool
+	HasMutation    bool // Tool calls like write/edit/patch/file creation
+	RanTestCommand bool // Tool calls executing tests or verification commands
+	HasToolError   bool // Unhandled errors, non-zero exit codes or [TOOL_STATUS: FAILED]
+}
+
 // Verdict is the outcome of classifying one piece of agent-facing text.
 type Verdict struct {
 	Flagged bool
 	Reason  string
 }
 
-// Classify applies the lexical rules to text (typically the agent's final
-// message) and returns whether it looks like an unverified success claim.
+// Classify applies lexical rules to text (typically the agent's final message)
+// and returns whether it looks like an unverified success claim.
 func Classify(text string) Verdict {
+	return ClassifyWithTrace(text, ExecutionEvidence{HasTraceData: false})
+}
+
+// ClassifyWithTrace combines lexical detection with runtime trace step evidence.
+func ClassifyWithTrace(text string, ev ExecutionEvidence) Verdict {
 	if honestFailurePattern.MatchString(text) {
 		return Verdict{Flagged: false, Reason: "linguagem de falha honesta detectada"}
 	}
 	if !successAssertionPattern.MatchString(text) {
 		return Verdict{Flagged: false, Reason: "nenhuma alegação de sucesso detectada"}
 	}
+
+	// Trace-grounded evaluation (HarnessFix)
+	if ev.HasTraceData {
+		// If tool errors were detected and unhandled
+		if ev.HasToolError {
+			return Verdict{
+				Flagged: true,
+				Reason:  "alegação de sucesso mas há erro não tratado ou falha de ferramenta no turno recente",
+			}
+		}
+
+		// If the assertion claims success/completion, but there was neither mutation nor verification
+		if !ev.HasMutation && !ev.RanTestCommand {
+			return Verdict{
+				Flagged: true,
+				Reason:  "alegação de sucesso sem transição de estado (mutação) ou comando de validação no turno recente",
+			}
+		}
+
+		// Verified by runtime evidence
+		return Verdict{
+			Flagged: false,
+			Reason:  "alegação de sucesso confirmada por evidência de execução no trace",
+		}
+	}
+
+	// Fallback to purely lexical rules if no trace data was available
 	if evidencePattern.MatchString(text) {
 		return Verdict{Flagged: false, Reason: "alegação de sucesso com evidência anexada"}
 	}
@@ -53,3 +96,4 @@ func Classify(text string) Verdict {
 		Reason:  "alegação de sucesso sem evidência anexada (path:line, saída de comando/teste)",
 	}
 }
+

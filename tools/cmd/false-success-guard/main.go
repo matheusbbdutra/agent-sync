@@ -45,11 +45,21 @@ func runCheck(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("check", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	text := fs.String("text", "", "texto a classificar (se vazio, lê do stdin)")
+	transcript := fs.String("transcript", "", "caminho opcional para o transcript JSONL para extrair evidência de TraceSteps (HarnessFix)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
 	input := *text
+	var ev ExecutionEvidence
+	if *transcript != "" {
+		extractedText, traceEv := inspectTranscript(*transcript)
+		ev = traceEv
+		if input == "" {
+			input = extractedText
+		}
+	}
+
 	if input == "" {
 		raw, err := io.ReadAll(stdin)
 		if err != nil {
@@ -58,10 +68,10 @@ func runCheck(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		input = string(raw)
 	}
 	if input == "" {
-		return errors.New("check requires --text ou texto via stdin")
+		return errors.New("check requires --text, --transcript ou texto via stdin")
 	}
 
-	verdict := Classify(input)
+	verdict := ClassifyWithTrace(input, ev)
 	fmt.Fprintf(stdout, `{"flagged":%v,"reason":%q}`+"\n", verdict.Flagged, verdict.Reason)
 	return nil
 }

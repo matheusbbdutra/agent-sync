@@ -49,3 +49,70 @@ func TestClassify(t *testing.T) {
 		})
 	}
 }
+
+func TestClassifyWithTrace(t *testing.T) {
+	cases := []struct {
+		name     string
+		text     string
+		evidence ExecutionEvidence
+		flagged  bool
+	}{
+		{
+			name: "alegacao de sucesso com mutacao no trace nao deve ser sinalizada",
+			text: "Implementado conforme solicitado.",
+			evidence: ExecutionEvidence{
+				HasTraceData: true,
+				HasMutation:  true,
+			},
+			flagged: false,
+		},
+		{
+			name: "alegacao de sucesso com comando de teste no trace nao deve ser sinalizada",
+			text: "Concluído.",
+			evidence: ExecutionEvidence{
+				HasTraceData:   true,
+				RanTestCommand: true,
+			},
+			flagged: false,
+		},
+		{
+			name: "alegacao de sucesso sem mutacao nem teste no trace deve ser sinalizada (HarnessFix)",
+			text: "Feito com sucesso!",
+			evidence: ExecutionEvidence{
+				HasTraceData:   true,
+				HasMutation:    false,
+				RanTestCommand: false,
+			},
+			flagged: true,
+		},
+		{
+			name: "alegacao de sucesso mas com erro de ferramenta nao tratado no trace deve ser sinalizada",
+			text: "Implementado com sucesso.",
+			evidence: ExecutionEvidence{
+				HasTraceData: true,
+				HasMutation:  true,
+				HasToolError: true,
+			},
+			flagged: true,
+		},
+		{
+			name: "falha honesta mesmo com dados de trace nunca deve ser sinalizada",
+			text: "Não consegui fazer a alteração.",
+			evidence: ExecutionEvidence{
+				HasTraceData: true,
+				HasToolError: true,
+			},
+			flagged: false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := ClassifyWithTrace(c.text, c.evidence)
+			if got.Flagged != c.flagged {
+				t.Errorf("ClassifyWithTrace(%q, %+v).Flagged = %v, want %v (reason: %s)", c.text, c.evidence, got.Flagged, c.flagged, got.Reason)
+			}
+		})
+	}
+}
+
