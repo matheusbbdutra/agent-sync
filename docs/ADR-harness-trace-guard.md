@@ -62,13 +62,13 @@ O **turno atual** é definido como a janela entre a última entrada `role=user` 
 
 ### Fase 1 — Extrator de TraceSteps no Módulo Go (`tools/cmd/false-success-guard/`)
 - [x] Adicionar parser de blocos de `tool_use` e `tool_result` no JSONL de transcripts (`Claude Code`, `Antigravity`, `Cursor`).
-- [x] Criar struct de evidência:
+- [x] Criar struct de evidência (`tools/cmd/false-success-guard/detector.go`):
   ```go
   type ExecutionEvidence struct {
-      MutatedFiles   bool
-      RanTestCommand bool
-      LastExitZero   bool
-      HasToolErrors  bool
+      HasTraceData   bool
+      HasMutation    bool // Tool calls like write/edit/patch/file creation
+      RanTestCommand bool // Tool calls executing tests or verification commands
+      HasToolError   bool // Unhandled errors, non-zero exit codes or [TOOL_STATUS: FAILED]
   }
   ```
 - [x] Integrar no `detector.go`: `ClassifyWithTrace(text string, ev ExecutionEvidence) Verdict`.
