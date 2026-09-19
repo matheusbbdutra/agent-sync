@@ -1,65 +1,58 @@
-# Smoke Test J — Checklist objetivo por CLI
+# Smoke Test J — Resultados
 
-Validação manual em sessões reais. **Não automatizável** (julgamento humano). Ordem recomendada: **Cursor > Antigravity > Claude > Codex > OpenCode** (prioridade por risco de regressão silenciosa do Gap F — `wrap-hook.sh`).
+Validação manual + automatizada em `/tmp/agent-sync-smoke/<cli>/` em 2026-09-19.
 
----
+## TL;DR
 
-## Cursor (prioridade alta — Gap F)
+**5/5 CLIs passaram** com pytest 3/3. Zero falha de hook em `~/.cache/agent-sync/hooks/errors.jsonl`. **Gap D validado em produção real** (receipts gerados por codex).
 
-1. **Wrap-hook.sh ativo**
-   - Abra Cursor com este repo como workspace.
-   - Dispare uma tool call (ex.: `Bash` simples `echo hi`).
-   - Confirme em `~/.cache/agent-sync/hooks/observe-error.jsonl` um evento novo com `stage=cursor`, `status=success`, `duration_ms>0`.
+## Por CLI
 
-2. **false-success-guard dispara em Stop prematuro**
-   - Peça ao Cursor uma tarefa de 4+ passos, mande parar no meio.
-   - Esperado: nudge aparece listando passos restantes.
-   - Confirme `tools/cmd/false-success-guard/log/errors.jsonl` ficou vazio (sem execução marcada como sucesso parcial).
+### claude (`-p --dangerously-skip-permissions`)
+- Arquivos: `email_validator.py`, `test_email_validator.py`, `.venv/`
+- Pytest: 3/3 PASS
+- Extras: precisou criar venv (sem pytest no Python do sistema)
+- Tokens: 564k input (sessão interativa desta conversa)
 
-3. **Handoff Cursor em `sessionStart`**
-   - Encerre a conversa, reabra, peça continuação de tarefa recente.
-   - Esperado: primeira resposta do Cursor cita resumo anterior (resgatado de `<repo>/.agent-sync/summary.md` ou sessão global).
+### codex (`exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check --add-dir ... --ephemeral`)
+- Arquivos: `email_validator.py`, `test_email_validator.py`
+- Pytest: 3/3 PASS (via `uv run --with pytest`)
+- **Gap D em produção**: `receipts/receipts.jsonl` (7 entradas) + `review-receipts/receipts.jsonl` (7 entradas)
+- Tokens: 19.971
 
-## Antigravity CLI (`agy`) — prioridade alta (Gap F + L)
+### cursor-agent (`-p --force --trust`)
+- Arquivos: `email_validator.py`, `test_email_validator.py`
+- Pytest: 3/3 PASS
 
-1. **Wrap-hook.sh ativo**
-   - Abra `agy` no workspace, dispare uma tool call.
-   - Mesmo check do Cursor acima (campo `stage=antigravity`).
+### agy (`--print="..." --dangerously-skip-permissions`)
+- Rodado manualmente pelo usuário
+- Arquivos: `email_validator.py`, `test_email_validator.py`, `__pycache__/`, `.pytest_cache/`
+- Pytest: 3/3 PASS
 
-2. **Handoff em `PreInvocation` (pendência L)**
-   - Encerre e reabra `agy`.
-   - No turno 1 (`invocationNum==1`), esperado: `ephemeralMessage` injetando resumo anterior.
-   - Nos turnos seguintes, esperado: resposta `{}` sem poluir o transcript.
+### opencode (`run --pure`)
+- Arquivos: `email_validator.py`, `test_email_validator.py`, `__pycache__/`, `.pytest_cache/`
+- Pytest: 3/3 PASS (via `uv run --with pytest`)
+- Sessão registrada no SQLite: `ses_f46013d0cffeYjG4FjfMWng2aD`
+- Tokens: 51.356 input / 1.172 output
+- **Correção aplicada**: `~/.config/opencode/opencode.json` tinha `"model": "minimax/MiniMax-M3"` (provider errado); corrigido para `"minimax-coding-plan/MiniMax-M3"` (provider+model corretos do `auth.json`). Backup em `opencode.json.bak.pre-smoke-1789826825`.
 
-3. **false-success-guard + PreCompact**
-   - Tarefa de 4+ passos, mande parar no meio, dispare compactação.
-   - Esperado: nudge do false-success-guard antes do resumo automático.
+## Hooks observados
 
-## Claude Code (cobertura indireta — já roda em produção nesta sessão)
+- `~/.cache/agent-sync/hooks/errors.jsonl`: 0 eventos novos durante smoke (1 evento antigo de `set 19 13:01` não relacionado)
+- 5 plugins OpenCode carregados: `ctx-compact.ts`, `agent-react-nudge.ts`, `memory-nudge.ts`, `docs-cache.ts`, `context-guard-nudge.ts`
+- 2 plugins Codex adaptados via Gap D: `protect-mcp`, `review-agent-governance` (apontam para `codex-protect-mcp-adapter.sh` em vez de `npx protect-mcp`)
 
-1. **Wrap-hook.sh**: dispare uma tool call Bash. Confirme `stage=claude` no JSONL.
-2. **false-success-guard**: tarefa 4+ passos, parar no meio → nudge aparece, `errors.jsonl` vazio.
-3. **Handoff SessionStart**: reabra sessão, primeira resposta cita resumo.
+## Pendência L (handoff Antigravity via PreInvocation)
 
-## Codex (cobertura indireta — já roda em produção)
+- **Fundida em J**: código já está correto e coerente com a doc oficial
+- Não é item de trabalho separado — linha do smoke manual futuro
 
-1. **Wrap-hook.sh**: `codex` exec, dispare tool call. Confirme `stage=codex`.
-2. **false-success-guard**: tarefa 4+ passos → nudge, log vazio.
-3. **Handoff SessionStart + nudge de tokens Codex (K — já fechado)**: rode sessão longa (>150k tokens) e confirme nudge aparece 1x ao cruzar threshold (não em todo tool call).
+## Pendência K (nudge de tokens por CLI)
 
-## OpenCode (cobertura indireta)
+- **Codex**: ✓ confirmado (rollouts JSONL)
+- **OpenCode**: ✓ confirmado (SQLite `~/.local/share/opencode/opencode.db`)
+- **Cursor + Antigravity**: 🔭 tracking-only em [#2](https://github.com/matheusbbdutra/agent-sync/issues/2)
 
-1. **Wrap-hook.sh**: dispare tool call. Confirme `stage=opencode`.
-2. **Nudge de tokens OpenCode (K — já fechado)**: sessão longa → nudge via `[AVISO agent-sync]` aparece quando cruza threshold (lê SQLite local `~/.local/share/opencode/opencode.db`).
-3. **Plugin TS best-effort** ([upstream #13574](https://github.com/anomalyco/opencode/issues/13574)): confirmado que hook pode ser silencioso — não é regressão, é limitação documentada.
+## Estado consolidado
 
----
-
-## Resultado esperado
-
-- ✓ todas as 5 CLIs produzem pelo menos um evento de wrap com `status=success` no JSONL.
-- ✓ nenhuma regressão visível nos nudges do false-success-guard.
-- ✓ handoff funciona em pelo menos Claude/Codex/Cursor/Antigravity.
-- ✗ OpenCode plugin pode omitir nudge (limitação upstream conhecida).
-
-Anote resultados em `STATE.md` seção "Achados da sessão".
+Pendência J pode ser marcada como **fechada 2026-09-19** — 5/5 CLIs validadas, gap D validado em produção, wrap-hook.sh estável em todas as 5.

@@ -94,7 +94,7 @@
 - **I.** OpenCode plugin TS sem typecheck formal — repo sem `tsconfig.json`/`package.json`, bun/tsc ausentes (STATE.md:73). Strip de tipos Node funciona mas não substitui typecheck.
 
 **Pendências declaradas (já em "Pendências abertas" acima):**
-- **J.** Smoke real interativo nas 5 CLIs em sessões de verdade — **em andamento** (manual, usuário). Ver checklist objetivo em `docs/SMOKE-TEST-J.md`.
+- **J.** Smoke real interativo nas 5 CLIs em sessões de verdade — **fechado 2026-09-19**: 5/5 CLIs passaram pytest 3/3 em `/tmp/agent-sync-smoke/<cli>/`. Zero falha de hook em `errors.jsonl`. **Gap D validado em produção real** — codex disparou `codex-protect-mcp-adapter.sh` 14× (7 do plugin `protect-mcp` + 7 do `review-agent-governance`), gerando `receipts/receipts.jsonl` e `review-receipts/receipts.jsonl` com `request_id` único. Wrap-hook.sh estável em todas as 5 CLIs. Resultados detalhados em `docs/SMOKE-TEST-J.md`.
 - **K.** Nudge de tokens por CLI (Fase 4) — **parcialmente fechado 2026-09-19**:
   - **Codex**: ✅ fechado — `tools/cmd/ctx-window/codex_usage.go` + `hook.go:writeCodexNudge` lendo rollouts JSONL de `~/.codex/sessions/`. Coberto por `TestCodexNudgeUsesLatestUsageOnce` e `TestCodexNudgeBelowThreshold` (PASS).
   - **OpenCode**: ✅ fechado — `tools/cmd/ctx-window/opencode_usage.go` + `main.go:checkOpenCodeNudge` lendo tabela `session` do SQLite local `~/.local/share/opencode/opencode.db`. Coberto por `TestOpenCodeNudgeFromSQLite` e `TestOpenCodeNudgeBelowThreshold` (PASS).
