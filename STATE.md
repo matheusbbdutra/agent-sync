@@ -74,6 +74,30 @@
 - Erro de ambiente durante verificação: primeiro `gofmt` recebeu caminhos relativos ao diretório errado; corrigido com caminhos do módulo `tools/`. `go test` falhou ao tentar usar o cache Go em `~/.cache/go-build` somente leitura no sandbox; repetido com `GOCACHE=/tmp/agent-sync-go-cache` e passou. Não era falha do código.
 - Regras ativas: não consultar `.env`; não executar LLM automático; não fazer commit sem pedido; preservar alterações pré-existentes em `scripts/delegate-run.sh`, `receipts/`, `review-receipts/` e `docs/ADR-fim-de-turno-hooks.md`.
 
+## Gaps conhecidos — 2026-09-19
+
+**Adjacentes à Issue #1 (janelamento por turno):**
+- **A.** ~~Reasons em `tools/cmd/false-success-guard/detector.go:71,79` dizem `"no turno recente"`; antes da Issue #1 a copy mentia sobre o comportamento, agora é literalmente verdade. Nenhuma ação obrigatória, mas vale cleanup se quiser coerência total.~~ **Fechado 2026-09-19**: copy mantida como está (já é correta após Issue #1; inflar com detalhes do contrato só adicionaria ruído sem ganho).
+- **B.** ~~ADR `docs/ADR-harness-trace-guard.md` seção 2.1 fala de "histórico recente" sem definir contrato de turno. A Issue #1 introduziu heurística (`role=user` com `type=text` reseta `ev`) que não está documentada na ADR.~~ **Fechado 2026-09-19**: subseção 2.3 ("Contrato de Janelamento por Turno") adicionada documentando a heurística + edge case + justificativa. 3 substituições `recente → atual` aplicadas nas seções 2.1 e 2.2.
+- **C.** ~~Edge case da heurística: transcript com `role=user` + `content=[text, tool_result]` misturado reseta `ev` (vê `hasUserText=true`). Provavelmente correto (tool_result nunca vem sem text adjacente num turno real), mas falta teste explícito em `hook_test.go`.~~ **Fechado 2026-09-19**: `TestRunHookResetsOnUserTextMixedWithToolResult` adicionado em `tools/cmd/false-success-guard/hook_test.go` (transcript com `text + tool_result` na mesma entrada, valida que reset dispara no text e descarta o tool_result).
+
+**Transversais (do STATE.md, ainda em aberto):**
+- **D.** `make sync` para propagar correção do adapter `protect-mcp` (STATE.md:161, 169-172) — só documentado, não executado pelo usuário. Verificar se `npx protect-mcp evaluate` retorna `permissionDecision` válido após o adapter.
+- **E.** ~~`TestRunCursorPreCompactHook` (`tools/cmd/ctx-window/hook_test.go:196`) cobre Cursor; equivalente para Antigravity `preinvocation` (`tools/cmd/ctx-window/hook.go:75`) não confirmado na busca rápida.~~ **Refutado em 2026-09-19**: `TestRunAntigravityPreInvocationHook` já existe em `tools/cmd/ctx-window/hook_test.go:209`. Cobertura de Cursor e Antigravity está simétrica.
+- **F.** ~~Observability/events (STATE.md:191-197) ainda como proposta, não implementada nas fases 1-4 (logger JSONL, instrumentação, comando `agent-sync observability`, exportação opcional).~~ **Fechado 2026-09-19 (Fases A+B+C)**:
+  - **Fase A** — `hooks/observe-error.sh` agora atômico via `flock`, campo `version="1"`, campos opcionais `status`/`duration_ms` via env vars; `cmd/agent-sync/observability.go` respeita `AGENT_SYNC_HOOK_LOG` (consistência com writer).
+  - **Fase B** — `hooks/wrap-hook.sh` (novo, ~30 linhas) envelopa 14 hooks .sh de Cursor/Antigravity (7 + 7). Claude/Codex ficam de fora (binário Go direto, sem shell no caminho). Mudança concentrada em `cmd/agent-sync/hooks.go` e `cursor.go` — zero alteração no conteúdo dos `.sh`.
+  - **Fase C** — `cmd/agent-sync -observability` agrega por stage:code/cli/tool + latência p50/p95/max; nova flag `-observability-json` emite relatório estruturado (`observabilityReport` com `by_stage_code`, `by_cli`, `by_tool`, `latency_ms`). **Sem "Taxa de sucesso"** (opção b1, 2026-09-19): instrumentação atual do `wrap-hook.sh` só registra falhas, então taxa seria sempre `0/N` — métrica não-honesta. Writer continua gravando campo `status` no JSONL (custo zero, Go ignora via `json.Unmarshal`) para futura instrumentação que decida logar sucessos também.
+  - **Fase D** (exportação OTel/Prometheus) **não fazer** — sem demanda.
+- **G.** MR-reviewer GitLab v12 testado parcial (STATE.md:215-217), GitHub não testado; publicação idempotente e CI pendentes (`docs/PLANO-AGENTE-ANALISE-MR.md`).
+- **H.** Turso Cloud: memórias antigas sem `project_id` (STATE.md:293) — migração sem atribuição automática para evitar associação incorreta; ferramenta `store_memory` agora exige projeto válido para novas memórias.
+- **I.** OpenCode plugin TS sem typecheck formal — repo sem `tsconfig.json`/`package.json`, bun/tsc ausentes (STATE.md:73). Strip de tipos Node funciona mas não substitui typecheck.
+
+**Pendências declaradas (já em "Pendências abertas" acima):**
+- **J.** Smoke real interativo nas 5 CLIs em sessões de verdade — **em andamento** (manual, usuário).
+- **K.** Nudge de tokens em Cursor/Antigravity/Codex/OpenCode (Fase 4; sem contrato de payload validado nessas CLIs) — **em andamento** (pesquisa de schema por CLI).
+- **L.** Handoff Antigravity via `SessionStart` interno (API sem contrato publicado, achada via símbolos do binário `/usr/bin/agy`) — **em andamento** (validação manual com agy).
+
 ## Pesquisa de equivalência de hooks — 2026-09-18
 
 - Escopo: somente pesquisa em documentação oficial, sem alteração de implementação.
@@ -181,6 +205,7 @@ Sessão encerrando por cota de horas. Este é o resumo definitivo pra quem pegar
 - Nudge (não gate): threshold 15, `AGENT_SYNC_REACT_NUDGE_THRESHOLD`
 - Garantia semântica plena exige camada extra (ex. `stop`/`afterAgentResponse` no Cursor) — não implementada ainda
 - Hook global Cursor = `~/.cursor/hooks.json` (local); Cloud Agents só leem `.cursor/hooks.json` do repo
+- PreCompact do Claude Code (2026-09-18): **sem injeção de contexto** — `additionalContext` não é suportado pelo schema oficial (`anthropics/claude-code#46191` fechada como `not_planned`). Inviável tentar injeção nesse evento; tracking/observabilidade só será adicionado se houver demanda explícita.
 
 ## Próximos passos
 
