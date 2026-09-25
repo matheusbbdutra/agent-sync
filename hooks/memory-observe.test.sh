@@ -190,16 +190,16 @@ scope_high_signal_explicito_filtra() {
   unset AGENT_SYNC_MEMORY_OBSERVE_SCOPE
 }
 
-# Caso 14: SCOPE=invalid -> default silencioso para high-signal
-scope_invalid_default_high_signal() {
+# Caso 14: SCOPE=invalid -> default silencioso para operational
+scope_invalid_default_operational() {
   setup
   export AGENT_SYNC_MEMORY_OBSERVE_SCOPE=foobar
   run_hook '{"session_id":"s","tool_name":"Read","status":"ok"}'
   run_hook '{"session_id":"s","tool_name":"Edit","status":"ok"}'
   local n
   n="$(count_calls)"
-  # Read skipado (default high-signal), Edit gravado
-  if [ "$n" -eq 1 ]; then pass; else fail "SCOPE=foobar (default high-signal): esperava 1 call (Edit only), obtive $n"; fi
+  # Read skipado (default operational), Edit gravado
+  if [ "$n" -eq 1 ]; then pass; else fail "SCOPE=foobar (default operational): esperava 1 call (Edit only), obtive $n"; fi
   unset AGENT_SYNC_MEMORY_OBSERVE_SCOPE
 }
 
@@ -215,6 +215,31 @@ disable_back_compat_equiv_off() {
   unset AGENT_SYNC_MEMORY_OBSERVE_DISABLE
 }
 
+# Caso 16: A-71 - buffer-record recebe flags -source auto-hook -kind action -retention scratch
+buffer_record_recebe_flags_a71() {
+  TMP="$(mktemp -d)"
+  export AGENT_SYNC_MEMORY_BIN="$TMP/memory-mcp"
+  cat > "$AGENT_SYNC_MEMORY_BIN" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "${TMPDIR}/args.log"
+exit 0
+EOF
+  chmod +x "$AGENT_SYNC_MEMORY_BIN"
+  export TMPDIR="$TMP"
+  : > "$TMP/args.log"
+  run_hook '{"session_id":"sess-a71","tool_name":"Edit","status":"ok","command":"test"}'
+  sleep 0.2
+  local args
+  args="$(cat "$TMP/args.log" 2>/dev/null || true)"
+  if echo "$args" | grep -q -- "-source auto-hook" \
+    && echo "$args" | grep -q -- "-kind action" \
+    && echo "$args" | grep -q -- "-retention scratch"; then
+    pass
+  else
+    fail "buffer-record nao recebeu flags A-71 esperadas: $args"
+  fi
+}
+
 printf '\nmemory-observe (A-66 patch b — filtro allowlist high-signal):\n'
 read_pure_skip
 edit_grava
@@ -227,12 +252,13 @@ glob_skip
 notebookread_skip
 status_error_grava_mesmo_read
 
-printf '\nmemory-observe (A-66 patch c — SCOPE + back-compat):\n'
+printf '\nmemory-observe (A-66 patch c / A-71 — SCOPE + back-compat):\n'
 scope_off_skip_total
 scope_all_grava_read
 scope_high_signal_explicito_filtra
-scope_invalid_default_high_signal
+scope_invalid_default_operational
 disable_back_compat_equiv_off
+buffer_record_recebe_flags_a71
 
 printf '\nResultado final: %d PASS, %d FAIL\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ] || exit 1

@@ -7,19 +7,20 @@
 
 set -uo pipefail
 
-# A-66 patch (c): SCOPE generaliza DISABLE=1. Aceita:
+# A-66 patch (c) / A-71: SCOPE generaliza DISABLE=1. Aceita:
 #   off         → sai cedo sem gravar
-#   high-signal → grava so mutacoes + erros (default)
+#   operational → grava ações operacionais (Edit/Write/MultiEdit/NotebookEdit/Bash + erros) (default NOVO A-71)
+#   high-signal → grava só mutações + erros (compatível com A-66)
 #   all         → grava tudo (desliga filtro allowlist em b)
 # Back-compat: AGENT_SYNC_MEMORY_OBSERVE_DISABLE=1 ainda equivale a off.
-OBSERVE_SCOPE="${AGENT_SYNC_MEMORY_OBSERVE_SCOPE:-high-signal}"
+OBSERVE_SCOPE="${AGENT_SYNC_MEMORY_OBSERVE_SCOPE:-operational}"
 if [ "${AGENT_SYNC_MEMORY_OBSERVE_DISABLE:-0}" = "1" ]; then
   OBSERVE_SCOPE="off"
 fi
 case "$OBSERVE_SCOPE" in
   off) exit 0 ;;
-  all|high-signal) : ;;
-  *) OBSERVE_SCOPE="high-signal" ;;
+  all|high-signal|operational) : ;;
+  *) OBSERVE_SCOPE="operational" ;;
 esac
 
 MEM_BIN="${AGENT_SYNC_MEMORY_BIN:-}"
@@ -61,12 +62,12 @@ status="$(printf '%s' "$input" \
   | head -n1 | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/')"
 status="${status:-ok}"
 
-# A-66 patch (b): filtro de alto-sinal. SCOPE=all pula o filtro.
+# A-66 patch (b) / A-71: filtro de alto-sinal / operacional. SCOPE=all pula o filtro.
 # Allowlist alinhada com nudgeIfFilters em internal/hooks/hooks_constants.go:19
 # + Bash (comando shell executado é alto-sinal por intencao/mutacao).
 # Excecao: status!=ok sempre grava, mesmo que tool fora da allowlist
 # (erros sao alto-sinal independente da tool).
-if [ "$OBSERVE_SCOPE" = "high-signal" ]; then
+if [ "$OBSERVE_SCOPE" = "operational" ] || [ "$OBSERVE_SCOPE" = "high-signal" ]; then
   case "$tool_name" in
     Edit|Write|MultiEdit|NotebookEdit|Bash)
       : # allowlist — continua para gravar
@@ -94,12 +95,15 @@ if [ -z "$note" ]; then
   note="executou $tool_name"
 fi
 
-# Disparo em background sem travar o turno
+# Disparo em background sem travar o turno (ADR A-71: source=auto-hook, kind=action, retention=scratch)
 ("$MEM_BIN" buffer-record \
   -session "$session_id" \
   -tool "$tool_name" \
   -status "$status" \
   -note "$note" \
+  -source "auto-hook" \
+  -kind "action" \
+  -retention "scratch" \
   -path "$PWD" >/dev/null 2>&1 || true) &
 
 printf '{}'
