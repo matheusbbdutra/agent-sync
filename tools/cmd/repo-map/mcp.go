@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/matheusdutra/token-tools/internal/repomap"
 )
@@ -90,17 +91,32 @@ func errorResult(msg string) map[string]any {
 	}
 }
 
-func callTool(cacheDir, root string, name string, args json.RawMessage) map[string]any {
+func callTool(cacheDir, root string, name string, args json.RawMessage, telemetryFile string) map[string]any {
+	start := time.Now()
 	cache, err := repomap.Load(cacheDir)
-	if err != nil || cache == nil {
+	cacheHit := err == nil && cache != nil
+	if !cacheHit {
 		// Auto-update inicial se cache ausente
 		var updateErr error
 		cache, _, updateErr = repomap.Update(root, cacheDir)
 		if updateErr != nil {
-			return errorResult(fmt.Sprintf("cache ausente e falha no update: %v", updateErr))
+			res := errorResult(fmt.Sprintf("cache ausente e falha no update: %v", updateErr))
+			if telemetryFile != "" {
+				recordTelemetry(telemetryFile, GraphTelemetryEntry{
+					SessionID:        detectSessionID(),
+					CLI:              detectCLI(),
+					ToolName:         name,
+					ArgsPathOrSymbol: extractTarget(name, args),
+					DurationMs:       time.Since(start).Milliseconds(),
+					OutputBytes:      0,
+					CacheHit:         false,
+				})
+			}
+			return res
 		}
 	}
 
+	var res map[string]any
 	switch name {
 	case "get_file_impact":
 		var in struct {
@@ -108,17 +124,19 @@ func callTool(cacheDir, root string, name string, args json.RawMessage) map[stri
 			MaxTokens int    `json:"max_tokens"`
 		}
 		if err := json.Unmarshal(args, &in); err != nil || strings.TrimSpace(in.Path) == "" {
-			return errorResult("parâmetro 'path' é obrigatório")
+			res = errorResult("parâmetro 'path' é obrigatório")
+			break
 		}
 		out := repomap.Brief(cache, in.Path, in.MaxTokens)
-		return textResult(out)
+		res = textResult(out)
 
 	case "get_symbol_callers":
 		var in struct {
 			Symbol string `json:"symbol"`
 		}
 		if err := json.Unmarshal(args, &in); err != nil || strings.TrimSpace(in.Symbol) == "" {
-			return errorResult("parâmetro 'symbol' é obrigatório")
+			res = errorResult("parâmetro 'symbol' é obrigatório")
+			break
 		}
 		callers := repomap.FindSymbolCallers(cache, in.Symbol)
 		data, err := json.MarshalIndent(map[string]any{
@@ -127,9 +145,10 @@ func callTool(cacheDir, root string, name string, args json.RawMessage) map[stri
 			"count":   len(callers),
 		}, "", "  ")
 		if err != nil {
-			return errorResult(err.Error())
+			res = errorResult(err.Error())
+			break
 		}
-		return textResult(string(data))
+		res = textResult(string(data))
 
 	case "repo_summary":
 		var in struct {
@@ -137,14 +156,38 @@ func callTool(cacheDir, root string, name string, args json.RawMessage) map[stri
 		}
 		_ = json.Unmarshal(args, &in)
 		out := repomap.Summary(cache, in.MaxTokens)
-		return textResult(out)
+		res = textResult(out)
 
 	default:
-		return errorResult("ferramenta desconhecida: " + name)
+		res = errorResult("ferramenta desconhecida: " + name)
 	}
+
+	if telemetryFile != "" {
+		outBytes := 0
+		if contentList, ok := res["content"].([]map[string]any); ok && len(contentList) > 0 {
+			if txt, ok := contentList[0]["text"].(string); ok {
+				outBytes = len(txt)
+			}
+		}
+		recordTelemetry(telemetryFile, GraphTelemetryEntry{
+			SessionID:        detectSessionID(),
+			CLI:              detectCLI(),
+			ToolName:         name,
+			ArgsPathOrSymbol: extractTarget(name, args),
+			DurationMs:       time.Since(start).Milliseconds(),
+			OutputBytes:      outBytes,
+			CacheHit:         cacheHit,
+		})
+	}
+
+	return res
 }
 
-func handle(req rpcRequest, cacheDir, root string) (rpcResponse, bool) {
+func handle(req rpcRequest, cacheDir, root string, telemetryFile ...string) (rpcResponse, bool) {
+	var tFile string
+	if len(telemetryFile) > 0 {
+		tFile = telemetryFile[0]
+	}
 	switch req.Method {
 	case "initialize":
 		return rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{
@@ -170,7 +213,7 @@ func handle(req rpcRequest, cacheDir, root string) (rpcResponse, bool) {
 		if err := json.Unmarshal(req.Params, &params); err != nil {
 			return rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32602, Message: "params inválidos"}}, true
 		}
-		return rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: callTool(cacheDir, root, params.Name, params.Arguments)}, true
+		return rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: callTool(cacheDir, root, params.Name, params.Arguments, tFile)}, true
 
 	default:
 		if len(req.ID) == 0 {
@@ -182,6 +225,10 @@ func handle(req rpcRequest, cacheDir, root string) (rpcResponse, bool) {
 
 func runMCP(cfg *config) int {
 	fmt.Fprintf(os.Stderr, "repo-map mcp: servindo cache em %s\n", cfg.cacheDir)
+	telemetryFile := resolveTelemetryFile(cfg.telemetryFile, cfg.cacheDir)
+	if telemetryFile != "" {
+		fmt.Fprintf(os.Stderr, "repo-map mcp: telemetria ativa em %s\n", telemetryFile)
+	}
 
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
@@ -200,7 +247,7 @@ func runMCP(cfg *config) int {
 			continue
 		}
 
-		resp, ok := handle(req, cfg.cacheDir, cfg.root)
+		resp, ok := handle(req, cfg.cacheDir, cfg.root, telemetryFile)
 		if !ok {
 			continue
 		}
