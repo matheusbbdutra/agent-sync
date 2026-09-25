@@ -1,6 +1,6 @@
 # ADR — Matriz de escopos de memória (4 eixos)
 
-- **Status**: Proposto
+- **Status**: Aceito
 - **Data**: 2026-09-25
 - **Decisor**: agente + usuário (sessão de investigação empírica de overhead de hooks A-71)
 - **Fonte**: investigação empírica de overhead de hooks (A-71, 2026-09-25, bench N=200), D-86 (fontes de lixo memory-mcp), D-87 (A-66 fix high-signal), D-88 (A-67 prune + stats), D-89 (A-68 auto-prune)
@@ -164,14 +164,14 @@ Sequência de commits granulares (1 commit por peça, ordem importa):
 
 | # | Critério | Estado |
 |---|---|---|
-| 1 | Schema `memory-mcp` aceita 4 eixos com back-compat (campos opcionais) | ⏳ |
-| 2 | Comando `agent-sync memory add --kind=` funciona para todas as kinds | ⏳ |
-| 3 | 5 hooks wirados declaram `source=auto-hook` + `kind` correto | ⏳ |
-| 4 | Default `OBSERVE_SCOPE=operational` filtra `kind ∈ {action, guard_nudge, state_render}` | ⏳ |
-| 5 | `high-signal` e `all` continuam funcionando (back-compat) | ⏳ |
-| 6 | `memory-mcp stats` mostra >50% das scratch com `kind` declarado (vs 0% hoje) | ⏳ |
+| 1 | Schema `memory-mcp` aceita 4 eixos com back-compat (campos opcionais) | ✅ |
+| 2 | Comando `agent-sync memory add --kind=` funciona para todas as kinds | ✅ |
+| 3 | 5 hooks wirados declaram `source=auto-hook` + `kind` correto | ✅ |
+| 4 | Default `OBSERVE_SCOPE=operational` filtra `kind ∈ {action, guard_nudge, state_render}` | ✅ |
+| 5 | `high-signal` e `all` continuam funcionando (back-compat) | ✅ |
+| 6 | `memory-mcp stats` mostra >50% das scratch com `kind` declarado (vs 0% hoje) | ✅ |
 
-**Critérios de aceitação**: 6/6 + smoke DB real com stats antes/depois documentado.
+**Critérios de aceitação**: 6/6 concluídos + smoke DB real com stats antes/depois documentado.
 
 ## Referências
 
