@@ -8,6 +8,7 @@ import (
 	"github.com/matheusdutra/agent-sync/internal/budget"
 	"github.com/matheusdutra/agent-sync/internal/doctor"
 	"github.com/matheusdutra/agent-sync/internal/event"
+	"github.com/matheusdutra/agent-sync/internal/graph"
 	"github.com/matheusdutra/agent-sync/internal/memory"
 	"github.com/matheusdutra/agent-sync/internal/skills"
 	"github.com/matheusdutra/agent-sync/internal/state"
@@ -29,6 +30,8 @@ func main() {
 			err = skills.RunCommand(os.Args[2:])
 		case "doctor":
 			err = doctor.RunCommand(os.Args[2:])
+		case "graph":
+			err = graph.RunCommand(os.Args[2:])
 		default:
 			err = apply.RunCommand(os.Args[1:])
 		}
