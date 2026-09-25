@@ -78,7 +78,7 @@ if [ "$((count % MIRROR_THRESHOLD))" -eq 0 ]; then
     printf '%s\n' \
       '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
       '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
-      "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"record_event\",\"arguments\":{\"agent\":\"claude-code\",\"kind\":\"guard_nudge\",\"note\":\"ctx-window-nudge #$count ($reason)\",\"session_id\":\"$session_id\"}}}" \
+      "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"record_event\",\"arguments\":{\"agent\":\"claude-code\",\"kind\":\"guard_nudge\",\"note\":\"ctx-window-nudge #$count ($reason)\",\"session_id\":\"$session_id\",\"source\":\"auto-hook\",\"retention\":\"scratch\",\"scratch\":true}}}" \
       | memory-mcp -db "${AGENT_SYNC_MEMORY_DB:-${XDG_CACHE_HOME:-$HOME/.cache}/agent-sync/memory.db}" >/dev/null 2>&1 || true
   fi
 fi

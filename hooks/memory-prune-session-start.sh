@@ -67,6 +67,12 @@ if [ -n "$STATS_JSON" ]; then
     pct=$(( (scratch * 100) / total ))
     if [ "$pct" -ge "$STALE_PCT" ]; then
       printf '[agent-sync memory-prune] WARNING: scratch=%d%% (%d/%d) >= threshold=%d%% - gc best-effort em background\n' "$pct" "$scratch" "$total" "$STALE_PCT" >&2
+      # A-71: registra alerta como evento state_render efêmero
+      printf '%s\n' \
+        '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+        '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+        "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"record_event\",\"arguments\":{\"agent\":\"agent-sync\",\"kind\":\"state_render\",\"note\":\"memory-prune-session-start alerta staleness: scratch=${pct}% (${scratch}/${total})\",\"session_id\":\"$SESSION_ID\",\"source\":\"auto-hook\",\"retention\":\"scratch\",\"scratch\":true}}}" \
+        | "$MEM_BIN" -db "${AGENT_SYNC_MEMORY_DB:-${XDG_CACHE_HOME:-$HOME/.cache}/agent-sync/memory.db}" >/dev/null 2>&1 || true
     fi
   fi
 fi
