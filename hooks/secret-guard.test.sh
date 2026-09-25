@@ -109,3 +109,186 @@ post_github_in_output
 
 printf '\nResultado: %d PASS, %d FAIL\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ] || exit 1
+
+# === Camada 1: deny-list de path (A-63) ===
+# Adicionados em 2026-09-25 quando principios foram reposicionados:
+# deny-list de path e defesa primaria; regex de literal e cinto+suspensorio.
+
+# Caso PreToolUse 4: Read de .env -> deny (path na deny-list).
+pre_read_dotenv() {
+  local input='{"tool_name":"Read","tool_input":{"file_path":"/home/u/proj/.env"}}'
+  local out
+  out="$(printf '%s' "$input" | bash "$PRE")"
+  if printf '%s' "$out" | grep -q '"permissionDecision":"deny"' && printf '%s' "$out" | grep -q 'path denylist'; then
+    pass
+  else
+    fail "esperava permissionDecision deny + 'path denylist', obtive: $out"
+  fi
+}
+
+# Caso PreToolUse 5: Read de ~/.aws/credentials -> deny.
+pre_read_aws_credentials() {
+  local input='{"tool_name":"Read","tool_input":{"file_path":"/home/u/.aws/credentials"}}'
+  local out
+  out="$(printf '%s' "$input" | bash "$PRE")"
+  if printf '%s' "$out" | grep -q '"permissionDecision":"deny"' && printf '%s' "$out" | grep -q '/.aws'; then
+    pass
+  else
+    fail "esperava deny + match '/.aws', obtive: $out"
+  fi
+}
+
+# Caso PreToolUse 6: Read de ~/.ssh/id_rsa -> deny.
+pre_read_ssh_id() {
+  local input='{"tool_name":"Read","tool_input":{"file_path":"/home/u/.ssh/id_rsa"}}'
+  local out
+  out="$(printf '%s' "$input" | bash "$PRE")"
+  if printf '%s' "$out" | grep -q '"permissionDecision":"deny"' && printf '%s' "$out" | grep -q '/.ssh'; then
+    pass
+  else
+    fail "esperava deny + match '/.ssh', obtive: $out"
+  fi
+}
+
+# Caso PreToolUse 7: Read de ~/.aws (diretorio sem trailing /) -> deny.
+pre_read_aws_dir() {
+  local input='{"tool_name":"Read","tool_input":{"file_path":"/home/u/.aws"}}'
+  local out
+  out="$(printf '%s' "$input" | bash "$PRE")"
+  if printf '%s' "$out" | grep -q '"permissionDecision":"deny"'; then
+    pass
+  else
+    fail "esperava deny para ~/.aws (dir sem /), obtive: $out"
+  fi
+}
+
+# Caso PreToolUse 8: Bash cat ~/.zshrc -> deny.
+pre_bash_cat_zshrc() {
+  local input='{"tool_name":"Bash","tool_input":{"command":"cat ~/.zshrc"}}'
+  local out
+  out="$(printf '%s' "$input" | bash "$PRE")"
+  if printf '%s' "$out" | grep -q '"permissionDecision":"deny"' && printf '%s' "$out" | grep -q '/.zshrc'; then
+    pass
+  else
+    fail "esperava deny + match '/.zshrc', obtive: $out"
+  fi
+}
+
+# Caso PreToolUse 9: Edit de .pem -> deny.
+pre_edit_pem() {
+  local input='{"tool_name":"Edit","tool_input":{"file_path":"/tmp/server.pem"}}'
+  local out
+  out="$(printf '%s' "$input" | bash "$PRE")"
+  if printf '%s' "$out" | grep -q '"permissionDecision":"deny"' && printf '%s' "$out" | grep -q '\.pem'; then
+    pass
+  else
+    fail "esperava deny + match '.pem', obtive: $out"
+  fi
+}
+
+# Caso PreToolUse 10: Grep cwd=~/.aws -> deny.
+pre_grep_aws_dir() {
+  local input='{"tool_name":"Grep","tool_input":{"path":"/home/u/.aws","pattern":"x"}}'
+  local out
+  out="$(printf '%s' "$input" | bash "$PRE")"
+  if printf '%s' "$out" | grep -q '"permissionDecision":"deny"'; then
+    pass
+  else
+    fail "esperava deny para Grep cwd=~/.aws, obtive: $out"
+  fi
+}
+
+# Caso PreToolUse 11: Glob cwd=/proj/secrets -> deny.
+pre_glob_secrets() {
+  local input='{"tool_name":"Glob","tool_input":{"path":"/proj/secrets","pattern":"*"}}'
+  local out
+  out="$(printf '%s' "$input" | bash "$PRE")"
+  if printf '%s' "$out" | grep -q '"permissionDecision":"deny"'; then
+    pass
+  else
+    fail "esperava deny para Glob cwd=/proj/secrets, obtive: $out"
+  fi
+}
+
+# Caso PreToolUse 12: Read /tmp/file.txt (legit) -> allow.
+pre_read_legit() {
+  local input='{"tool_name":"Read","tool_input":{"file_path":"/tmp/file.txt"}}'
+  local out
+  out="$(printf '%s' "$input" | bash "$PRE")"
+  if [ "$out" = "{}" ]; then pass; else fail "esperava '{}' para path legit, obtive: $out"; fi
+}
+
+# Caso PreToolUse 13: Read ~/.aws/config (outro arquivo da deny-list) -> deny.
+pre_read_aws_config() {
+  local input='{"tool_name":"Read","tool_input":{"file_path":"/home/u/.aws/config"}}'
+  local out
+  out="$(printf '%s' "$input" | bash "$PRE")"
+  if printf '%s' "$out" | grep -q '"permissionDecision":"deny"'; then
+    pass
+  else
+    fail "esperava deny para ~/.aws/config, obtive: $out"
+  fi
+}
+
+# Caso PreToolUse 14: STDOUT termina com \n (anti 'invalid JSON output').
+# Harness de Claude/Codex parseia stdout como JSON linha-unica;
+# falta de \n no final gera 'hook returned invalid pre-tool-use JSON output'.
+# Validacao: captura stdout em arquivo temporario (command substitution
+# strip-newline-oficial), depois compara bytes com/sem \n via wc -c.
+pre_newline_check() {
+  local input='{"tool_name":"Bash","tool_input":{"command":"ls"}}'
+  local tmpf="$(mktemp)"
+  printf '%s' "$input" | bash "$PRE" > "$tmpf"
+  local with_nl without_nl
+  with_nl="$(wc -c < "$tmpf" | tr -d ' ')"
+  without_nl="$(tr -d '\n' < "$tmpf" | wc -c | tr -d ' ')"
+  rm -f "$tmpf"
+  if [ "$with_nl" -gt "$without_nl" ]; then
+    pass
+  else
+    fail "STDOUT nao termina com newline (got bytes=$with_nl, no-newline=$without_nl)"
+  fi
+}
+
+# Caso PostToolUse 4: Read de arquivo na deny-list -> redacao total.
+post_read_denied_redact_total() {
+  local input='{"tool_name":"Read","tool_input":{"file_path":"/proj/.env"},"tool_output":"DATABASE_URL=postgres://u:p@h/db"}'
+  local out
+  out="$(printf '%s' "$input" | bash "$POST")"
+  if printf '%s' "$out" | grep -q 'REDACTED:FILE_IN_DENYLIST' && ! printf '%s' "$out" | grep -q 'postgres://'; then
+    pass
+  else
+    fail "esperava redacao total + sem postgres://, obtive: $out"
+  fi
+}
+
+# Caso PostToolUse 5: Read de arquivo legit com JWT -> redacao JWT (Camada 2).
+post_read_legit_jwt() {
+  local jwt='eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature123'
+  local input
+  input="$(printf '{"tool_name":"Read","tool_input":{"file_path":"/proj/main.go"},"tool_output":"const T = %s"}' "$jwt")"
+  local out
+  out="$(printf '%s' "$input" | bash "$POST")"
+  if printf '%s' "$out" | grep -q 'REDACTED:JWT' && ! printf '%s' "$out" | grep -q "$jwt"; then
+    pass
+  else
+    fail "esperava REDACTED:JWT sem JWT original, obtive: $out"
+  fi
+}
+
+printf '\nPreToolUse (Camada 1 path-deny):\n'
+pre_read_dotenv
+pre_read_aws_credentials
+pre_read_ssh_id
+pre_read_aws_dir
+pre_bash_cat_zshrc
+pre_edit_pem
+pre_grep_aws_dir
+pre_glob_secrets
+pre_read_legit
+pre_read_aws_config
+pre_newline_check
+
+printf '\nPostToolUse (Camada 1 redacao total + Camada 2):\n'
+post_read_denied_redact_total
+post_read_legit_jwt
