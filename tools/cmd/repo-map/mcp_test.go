@@ -109,3 +109,67 @@ func TestMCPToolsListAndCall(t *testing.T) {
 		t.Errorf("esperava Top hubs em repo_summary: %s", sumContent)
 	}
 }
+
+func TestMCPTelemetryRecord(t *testing.T) {
+	dir := t.TempDir()
+	cacheDir := filepath.Join(dir, ".agent-sync", "cache")
+	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	telemetryFile := filepath.Join(dir, "telemetry.jsonl")
+
+	srcFile := filepath.Join(dir, "calc.go")
+	if err := os.WriteFile(srcFile, []byte("package calc\n\nfunc Add(a, b int) int { return a + b }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("AGENT_SYNC_AGENT_KIND", "claude")
+	t.Setenv("AGENT_SYNC_SESSION_ID", "sess-test-123")
+
+	callArgs, _ := json.Marshal(map[string]any{"path": "calc.go"})
+	req := rpcRequest{
+		JSONRPC: "2.0",
+		ID:      json.RawMessage(`10`),
+		Method:  "tools/call",
+		Params:  json.RawMessage(`{"name": "get_file_impact", "arguments": ` + string(callArgs) + `}`),
+	}
+
+	resp, ok := handle(req, cacheDir, dir, telemetryFile)
+	if !ok || resp.Error != nil {
+		t.Fatalf("handle falhou: %+v", resp)
+	}
+
+	data, err := os.ReadFile(telemetryFile)
+	if err != nil {
+		t.Fatalf("arquivo de telemetria não foi gerado: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("esperava 1 linha de telemetria, obteve %d", len(lines))
+	}
+
+	var entry GraphTelemetryEntry
+	if err := json.Unmarshal([]byte(lines[0]), &entry); err != nil {
+		t.Fatalf("JSON inválido na telemetria: %v", err)
+	}
+
+	if entry.CLI != "claude" {
+		t.Errorf("CLI esperado claude, obteve %q", entry.CLI)
+	}
+	if entry.SessionID != "sess-test-123" {
+		t.Errorf("SessionID esperado sess-test-123, obteve %q", entry.SessionID)
+	}
+	if entry.ToolName != "get_file_impact" {
+		t.Errorf("ToolName esperado get_file_impact, obteve %q", entry.ToolName)
+	}
+	if entry.ArgsPathOrSymbol != "calc.go" {
+		t.Errorf("ArgsPathOrSymbol esperado calc.go, obteve %q", entry.ArgsPathOrSymbol)
+	}
+	if entry.OutputBytes <= 0 {
+		t.Errorf("esperava output_bytes > 0, obteve %d", entry.OutputBytes)
+	}
+	if entry.TS == "" {
+		t.Errorf("TS esperado não-vazio")
+	}
+}

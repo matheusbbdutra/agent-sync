@@ -73,6 +73,7 @@ func TestLoadRemoteConfigTokenEnvVar(t *testing.T) {
 
 func TestConfigCreatedAndLoaded(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("AGENT_SYNC_TURSO_TOKEN", "")
 	path, err := EnsureConfig()
 	if err != nil {
 		t.Fatal(err)
