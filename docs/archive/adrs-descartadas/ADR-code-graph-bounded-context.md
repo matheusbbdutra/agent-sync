@@ -1,5 +1,7 @@
 # ADR: Code Graph Bounded e Contexto Estruturado Pré-Edição (Cartographer / Graphify)
 
+> ⚠️ **MOVIDO PARA ARCHIVE em 2026-09-25** (D-101). Esta ADR foi **Descartada** por D-64 (2026-09-23) e **subsumida** por D-49/D-53/D-54/D-57 que entregaram `repo-map --mcp` (servidor MCP wirado em 5 CLIs). **Não implementar a partir deste arquivo** — usar docs/ADR-memory-scope-matrix.md e o material em `tools/cmd/repo-map/` como fonte atual.
+
 - **Status**: Descartado (subsumido por D-49/D-53/D-54/D-57; D-64 em 2026-09-23)
 - **Data**: 2026-09-23
 - **Decisor**: Matheus Dutra
