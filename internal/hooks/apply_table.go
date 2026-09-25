@@ -63,6 +63,13 @@ var standardHooks = []hookSpec{
 	{name: "opencode-docs-cache", fn: syncOpenCodeDocsCachePlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetail},
 	{name: "opencode-repo-map-warmup", fn: syncOpenCodeRepoMapWarmupPlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetail},
 	{name: "opencode-memory-pipeline", fn: syncOpenCodeMemoryPipelinePlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetail},
+	// Secret guard cross-CLI (A-63 / ADR-secret-guard-cross-cli.md). Defesa
+	// em 2 camadas: deny-list de path (primario) + regex de literal nos args
+	// (secundario). Wirar PreToolUse + PostToolUse em Claude Code + Codex
+	// (formato padrao). Antigravity, Cursor e OpenCode ficam para A-64+
+	// (matriz 5xN do ADR §2: 1 aceito impossivel + 2 gaps).
+	{name: "secret-guard-pretooluse", fn: syncSecretGuardPreToolUseHook, agentKinds: []string{"claude", "codex"}, detail: settingsPathDetail},
+	{name: "secret-guard-posttooluse", fn: syncSecretGuardPostToolUseHook, agentKinds: []string{"claude", "codex"}, detail: settingsPathDetail},
 	// Observação e consolidação contínua de memória (A-39 / ADR-automated-memory-observation-pipeline).
 	{name: "memory-observe", fn: syncMemoryObserveHook, detail: settingsPathDetail},
 	{name: "memory-consolidate", fn: syncMemoryConsolidateHook, detail: settingsPathDetail},

@@ -47,4 +47,11 @@ const (
 	tokenNudgeHookName           = "agent-sync-token-nudge"
 	memoryObserveHookName        = "agent-sync-memory-observe"
 	memoryConsolidateHookName    = "agent-sync-memory-consolidate"
+	secretGuardHookName          = "agent-sync-secret-guard"
+	// secret-guard usa 2 wiramentos distintos (Pre + Post) com hookNames
+	// diferentes para evitar que a migracao automatica do
+	// syncHookCommandAtEvent (que limpa wiramentos orfaos do mesmo
+	// hookName em outros eventos) apague um dos dois.
+	secretGuardPreToolUseHookName  = "agent-sync-secret-guard-pretooluse"
+	secretGuardPostToolUseHookName = "agent-sync-secret-guard-posttooluse"
 )
