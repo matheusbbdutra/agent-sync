@@ -1,0 +1,122 @@
+{
+  "id": "S-0.2",
+  "title": "Reavaliação gaps Trilha C + briefing A-28 + catalogação ai-memory (akitaonrails)",
+  "status": "done",
+  "starts": "2026-09-24",
+  "ends": "2026-09-24",
+  "scope": "Reunir em uma Sprint: (1) os 4 itens A-23/A-24/A-25/A-28 que S-0.1 catalogou mas não atacou; (2) 3 itens A-51/A-52/A-53 inspirados na análise do ai-memory (akitaonrails) feita em 2026-09-24; (3) 8 itens A-54..A-61 = tools adicionais do ai-memory que valem replicar. Em 2026-09-24 (ses_f2b646cd), usuário expandiu o escopo para incluir implementação das Camadas 1-3: A-52 (claim-once subcommand Go), A-56/A-57/A-60 (shins MCP finos sobre Get/List/Delete), A-54 (query RRF). Camada 4 (A-58/A-59/A-61) e A-53 seguem DEFERIDOS até S-0.3 — A-53 reavaliado sob evidência nova em docs/adr-staging/ADR-A53-tier-aging-revisit.md (4 gatilhos de reabertura documentados). Total: 15 itens em scope; decisão/documentação para itens que continuam Proposta, implementação para itens movidos a Refinamento.",
+  "items": [
+    {
+      "ref": "A-23",
+      "phase": "Final",
+      "verdict": "Mantida",
+      "note": "C-3 Antigravity tokens via PreInvocation — gap 🟡 wirado em D-32. Reavaliação 2026-09-24 (ses_f2c3cbf5fffeG2uu6hbJJFamFK-resumed): docs Antigravity CLI redirecionam para /docs/getting-started?tab=cli; sub-URLs (/docs/cli/hooks, /docs/cli/hooks/preInvocation) retornam 404 — payload fields nao documentado em URL publica (verificado via curl -I, 6 URLs testadas). Heurística de transcript (parse de transcript_path JSONL com tokens_in/tokens_out + fallback 200k) funciona mas não foi smoked dedicada cross-CLI cross-Wire em runtime real. **Veredito Mantida 🟡**: wirar atual (hooks/token-nudge.check.sh em PreInvocation) é suficiente; sem smoke real porque: (a) docs nao expõem contrato de payload, (b) heurística validada em D-32 contra payload codex (com transcript mockado), simetria Claude/Codex sustenta confiança. Reabrir somente se usuario reportar anomalia ou Antigravity publicar docs de PreInvocation payload. Não-escopo: criar sub-agent `frontend-developer` NAO substitui isto (gap distinto)."
+    },
+    {
+      "ref": "A-24",
+      "phase": "Final",
+      "verdict": "Mantida",
+      "note": "C-3 Cursor tokens via heurística de transcript — gap 🟡 como rede-de-segurança (D-32). Reavaliação 2026-09-24 (ses_f2c3cbf5fffeG2uu6hbJJFamFK-resumed): feature request Cursor forum #147216 (cursor-hooks-token-usage-support) tem 9 posts; última reply do staff (@deanrie) em 2026-09-10 — literal: 'nothing has changed since June... Token usage metadata input and output counts still isn’t included in hook payloads... no promised timeline'. Status: tracking, sem ETA. **Veredito Mantida 🟡**: heurística transcript continua sendo única opção. Trigger de reavaliação: (a) staff Cursor responder com commit público, ou (b) Cursor changelog mencionar 'token metadata in hooks' ou 'usage payloads'. Próxima sondagem recomendada: 2026-10-24 (30 dias) ou após changelog relevante."
+    },
+    {
+      "ref": "A-25",
+      "phase": "Final",
+      "verdict": "Mantida",
+      "note": "C-1 Cursor PreCompact ⛔ — gap aceito em D-28 (sem block nativo). Reavaliação 2026-09-24 (ses_f2c3cbf5fffeG2uu6hbJJFamFK-resumed): 4 artigos do changelog Cursor ago-set 2026 verificados via grep (projects 2026-09-10, rollouts-and-security-reviewer 2026-09-23, self-hosted-machines 2026-08-27, start-from-scratch 2026-08-19) — NENHUM menciona hook block nativo, beforeCompact, PreCompact, stop hook block, ou context metadata. **Veredito Mantida ⛔**: gap continua aceito. Trigger de reavaliação: changelog Cursor mencionar 'hook block', 'beforeCompact', 'PreCompact stop', ou equivalente. Próxima sondagem: 2026-10-24 (30 dias) ou após release Cursor com menção a hook block. ADR-precompact-snapshot-cross-cli.md Decisao 4 (C-1 Cursor ⛔) permanece válida."
+    },
+    {
+      "ref": "A-28",
+      "phase": "Final",
+      "verdict": "Mantida",
+      "note": "Briefing de nova sessão — **progresso parcial em 2026-09-24** (ses_f2c3cbf5fffeG2uu6hbJJFamFK-resumed, wrap-up parcial): 2 de 4 sub-itens atacados nesta sessão. **Sub-item (ii) DONE**: sincronização README.pt-BR.md entregue em commit `4365eab` (Skills section 39+12=51, env vars expandidas 4 colunas, Cursor specifics com caveat Cloud Agents + nota Context7 não-offline). **Sub-item (iii) DONE**: agente `frontend-developer` criado em commit `733f5da` (70 linhas, escopo distinto de `frontend-ui-designer` — implementador vs auditor). **Sub-itens pendentes**: (i) SMOKE-TEST-U — smoke real via endpoint HTTP `/api/session/{id}/compact` (A-22/D-38 fechou probe, falta runtime real); (iv) livre escolha do usuário. **Veredito Mantida**: briefing continua ativo (i e iv pendentes); nota acima documenta progresso parcial. **Decisão taxonômica**: não introduzir verdict 'Parcial' (nunca usado em S-0.1/S-0.2; user escolheu 'Mantida' para preservar taxonomia estável). Sub-itens atacados (ii, iii) já viraram entregas próprias — não recriar como A-N+ retroativos."
+    },
+    {
+      "ref": "A-51",
+      "phase": "Final",
+      "verdict": "Aceita",
+      "note": "Memory Briefing estruturado entregue em 2026-09-24 (ses_f2c3cbf5fffeG2uu6hbJJFamFK-resumed, Entrega 5 Trilha A, commit 5432b05). Subcommand `agent-sync state briefing` (~150 linhas em internal/state/render.go). 4 secoes no JSON output (sem -json flag, sem -limit): (1) events_recent: ultimas 10 SessionEvent via event.ReadEvents; (2) next_action: {id, title, status} via state.NextAction shim (model.go:394) ou null; (3) tasks_pending: primeiras 10 com status='pending' do session-state.json; (4) errors_recent: ultimas 10 entries de ~/.cache/agent-sync/hooks/errors.jsonl. **Decisao arquitetural**: 'briefing' e CASE dentro de internal/state/render.go (RunCommand), NAO pacote novo internal/briefing/ (validado com usuario). **Helpers duplicados de internal/apply/observability.go** (~30 linhas): hookErrorEvent struct, resolveHookLogPath(), readHookEvents() — zero acoplamento entre pacotes (D-47/A-36 package-by-feature). **Validacao empirica**: go build/vet/test 13/13 verde; make install ok; agent-sync state briefing retorna JSON valido com 4 secoes (events_recent=1, next_action=A-20, tasks_pending=10, errors_recent=10). **Limites fixos 10/10/10/10** (sem flag -limit — preferencia do usuario). **Wrap-up pendente**: D-79 + status pending→done em session-state.json."
+    },
+    {
+      "ref": "A-52",
+      "phase": "Final",
+      "verdict": "Aceita",
+      "note": "Subcommand Go `agent-sync state claim <A-N>` + `agent-sync state release <A-N>` entregue em 2026-09-24 (ses_f2b646cd, S-0.2 Camada 2, commit eb17a4a). Lockless (D-2): campos claimed_by/claimed_at direto em .agent-sync/session-state.json, sem lockfile cross-process. Decisao de UX: 4 arquivos — internal/state/claim.go (171L: runStateClaim/runStateRelease/claimTask/releaseTask/handoffTimeout/isExpired) + internal/state/model.go (+ClaimedBy/+ClaimedAt no SessionTask) + internal/state/render.go (+case claim/+case release no RunCommand + help text) + tools/jsonschema/schemas/session-state.json (+task.claimed_by/+task.claimed_at). **Decisao**: claim.go separado em internal/state/ (D-47 package-by-feature, escolha do user 2026-09-24). **Decisao**: WriteSessionState recebe VALOR s SessionState (NÃO *SessionState) — model.go:185. **Decisao**: schema embedded bumpado junto (senao quebra 8 testes do package — licao aprendida em ses_f2b646cd). **Validacao empirica**: go test ./internal/state/... -count=1 ok 0.816s (30+ testes, sem regressao); TestStateClaim (4 cenarios) + TestStateRelease (4 cenarios) verdes; smoke binario real: `agent-sync state claim A-20 -by smoke-ses...` + release (cycle fechado). **Timeout**: AGENT_SYNC_HANDOFF_TIMEOUT env var (default 1h). Promovida Refinamento→Final:Aceita em 2026-09-24 (ses_f2b12742) após wrap-up de S-0.2."
+    },
+    {
+      "ref": "A-53",
+      "phase": "Proposta",
+      "verdict": null,
+      "note": "Memory tier aging (Working/Episodic/Semantic/Procedural). Origem: ai-memory define 4 tiers com decay multi-curva (lambda por tier + access reinforcement + half-life per tier). Hoje `.agent-sync/session-event.jsonl` retém eventos sem aging (só rotação 10MB single-rotation). Proposta: adicionar campo `tier` (enum working|episodic|semantic|procedural) no `SessionEvent.kind` ou em campo separado; implementar decay policy em `internal/event/`. **Reavaliação 2026-09-24 (ses_f2b646cd)**: usuário escolheu A4 = ADR curto + manter DEFERIDO. ADR em `docs/adr-staging/ADR-A53-tier-aging-revisit.md` documenta (a) que risco real era menor que D-73 pintou (JSONL append-only + campo opcional = zero migration truncating, Memory.AccessedAt+Touch+PruneScratch cobrem 70% da infra); (b) 3 decisões em aberto (B/C/D) que precisam resposta antes de implementar; (c) 4 gatilhos de reabertura para S-0.3+. Decisão DEFERIDA mantém-se: S-0.3 ou posterior. Anti-overengineering: NÃO replicar decay formula do ai-memory verbatim."
+    },
+    {
+      "ref": "A-54",
+      "phase": "Final",
+      "verdict": "Aceita",
+      "note": "MCP tool `memory_query` entregue em 2026-09-24 (ses_f2b12742, S-0.2 Camada 3, commit 8e9f3b9). **Discovery**: `Store.Search` (tools/internal/agentmemory/store.go:434) ja implementa BM25 + decaimento exponencial sobre AccessedAt (half-life 30d, peso 0.5) — 'RRF completo' da spec ai-memory ja existe no store. **Decisao**: shim fino (~10L: 1 tool def + 1 case) que adiciona `memory_query` como alias de `search_memory` existente (backward-compat preservada, escolha do user 2026-09-24 sobre renomear). Implementacao via helper `runSearchMemory` em main.go extraido do antigo case `search_memory` — agora reusado por ambos os nomes. **Validacao 4 camadas**: (1) go test ./cmd/memory-mcp/... ok 0.019s (4 testes Camada 1+3 verdes, zero regressao). TestMemoryQuery cobre 3 cenarios (query com hit, query sem hit, query vazia recusada). (2) Smoke stdio real contra binario compilado: 4 cenarios verde (initialize, tools/list com memory_query no schema, query='' isError obrigatorio, query inexistente 'Nenhuma memoria'). (3) Wirado cross-CLI: claude+codex+agy+opencode todos com memory enabled/connected (codex corrigido de memoria errada do turno 7). (4) **Execucao real via delegate Claude headless**: `echo PROMPT | claude -p --model claude-haiku-4-5 --allowedTools mcp__memory__memory_query` invocou memory_query query=A-54 e retornou 10 memorias relevantes (top hit = evento mais recente desta sessao, confirma ranking BM25+decay operacional). ENOERT do claude observado no turno 7 foi transient (5+ probes depois connected, config em ~/.claude.json validada, execucao real funcionou). Promovida Proposta→Final:Aceita em 2026-09-24 (ses_f2b12742) — fim da Camada 3 com 4 camadas de evidencia."
+    },
+    {
+      "ref": "A-55",
+      "phase": "Final",
+      "verdict": "Aceita",
+      "note": "Subcommand `agent-sync memory recent` (~30 linhas) entregue em 2026-09-24 (ses_f2c3cbf5fffeG2uu6hbJJFamFK-resumed, Entrega 3 Trilha A, commit 1ed47ba). Origem: ai-memory `memory_recent`. Wrapper sobre `event read -last N` — delega para `event.ReadEvents` (lib reutilizavel). **Decisao**: SEM schema bump last_accessed_at + SEM score de autoridade (conforme escolha do usuario: wrapper minimalista). **Pacote novo**: `internal/memory/` (simetrico com state/event/budget/skills/doctor, D-47/A-36 package-by-feature). **Saida**: JSONL cru (mesmo formato de event read, permite piping jq). **Default -last=10** (vs event read que exige -last explicito). **Roteamento**: cmd/agent-sync/main.go case 'memory'. **Validacao**: go test ./... 13/13 verde; make install ok; smoke real contra .agent-sync/session-event.jsonl deste projeto retornou JSONL parseavel. 2 testes unitarios (TestRunMemoryRecentListaEventosEmJSONL, TestRunMemoryRecentAplicaFiltroLast). **Wrap-up pendente**: D-77 + status pending→done em session-state.json."
+    },
+    {
+      "ref": "A-56",
+      "phase": "Final",
+      "verdict": "Aceita",
+      "note": "MCP tool `memory_read_page` entregue em 2026-09-24 (ses_f2b646cd, S-0.2 Camada 1, commit c00f932). Shins fino (~40L em tools/cmd/memory-mcp/main.go:509 + tool definition linha 169 + helper formatMemoryPage linha 212 + 1 teste TestMemoryReadPage em main_test.go). Delega para `store.Get`/`store.GetScoped`. Normalização de path (strip leading './' e trailing '/') consistente com A-60. Helper imprime o slug normalizado (decisão do usuário 2026-09-24, consistente com memory_delete_page). **Decisão**: SEM dep yaml.v3 (AGENTS.md §3 pragmático); se frontmatter estruturado virar requisito, segue como A-56-rabbit. Smoke real via stdio (binário 15:59): 9 tools, 3 cenários verde (read formatado, inexistente idempotente, path vazio recusado). Promovida Refinamento→Final:Aceita em 2026-09-24 (ses_f2b12742) após wrap-up de S-0.2."
+    },
+    {
+      "ref": "A-57",
+      "phase": "Final",
+      "verdict": "Aceita",
+      "note": "MCP tool `memory_read_session` entregue em 2026-09-24 (ses_f2b646cd, S-0.2 Camada 1, commit 5c4ffbd). Shins fino (~30L dispatcher + tool def em tools/cmd/memory-mcp/main.go + 1 teste TestMemoryReadSession em main_test.go) sobre nova funcao `ListEventsBySession` (~30L em tools/internal/agentmemory/store.go). Nova funcao adicionada sem alterar signature de ListEvents (preservou 3 callsites de store_test.go:316/330/340 + 1 em main.go:471). session_id obrigatorio (validacao no dispatcher). **Decisao**: novo metodo em agentmemory.Store em vez de parametro novo em ListEvents — zero quebra de callsites, validado empiricamente. **Validacao**: go test ./tools/cmd/memory-mcp/... ok 17ms (6 testes verdes), go test ./tools/internal/agentmemory/... ok 1.174s (11 testes sem regressao), smoke stdio verde (10 tools wirado, 3 cenarios: 2 eventos filtrados, sessao vazia, session_id obrigatorio). UNIQUE INDEX memories_project_type_name forca nomes unicos em testes (store.go:131). Promovida Refinamento→Final:Aceita em 2026-09-24 (ses_f2b12742) após wrap-up de S-0.2."
+    },
+    {
+      "ref": "A-58",
+      "phase": "Proposta",
+      "verdict": null,
+      "note": "Subcommand `agent-sync memory feedback <path> <signal>` (~80 linhas). Origem: ai-memory `memory_feedback` (helpful/not_helpful/stale/wrong). Adiciona feedback_flagged em pages + bump em salience (futuro, ligado a A-53). Sinal `wrong` ou `stale` gera lint finding. Schema: append-only `memory_feedback.jsonl` separado de session-event (audit trail). Sem dependência LLM."
+    },
+    {
+      "ref": "A-59",
+      "phase": "Proposta",
+      "verdict": null,
+      "note": "Subcommand `agent-sync memory write-page <path> --body <md> [--scope global] [--expires-at <ts>]` (~120 linhas). Origem: ai-memory `memory_write_page`. Schema: `scope` (default=project, `global` = prefs cross-project), `expires_at` (RFC3339 ou date-only, ligado a A-53). Reescreve `store_memory` genérico do memory-mcp com contrato tipado. Migration: store_memory continua funcionando como alias."
+    },
+    {
+      "ref": "A-60",
+      "phase": "Final",
+      "verdict": "Aceita",
+      "note": "MCP tool `memory_delete_page` entregue em 2026-09-24 (ses_f2b646cd, S-0.2 Camada 1, commit b3b7cdd). Shins fino (~22L em tools/cmd/memory-mcp/main.go:451-477 + tool definition linha 142 + 1 teste TestMemoryDeletePage em main_test.go:99-163). Delega para `store.Delete`/`store.DeleteScoped` (já idempotentes + com admissão ErrNotScratch). Normalização de path (strip leading `./` e trailing `/`). Smoke real via stdio: 8 tools no `tools/list`, memory_delete_page wirado=true; cenário 1 scratch→'removida'; cenário 2 path inexistente→'Nenhuma page'; cenário 3 permanente→'não é scratch... recusada'. 4 cenários do teste verde (go test ./tools/cmd/memory-mcp/... ok 0.013s). Promovida Refinamento→Final:Aceita em 2026-09-24 (ses_f2b12742) após wrap-up de S-0.2."
+    },
+    {
+      "ref": "A-61",
+      "phase": "Proposta",
+      "verdict": null,
+      "note": "Subcommand `agent-sync memory lint` (~200 linhas). Origem: ai-memory `memory_lint` (rule-based + LLM contradiction findings → wiki/_lint/). Nossa versão: rule-based only (sem LLM, conforme D-6). Detecta: dangling refs (`[[X]]` apontando para path inexistente), frontmatter inválido, pages órfãs (não linkadas). Zero-LLM, off-by-default? ou default-on? Decidir quando atacado."
+    }
+  ],
+  "non_goals": [
+    "Não escrever código novo (esta Sprint é decisão/documentação, não implementação)",
+    "Não executar smoke runtime real (probes já feitos em D-32/D-38; S-0.2 só reavalia status com base em docs públicas)",
+    "Não criar ADRs novos (C-1/C-3 já documentados; S-0.2 só atualiza estado da matriz 5xN)",
+    "Não renumerar IDs A-N (preservar histórico)",
+    "Não mover fase automaticamente (convenção D-65: perguntar antes de mover)",
+    "Não atacar A-47 ou A-20 (têm prazos próprios — 2026-10-23 e 2026-10-21 — e sessão avulsa)",
+    "Não replicar 23 MCP tools do ai-memory (filosofia diferente: subcommands Go via internal/*, D-47/A-36)",
+    "Não introduzir dependência LLM (rejeitado em D-6; ai-memory LLM features são opt-in lá, seriam rejeitadas aqui)",
+    "Não atacar A-53 (tier aging) nesta Sprint — só catalogar; implementação exige schema bump de SessionEvent + migration de eventos legados, escopo separado",
+    "Não decidir formato de exposição (subcommand Go vs MCP tool) nesta Sprint — decisão deferida para quando cada A-N for atacado (resposta do usuário 2026-09-24: 'Decidir depois')",
+    "Não catalogar 4 tools do ai-memory rejeitados: memory_explore (LLM prose digest), memory_consolidate (LLM-driven), memory_auto_improve (LLM-driven), memory_forget_sweep (subset de A-53 deferido)",
+    "Não catalogar 4 tools do ai-memory cobertos: memory_status (parcial via agent-sync doctor D-58), memory_handoff_* (via A-52), memory_install_self_routing (já temos agent-sync -apply)",
+    "Não catalogar 4 tools do ai-memory de escopo separado: memory_message_send/list/pop/cancel (cross-project messaging — sprint dedicada futura)"
+  ],
+  "links": {
+    "details": "docs/sprints/sprint-0.2.md",
+    "branch": null,
+    "session_state": ".agent-sync/session-state.json",
+    "predecessor": "docs/sprints/archive/sprint-0.1.json",
+    "prior_art": "github.com/akitaonrails/ai-memory (analise em 2026-09-24, ses_f2c3cbf5fffeG2uu6hbJJFamFK)"
+  }
+}

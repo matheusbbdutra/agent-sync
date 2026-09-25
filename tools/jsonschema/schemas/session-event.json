@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/matheusdutra/agent-sync/schemas/session-event.json",
+  "title": "SessionEvent",
+  "description": "Evento do log append-only .agent-sync/session-event.jsonl (ADR-003). Cada linha e um JSON independente representando uma decisao, acao, blocker, open_question, precompact_snapshot ou state_render. Schema versionado conforme ADR-001; unica excecao registrada: 'details' tem additionalProperties:true (evolucao de payloads por kind).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "ts", "kind", "ref", "title"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "Major.minor. Bump major = breaking schema change; bump minor = additive only."
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp ISO 8601 UTC do momento do evento."
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["decision", "action", "blocker", "open_question", "precompact_snapshot", "state_render"],
+      "description": "Categoria do evento. Mesmo namespace logico do SessionState (cross-ref valido). 'precompact_snapshot' adicionado em 1.1 (ADR-precompact-snapshot-cross-cli.md Decisao 5; A-26) para registrar eventos de compactacao cross-CLI wirados em A-14."
+    },
+    "ref": {
+      "type": "string",
+      "pattern": "^(D|A|B|Q|S)-[0-9]+$",
+      "description": "ID do item referenciado. D=decision, A=action, B=blocker, Q=open_question, S=state_render."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Titulo humano-legivel do item no momento do evento."
+    },
+    "actor": {
+      "type": "string",
+      "enum": ["user", "claude", "codex", "opencode", "cursor", "agy", "tool", "agent-sync"],
+      "description": "Origem do evento. Enum fechado: novo CLI exige MAJOR bump do schema (registrado na Decisao 2 da ADR-003)."
+    },
+    "session_id": {
+      "type": "string",
+      "description": "ID da sessao que originou o evento. Opcional para eventos gerados por 'agent-sync state write' manual."
+    },
+    "details": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Payload adicional especifico do kind. additionalProperties:true e a unica excecao ao principio 'fechado por padrao' da ADR-001 — justificada pela evolucao de payloads por kind sem versionar schema a cada bump. Consumers devem tolerar campos desconhecidos (forward-compatible)."
+    }
+  }
+}

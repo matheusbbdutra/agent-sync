@@ -1,0 +1,57 @@
+{
+  "id": "S-0.1",
+  "title": "Limpeza de duplicação + fechamento do refator + revisão A-47",
+  "status": "done",
+  "starts": "2026-09-23",
+  "ends": "2026-09-24",
+  "scope": "Remover duplicações next_actions/tasks e blockers/issues do session-state.json, fechar A-36, e revisar 2 ADRs Re-Propostos em A-47.",
+  "items": [
+    {
+      "ref": "A-36",
+      "phase": "Final",
+      "verdict": "Aceita",
+      "note": "Refator cmd/agent-sync/ em internal/* concluido em 2026-09-24 (ses_f2cd32a0fffeMHoXEfOrNzw4t6). main.go em 42 linhas (criterio <100), 11 sub-packages em internal/, go test ./... verde 12/12, smoke real do binario reinstalado verde (12 subcomandos testados: state read/validate/render/next-action/snapshot/write, skills index, doctor, event, budget, -apply -target opencode, unknown subcommand). Pendencia anterior 'smoke real' resolvida. 5 commits granulares aplicados (d780a07→31a835c) + este commit de fechamento. Ver D-68."
+    },
+    {
+      "ref": "A-37",
+      "phase": "Final",
+      "verdict": "Aceita",
+      "note": "A-37 fechado em 2026-09-24 (ses_f2cd32a0fffeMHoXEfOrNzw4t6). 5 Etapas do plano original entregues em 4 commits granulares desta sessão + 1 do D-69 (f86f780): (1) af959e3 Etapa 1 'caminho C' - RenderStateMD para de renderizar NextActions/Blockers, com assert 'A-1' removido via caminho C'' (D-67); (2) a1f1283 Etapas 2 - remove NextActions/Blockers do struct SessionState + normalize()/validate() cruzado + loops action/blocker de appendStateDiffEvents + integracao de parseStateMD/runStateMigrateTaxonomy; (3) 332a43d Etapa 4 - ajusta 7 testes dependents via caminho C' (todos migrados para Tasks/Issues com LegacyKind=todo|delivery, sem mexer em producao); (4) 3a12f1a Cleanup - remove funcoes mortas (diffActions/diffBlockers, extractActionsFromSection/extractBlockersFromSection, convertActionsToTasks/convertBlockersToIssues, struct SessionBlocker morto apos struct remove); (5) dd8c4ba Etapa 3 - remove next_actions/blockers do schema embedded tools/jsonschema/schemas/session-state.json ($defs action/blocker incluidas) + ajusta normalizeRawJSON para 8 campos + ferramentas do fixture em tools/jsonschema/jsonschema_test.go. Etapa 5 (ADR-taxonomia-estado Proposto->Aceito) ja tinha sido feita em D-62/D-63 antes desta sessão. go test ./... verde 12/12 no main module + 16/16 no submodule tools/jsonschema. Smoke binario real (state validate/read/next-action) contra .agent-sync/session-state.json real. Fonte canonica: git log {a1f1283, 332a43d, 3a12f1a, dd8c4ba}. Promovido para Final:Aceita neste wrap-up (commit docs(sprints): wrap-up A-37)."
+    },
+    {
+      "ref": "A-47",
+      "phase": "Proposta",
+      "verdict": null,
+      "note": "ADIDA COM PRAZO: 2026-10-23. Revisar 2 ADRs Re-Propostos: agents-md-session-guard (hook nao implementado) + fim-de-turno-hooks (Trilha A wirada+testada, Trilha B hipotese nao validada). Marco temporal: ~30 dias a partir de 2026-09-23 (D-65). Sai do catalogo ativo de S-0.1 (status=done) e volta a ser referenciado por sessao avulsa com prazo 2026-10-23 (sem sprint dona)."
+    },
+    {
+      "ref": "A-20",
+      "phase": "Proposta",
+      "verdict": null,
+      "note": "ADIDA COM PRAZO: 2026-10-21. Smoke T5 comparativo pre/post b7bc037 (revert potencial do fix primitivo). Avaliacao adiada 30 dias em D-36. Idem A-47: sai do catalogo ativo de S-0.1."
+    },
+    {
+      "ref": "B-1",
+      "phase": "Final",
+      "verdict": "Descartada",
+      "note": "Issue legacy já cancelada e migrada para C-3. Mantida como referência histórica; remoção física depende de A-37."
+    },
+    {
+      "ref": "B-2",
+      "phase": "Final",
+      "verdict": "Descartada",
+      "note": "Issue legacy já cancelada e migrada para C-3 (token nudge contract). Idem B-1."
+    }
+  ],
+  "non_goals": [
+    "Não criar schema deliveries[] novo (decisão D-48 anti-over-engineering)",
+    "Não criar subcommand task add/issue add (escopo separado, fora desta sprint)",
+    "Não renumerar IDs (preservar histórico)",
+    "Não atacar gaps 🟡/⛔ de C-1/C-3 (A-23/A-24/A-25) com implementação — só catalogar; implementação vai pra S-0.2"
+  ],
+  "links": {
+    "details": "docs/sprints/archive/sprint-0.1.md",
+    "branch": "feat/d48-schema-bump",
+    "session_state": ".agent-sync/session-state.json"
+  }
+}

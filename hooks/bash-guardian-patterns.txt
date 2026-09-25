@@ -1,0 +1,29 @@
+# Padrões (glob, "*" = qualquer coisa) de comandos potencialmente destrutivos.
+# Uma linha por padrão; linhas em branco e iniciadas com # são ignoradas.
+# Comportamento padrão: pedir confirmação (ask), nunca bloquear silenciosamente.
+rm -rf *
+rm -fr *
+sudo rm *
+dd if=* of=/dev/*
+mkfs*
+chmod -R 777 *
+chmod 777 /*
+curl * | sh*
+curl * | bash*
+wget * | sh*
+wget * | bash*
+git push --force*
+git reset --hard*
+git clean -f*
+# Mutacao de historico de versoes: pede confirmacao manual antes de
+# adicionar arquivos, criar commit, criar/apagar tag ou reescrever
+# commit existente. Verificado 2026-09-22 em runtime com bash 5.x
+# (case glob); `git <cmd>` puro sem args NAO casa (comportamento
+# intencional - `git add` sozinho e' erro da CLI, nao destrutivo).
+git add *
+git commit *
+git commit --amend*
+git tag *
+git tag -d *
+shutdown*
+reboot*

@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/matheusdutra/agent-sync/schemas/session-state.json",
+  "title": "SessionState",
+  "description": "Snapshot canonico de uma sessao agent-sync. Persistido em .agent-sync/session-state.json; STATE.md e render deste JSON. Schema versionado conforme ADR-001.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project", "git", "session"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "Major.minor. Bump major = breaking schema change; bump minor = additive only. Binarios aceitam leitura cross-minor (validam apenas major)."
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "root"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "root": {"type": "string", "minLength": 1}
+      }
+    },
+    "git": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["branch", "head"],
+      "properties": {
+        "branch": {"type": "string"},
+        "head": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"},
+        "working_tree_summary": {"type": "string"}
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "started_at", "updated_at"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "started_at": {"type": "string", "format": "date-time"},
+        "updated_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/decision"}
+    },
+    "tasks": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/task"}
+    },
+    "issues": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/issue"}
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "rationale", "made_at"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "title": {"type": "string", "minLength": 1},
+        "rationale": {"type": "string", "minLength": 1},
+        "made_at": {"type": "string", "format": "date-time"},
+        "legacy_kind": {
+          "type": "string",
+          "enum": ["architectural", "factual", "retrospective"],
+          "description": "Origem/classificacao do item (D-48.x.x, schema 1.2). 'architectural' = ADR/decisao que limita opcoes; 'factual' = observacao factual; 'retrospective' = log de algo feito ou cancelado."
+        },
+        "links": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "status", "started_at"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "title": {"type": "string", "minLength": 1},
+        "status": {
+          "type": "string",
+          "enum": ["pending", "in_progress", "done", "cancelled"]
+        },
+        "legacy_kind": {
+          "type": "string",
+          "enum": ["todo", "delivery"],
+          "description": "Origem do item antes do bump 1.2 (D-48.x.x). 'todo' = A-N em status pending/in_progress; 'delivery' = A-N em status done/cancelled."
+        },
+        "branch_ref": {"type": "string"},
+        "pr_ref": {"type": "string"},
+        "started_at": {"type": "string", "format": "date-time"},
+        "finished_at": {"type": "string", "format": "date-time"},
+        "links": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "claimed_by": {
+          "type": "string",
+          "description": "Quem esta reivindicando a tarefa (CLI kind do claim-once handoff A-52). Vazio = sem claim. Lockless (D-2); expirado se claimed_at < now - AGENT_SYNC_HANDOFF_TIMEOUT (default 1h)."
+        },
+        "claimed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC3339 do momento do claim (A-52). Vazio = sem claim. Ignorado se claimed_by vazio."
+        }
+      }
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "severity", "description", "detected_at", "resolved"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "title": {"type": "string", "minLength": 1},
+        "severity": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"]
+        },
+        "legacy_kind": {
+          "type": "string",
+          "enum": ["bug", "gap", "blocker"],
+          "description": "Origem do item antes do bump 1.2 (D-48.x.x). 'bug' = B-N nao categorizado; 'gap' = matriz 5xN 🟡/⛔; 'blocker' = B-N explicito bloqueando acoes."
+        },
+        "description": {"type": "string", "minLength": 1},
+        "detected_at": {"type": "string", "format": "date-time"},
+        "resolved": {"type": "boolean"},
+        "resolved_at": {"type": "string", "format": "date-time"}
+      }
+    }
+  }
+}

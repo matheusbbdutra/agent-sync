@@ -1,0 +1,31 @@
+# Binários compilados
+bin/
+tools/ctx-window
+tools/false-success-guard
+tools/mr-review-local
+/agent-sync
+*.exe
+*.dll
+*.so
+*.dylib
+
+# IDE e sistema
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+
+# Logs temporários
+*.log
+
+# Recibos e logs de execução local
+receipts/
+review-receipts/
+
+# .agent-sync/ — session-state.json é a fonte de verdade (ADR-002) e
+# deve ser commitado. Apenas cache local e summary.md ficam fora.
+.agent-sync/cache/
+.agent-sync/summary.md
+.agent-sync/.gitignore
+!.agent-sync/session-state.json

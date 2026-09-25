@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/matheusdutra/agent-sync/schemas/precompact-snapshot.json",
+  "title": "PrecompactSnapshot",
+  "description": "Snapshot estruturado gerado antes de uma compactacao (ADR-precompact-snapshot-cross-cli). Payload canonico da decisao allow|block|advise_only que o hook PreCompact devolve ao harness. Schema fechado (additionalProperties:false) com unica excecao registrada em 'details' (evolucao de payloads por CLI - mesmo principio da ADR-003).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "ts", "actor", "compaction_kind", "snapshot", "decision"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Versao do schema. Const em 1.0 ate bump major breaking."
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp ISO 8601 UTC do momento da captura do snapshot."
+    },
+    "actor": {
+      "type": "string",
+      "enum": ["claude", "codex", "opencode", "cursor", "agy", "agent-sync"],
+      "description": "Origem da decisao. Mesmo enum do session-event.json."
+    },
+    "cli_version": {
+      "type": "string",
+      "description": "Versao do harness CLI que originou o snapshot (string livre; sem semver rigido)."
+    },
+    "compaction_kind": {
+      "type": "string",
+      "enum": ["manual", "auto", "native"],
+      "description": "Tipo de compactacao. manual=usuario disparou; auto=harness por threshold; native=harness autonomo sem threshold explicito."
+    },
+    "session_id": {
+      "type": "string",
+      "description": "ID da sessao que originou o snapshot. Opcional para snapshots gerados por 'agent-sync state snapshot' manual."
+    },
+    "trigger": {
+      "type": "string",
+      "description": "Razao textual da compactacao (ex.: 'ctx_threshold_reached', 'user_requested', 'idle_timeout'). String livre."
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ts"],
+      "properties": {
+        "ts": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp interno do snapshot (pode diferir do ts raiz se capturado em 2 estagios)."
+        },
+        "tokens_in": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Tokens consumidos na entrada ate o momento da compactacao."
+        },
+        "tokens_out": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Tokens gerados na saida ate o momento da compactacao."
+        },
+        "files_touched": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Caminhos de arquivos modificados/lidos desde o inicio da sessao ou ultimo snapshot incremental."
+        },
+        "decisions_recent": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^D-[0-9]+$"
+          },
+          "description": "IDs de decisoes (D-N) tomadas recentemente e que precisam sobreviver a compactacao."
+        },
+        "open_questions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^Q-[0-9]+$"
+          },
+          "description": "IDs de open_questions (Q-N) ainda em aberto."
+        },
+        "actions_pending": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^A-[0-9]+$"
+          },
+          "description": "IDs de proximas acoes (A-N) ainda pendentes."
+        }
+      }
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["allow", "block", "advise_only"],
+      "description": "Decisao canonica: allow (compactar), block (cancelar compactacao), advise_only (compactar mas registrar aviso)."
+    },
+    "decision_reason": {
+      "type": "string",
+      "description": "Justificativa textual da decisao. Recomendada para 'block' e 'advise_only'."
+    },
+    "details": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Payload adicional especifico da CLI. UNICA excecao registrada ao principio 'fechado por padrao' da ADR-001 - justificada pela evolucao de payloads por CLI sem versionar schema a cada bump. Consumers devem tolerar campos desconhecidos (forward-compatible)."
+    }
+  }
+}

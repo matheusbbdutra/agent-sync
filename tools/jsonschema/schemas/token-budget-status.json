@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/matheusdutra/agent-sync/schemas/token-budget-status.json",
+  "title": "TokenBudgetStatus",
+  "description": "Status de tokens em tempo real durante o turno (ADR-token-nudge-contract). Payload canonico consumido por 'agent-sync budget nudge' e pelo hook token-nudge.check.sh em postToolUse de Claude Code/Codex/Antigravity/Cursor. Schema fechado (additionalProperties:false) com unica excecao em 'details' (mesmo principio da ADR-001/ADR-003).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "ts", "actor", "session_id", "tokens_total", "utilization_pct", "should_nudge"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp ISO 8601 UTC do momento da captura do status."
+    },
+    "actor": {
+      "type": "string",
+      "enum": ["claude", "codex", "opencode", "cursor", "agy", "agent-sync"],
+      "description": "Origem do status. Mesmo enum do session-event.json."
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model": {
+      "type": "string",
+      "description": "Modelo ativo. Codex/OpenCode tem nativo; Claude fica null quando nao extraido."
+    },
+    "tokens_in": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Tokens consumidos na entrada ate o momento."
+    },
+    "tokens_out": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Tokens gerados na saida ate o momento."
+    },
+    "tokens_total": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Soma tokens_in + tokens_out."
+    },
+    "context_window": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Tamanho maximo do context window do modelo ativo (ex.: 200000 para Sonnet 4.5)."
+    },
+    "utilization_pct": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Utilizacao percentual = tokens_total / context_window * 100. Aceita 0 quando tokens nao extraidos (gap Antigravity/Cursor documentado)."
+    },
+    "threshold_pct": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "default": 80,
+      "description": "Limite para nudge (default 80). Configuravel via AGENT_SYNC_TOKEN_NUDGE_THRESHOLD."
+    },
+    "should_nudge": {
+      "type": "boolean",
+      "description": "Decisao computada: true quando utilization_pct >= threshold_pct OU heuristica legada dispara."
+    },
+    "trigger": {
+      "type": "string",
+      "enum": ["tokens_in>=threshold", "tool_calls>=min", "summary_age>=max", "summary_missing", "none"],
+      "description": "Motivo da decisao should_nudge. 'none' quando should_nudge=false."
+    },
+    "details": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Detalhes operacionais especificos da fonte (CLI). UNICA excecao a additionalProperties:false - mesma justificativa da ADR-003."
+    }
+  }
+}

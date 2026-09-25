@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/matheusdutra/agent-sync/schemas/agent_tasks.json",
+  "title": "AgentTask",
+  "description": "Telemetria de task por CLI do agent-sync (Gap 4). Cada linha representa uma task aberta/fechada com tokens, modelo e custo estimado. Schema versionado conforme ADR-001. Wirado via postToolUse/stop em cada CLI; tabela propria sem reaproveitar embedding_json (D-8).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "task_id", "ts", "cli", "model", "status"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "Major.minor. Bump major = breaking schema change; bump minor = additive only."
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Identificador estavel da task (geralmente session_id + counter ou ULID-like)."
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp ISO 8601 UTC do momento do registro (start ou end)."
+    },
+    "cli": {
+      "type": "string",
+      "enum": ["claude", "codex", "opencode", "cursor", "agy"],
+      "description": "CLI que executou a task."
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Modelo usado (ex.: claude-sonnet-4.5, gpt-5, gemini-2.5-pro)."
+    },
+    "session_id": {
+      "type": "string",
+      "description": "ID da sessao do agent-sync (sess-YYYYMMDD-HHMMSS)."
+    },
+    "tokens_in": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Tokens consumidos na entrada (prompt). Ausente enquanto task nao completa."
+    },
+    "tokens_out": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Tokens consumidos na saida (completion). Ausente enquanto task nao completa."
+    },
+    "cost_estimate": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Custo estimado em USD. Calculo especifico de cada CLI/provider."
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Duracao em milissegundos (entre start e end da task)."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["started", "completed", "failed", "cancelled"],
+      "description": "Estado da task: started (evento de abertura) / completed (sucesso) / failed (erro) / cancelled (abort)."
+    }
+  }
+}
