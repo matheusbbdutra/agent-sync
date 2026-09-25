@@ -1,6 +1,6 @@
 # ADR — Teste manual direto de cartographer_preflight
 
-- **Status**: Proposto
+- **Status**: Rejeitado — ver ADR-audit-removal-go.md (A-73) para o caminho Go adotado
 - **Data**: 2026-09-25 (rev. 1: escopo mudou de wiramento para teste direto)
 - **Decisor**: agente + usuário (ses_atual)
 - **Fonte**: D-99 (investigação matrix escopos), D-100 (telemetria), cartographer (kingbootoshi) tem `preflight` + `audit_removal` + `audit_verify` + `diff` que repo-map não tem
