@@ -120,15 +120,26 @@ Samples adicionados a `hooks/secret-guard.test.sh` (atualmente 111L):
 | --- | --- | --- | --- |
 | Claude Code | wirar `PreToolUse` matcher `*` | wirar `PostToolUse` matcher `*` | ✅ |
 | Codex | wirar `PreToolUse` matcher `*` (mesmo template do A-14 PreCompact) | wirar `PostToolUse` | ✅ |
-| OpenCode v2 | **gap 🟡** — depende de plugin TS específico (A-64+) | **gap 🟡** | 🟡 |
-| Antigravity | **gap 🟡** — PreInvocation proxy com `if`-filter (A-64+) | **gap 🟡** | 🟡 |
-| Cursor | **gap ⛔ aceito** — `preToolUse` não é evento gerenciado pelo agent-sync; defesa ad-hoc via `.cursorrules` é responsabilidade do usuário | `postToolUse` wirar via `cursorManagedHooks` (mesmo template dos demais) | ⛔ |
+| Antigravity | wirar `PreToolUse` matcher `*` (formato nested via `syncAntigravityHookCommand`; mesmo padrão de bash-guardian wirado em 2026-09-22) | wirar `PostToolUse` matcher `*` | ✅ |
+| Cursor | **gap parcial** — `preToolUse`/`read`/`write` não são eventos gerenciados; `beforeShellExecution` cobre apenas Bash | wirar `postToolUse` via `cursorManagedHooks` | 🟡 (pre) / ✅ (post) |
+| OpenCode v2 | **gap 🟡** — `tool.hook("execute.before")` é só observacional; alternativa é `permission.hook("evaluate")` com `effect: "deny"` mutável (schema `@opencode/schema/dist/permission.d.ts: Permission.Effect = "allow"\|"deny"\|"ask"`). Implementação fica A-64+. | **gap 🟡** | 🟡 |
 
-**PLAYBOOK-V** (reavaliação do ⛔ Cursor): reler
-`https://docs.cursor.com/agent-hooks` a cada 30 dias (ou quando o
-usuário informar mudança no Cursor); testar se Cursor expõe
+**PLAYBOOK-V** (reavaliação do gap parcial Cursor): reler
+`https://docs.cursor.com/agent-hooks` a cada release do Cursor (ou
+quando o usuário informar mudança); testar se Cursor expõe
 `preToolUse`/`read`/`write` como evento wirado. Mudança upstream →
-esta ADR vira filha com cronograma de wirar.
+esta ADR vira filha com cronograma de wirar Pre em Cursor.
+
+**Mudança de classificação** (2026-09-25, ses_f2a16545bffeeCcxIFwZ04VVDa):
+investigação empírica revelou que o ADR original estava pessimista:
+- **Antigravity** foi promovido de 🟡 para ✅ (mesmo formato nested
+  de Claude/Codex funciona, ver `~/.gemini/config/hooks.json:65` que
+  já mostra bash-guardian wirado em PreToolUse).
+- **Cursor** foi promovido de ⛔ aceito para 🟡 parcial (postToolUse
+  wirável via `cursorManagedHooks`; preToolUse continua gap porque
+  Cursor só expõe `beforeShellExecution` para shell).
+- **OpenCode v2** continua 🟡 mas com mecanismo alternativo
+  identificado (`permission.hook("evaluate")`).
 
 ## Consequências
 
@@ -168,10 +179,12 @@ Sequência de commits granulares (1 commit por peça, ordem importa):
 3. `test(hooks) secret-guard.test.sh casos sintéticos deny-list +
    discord` (com chamamento explícito no `main` do runner, lição do
    checkpoint).
-4. `feat(apply) syncSecretGuardHook em apply_table.go para Claude e
-   Codex` (calls em `hooks_apply.go` usando
-   `syncHookCommandAtEvent` no evento `PreToolUse` e `PostToolUse`;
-   matcher `*`).
+4. `feat(apply) syncSecretGuardHook em apply_table.go para Claude +
+   Codex + Antigravity + Cursor (postToolUse)` (calls em
+   `hooks_apply.go` usando `syncHookCommandAtEvent` para claude/codex;
+   `syncAntigravityHookCommand` para antigravity; `cursorManagedHooks`
+   entry para cursor). Matchers `*`. OpenCode v2 fica A-64+ via
+   `permission.hook("evaluate")` com effect mutavel.
 5. `docs(state) D-83 + A-63 wrap-up` (STATE.md +
    `.agent-sync/session-state.json`). Wrap-up apenas.
 
