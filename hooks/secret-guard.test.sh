@@ -107,8 +107,7 @@ post_no_secret
 post_jwt_in_output
 post_github_in_output
 
-printf '\nResultado: %d PASS, %d FAIL\n' "$PASS" "$FAIL"
-[ "$FAIL" -eq 0 ] || exit 1
+# (relatorio final movido para depois dos casos novos de Camada 1)
 
 # === Camada 1: deny-list de path (A-63) ===
 # Adicionados em 2026-09-25 quando principios foram reposicionados:
@@ -292,3 +291,6 @@ pre_newline_check
 printf '\nPostToolUse (Camada 1 redacao total + Camada 2):\n'
 post_read_denied_redact_total
 post_read_legit_jwt
+
+printf '\nResultado final: %d PASS, %d FAIL\n' "$PASS" "$FAIL"
+[ "$FAIL" -eq 0 ] || exit 1
