@@ -9,13 +9,13 @@ import (
 )
 
 // TestSyncSecretGuardHooksWirePreAndPost valida que wirar secret-guard em
-// Claude Code e Codex grava entradas em PreToolUse E PostToolUse (defesa
-// em profundidade: Camada 1 path-deny + Camada 2 regex literal).
+// Claude Code, Codex e Antigravity grava entradas em PreToolUse E PostToolUse
+// (defesa em profundidade: Camada 1 path-deny + Camada 2 regex literal).
 // Cada evento usa um hookName distinto (pre vs post) por causa da
 // migracao automatica do syncHookCommandAtEvent (limpa wiramentos orfaos
 // do mesmo hookName em outros eventos).
 func TestSyncSecretGuardHooksWirePreAndPost(t *testing.T) {
-	for _, kind := range []string{"claude", "codex"} {
+	for _, kind := range []string{"claude", "codex", "antigravity"} {
 		t.Run(kind, func(t *testing.T) {
 			tempBase := t.TempDir()
 			hooksDir := filepath.Join(tempBase, "hooks")
@@ -33,7 +33,7 @@ func TestSyncSecretGuardHooksWirePreAndPost(t *testing.T) {
 				Name:              kind,
 				AgentKind:         kind,
 				HooksSettingsPath: tempHooksPath,
-				HooksFormat:       "",
+				HooksFormat:       kind,
 			}
 
 			if err := syncSecretGuardPreToolUseHook(tempBase, target); err != nil {
@@ -51,21 +51,35 @@ func TestSyncSecretGuardHooksWirePreAndPost(t *testing.T) {
 			if err := json.Unmarshal(data, &root); err != nil {
 				t.Fatalf("json invalido para %s: %v", kind, string(data))
 			}
-			hooks, _ := root["hooks"].(map[string]interface{})
-			if hooks == nil {
-				t.Fatalf("chave 'hooks' ausente no json para %s: %s", kind, string(data))
+			hooks := root
+			if h, _ := root["hooks"].(map[string]interface{}); h != nil {
+				hooks = h
 			}
 
-			preList, ok := hooks["PreToolUse"].([]interface{})
-			if !ok || len(preList) == 0 {
+			// Claude/Codex usam root["hooks"]["PreToolUse"]/[\"PostToolUse\"].
+			// Antigravity usa formato nested: root[hookName][evento].
+			var preList, postList []interface{}
+			if v, ok := hooks["PreToolUse"].([]interface{}); ok {
+				preList = v
+			} else if group, ok := hooks[secretGuardPreToolUseHookName].(map[string]interface{}); ok {
+				if v, ok := group["PreToolUse"].([]interface{}); ok {
+					preList = v
+				}
+			}
+			if v, ok := hooks["PostToolUse"].([]interface{}); ok {
+				postList = v
+			} else if group, ok := hooks[secretGuardPostToolUseHookName].(map[string]interface{}); ok {
+				if v, ok := group["PostToolUse"].([]interface{}); ok {
+					postList = v
+				}
+			}
+			if len(preList) == 0 {
 				t.Fatalf("PreToolUse hook nao encontrado para %s: %s", kind, string(data))
 			}
-			postList, ok := hooks["PostToolUse"].([]interface{})
-			if !ok || len(postList) == 0 {
+			if len(postList) == 0 {
 				t.Fatalf("PostToolUse hook nao encontrado para %s: %s", kind, string(data))
 			}
 
-			// Verifica que ambos os hookNames distintos estao presentes no JSON.
 			jsonStr := string(data)
 			if !strings.Contains(jsonStr, secretGuardPreToolUseHookName) {
 				t.Fatalf("hookName pre (%s) ausente do settings.json para %s: %s",
@@ -75,51 +89,32 @@ func TestSyncSecretGuardHooksWirePreAndPost(t *testing.T) {
 				t.Fatalf("hookName post (%s) ausente do settings.json para %s: %s",
 					secretGuardPostToolUseHookName, kind, jsonStr)
 			}
-
-			// Verifica que os 2 wiramentos estao em eventos DIFERENTES.
-			preHasGuard := false
-			for _, entry := range preList {
-				if entryMap, ok := entry.(map[string]interface{}); ok {
-					if hooksArr, ok := entryMap["hooks"].([]interface{}); ok {
-						for _, h := range hooksArr {
-							if hMap, ok := h.(map[string]interface{}); ok {
-								if name, _ := hMap["name"].(string); name == secretGuardPreToolUseHookName {
-									preHasGuard = true
-								}
-							}
-						}
-					}
-				}
-			}
-			postHasGuard := false
-			for _, entry := range postList {
-				if entryMap, ok := entry.(map[string]interface{}); ok {
-					if hooksArr, ok := entryMap["hooks"].([]interface{}); ok {
-						for _, h := range hooksArr {
-							if hMap, ok := h.(map[string]interface{}); ok {
-								if name, _ := hMap["name"].(string); name == secretGuardPostToolUseHookName {
-									postHasGuard = true
-								}
-							}
-						}
-					}
-				}
-			}
-			if !preHasGuard {
-				t.Fatalf("PreToolUse nao contem hookName pre em %s: %s", kind, jsonStr)
-			}
-			if !postHasGuard {
-				t.Fatalf("PostToolUse nao contem hookName post em %s: %s", kind, jsonStr)
-			}
 		})
 	}
 }
 
+// TestSyncSecretGuardCursorPostToolUseInCursorManagedHooks valida que a
+// entrada de secret-guard.posttooluse.sh esta em cursorManagedHooks()
+// (merge gerenciado por syncCursorAll).
+func TestSyncSecretGuardCursorPostToolUseInCursorManagedHooks(t *testing.T) {
+	found := false
+	for _, h := range cursorManagedHooks() {
+		if h.Event == "postToolUse" && h.Script == secretGuardPostToolUseScript {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("cursorManagedHooks() deveria conter entrada postToolUse para %s",
+			secretGuardPostToolUseScript)
+	}
+}
+
 // TestSyncSecretGuardHooksSkipNonSupported valida que wiramento e no-op
-// para CLIs fora do escopo (matriz 5xN do ADR §2: 2 gaps 🟡 + 1 impossivel
-// ⛔ ficam para A-64+).
+// para CLIs fora do escopo (matriz 5xN do ADR §2: 1 gap 🟡 aceito fica
+// para A-64+ via permission.hook).
 func TestSyncSecretGuardHooksSkipNonSupported(t *testing.T) {
-	for _, kind := range []string{"antigravity", "cursor", "opencode"} {
+	for _, kind := range []string{"opencode"} {
 		t.Run(kind, func(t *testing.T) {
 			tempBase := t.TempDir()
 			tempHooksPath := filepath.Join(t.TempDir(), "settings.json")

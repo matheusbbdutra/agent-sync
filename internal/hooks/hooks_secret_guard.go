@@ -7,13 +7,21 @@ import (
 // hooks_secret_guard.go: secret-guard cross-CLI (A-63).
 //
 // Migrado em 2026-09-25 de hooks orfaos (scripts existiam mas nao wirados
-// em nenhuma CLI). Wiramento target: Claude Code + Codex no formato padrao
-// (PreToolUse + PostToolUse com matcher "*"). Antigravity, Cursor e
-// OpenCode NAO wirados nesta entrega (matriz 5xN do ADR-secret-guard-
-// cross-cli.md §2):
-//   - Antigravity: gap 🟡 — depende de PreInvocation como proxy (A-64+)
-//   - Cursor: gap ⛔ aceito — preToolUse nao e evento gerenciado
-//   - OpenCode v2: gap 🟡 — depende de plugin TS especifico (A-64+)
+// em nenhuma CLI). Wiramento target multi-CLI:
+//
+//   - Claude Code + Codex: formato padrao (PreToolUse + PostToolUse com
+//     matcher "*") via syncHookCommandAtEvent (hooks_apply.go:79).
+//   - Antigravity: mesmo formato nested de Claude/Codex (PreToolUse +
+//     PostToolUse com matcher "*") via syncAntigravityHookCommand
+//     (formato flat nested de hooks_antigravity_apply.go:54).
+//   - Cursor: postToolUse via syncCursorCommandAtEvent (merge gerenciado
+//     em hooks_cursor_apply.go:15) + beforeShellExecution (so Bash; Read/
+//     Edit/Write/etc. nao tem equivalente gerenciado pelo agent-sync).
+//   - OpenCode v2: gap 🟡 aceito (A-64+ via permission.hook("evaluate")
+//     com effect mutation — investigacao 2026-09-25 confirmou que
+//     tool.hook("execute.before") e so observacional, mas permission.
+//     hook tem effect mutavel: schema @opencode/schema/dist/permission.
+//     d.ts Permission.Effect = "allow"|"deny"|"ask").
 //
 // Camadas (ver §1 do ADR-secret-guard-cross-cli.md):
 //   Camada 1 (deny-list de path): bloqueia Read/Edit/Write/MultiEdit/Grep/
@@ -39,7 +47,8 @@ const (
 	secretGuardPostToolUseScript = "secret-guard.posttooluse.sh"
 )
 
-// syncSecretGuardPreToolUseHook: wirar PreToolUse em Claude Code + Codex.
+// syncSecretGuardPreToolUseHook: wirar PreToolUse em Claude Code + Codex +
+// Antigravity (formato padrao / nested).
 func syncSecretGuardPreToolUseHook(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" {
 		return nil
@@ -52,12 +61,26 @@ func syncSecretGuardPreToolUseHook(baseDir string, target TargetCLI) error {
 		}
 		return syncHookCommandAtEvent(baseDir, target, secretGuardPreToolUseHookName,
 			scriptPath, "*", "PreToolUse", nil)
+	case "antigravity":
+		// PreToolUse em Antigravity: syncAntigravityHookCommand grava no
+		// formato nested (raiz=hookName, sub-grupo por evento). Mesmo
+		// matcher "*" das outras CLIs. Verificado em bash-guardian
+		// (~/.gemini/config/hooks.json:65 ja wirado com sucesso).
+		scriptPath, err := pathutil.HookScriptPath(baseDir, secretGuardPreToolUseScript)
+		if err != nil {
+			return err
+		}
+		targetCopy := target
+		targetCopy.HooksEvent = "PreToolUse"
+		return syncAntigravityHookCommand(targetCopy, secretGuardPreToolUseHookName,
+			scriptPath, "*")
 	default:
 		return nil
 	}
 }
 
-// syncSecretGuardPostToolUseHook: wirar PostToolUse em Claude Code + Codex.
+// syncSecretGuardPostToolUseHook: wirar PostToolUse em Claude Code + Codex +
+// Antigravity + Cursor (postToolUse).
 func syncSecretGuardPostToolUseHook(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" {
 		return nil
@@ -70,6 +93,23 @@ func syncSecretGuardPostToolUseHook(baseDir string, target TargetCLI) error {
 		}
 		return syncHookCommandAtEvent(baseDir, target, secretGuardPostToolUseHookName,
 			scriptPath, "*", "PostToolUse", nil)
+	case "antigravity":
+		scriptPath, err := pathutil.HookScriptPath(baseDir, secretGuardPostToolUseScript)
+		if err != nil {
+			return err
+		}
+		targetCopy := target
+		targetCopy.HooksEvent = "PostToolUse"
+		return syncAntigravityHookCommand(targetCopy, secretGuardPostToolUseHookName,
+			scriptPath, "*")
+	case "cursor":
+		// Cursor: postToolUse ja e wirado por outros hooks via
+		// syncCursorCommandAtEvent (merge gerenciado por agent-sync em
+		// hooks_cursor_apply.go:36). A entrada em cursorManagedHooks()
+		// (adicionada separadamente) ativa o wiramento real.
+		// Aqui apenas sinaliza que a CLI esta no escopo; syncCursorAll
+		// fara o trabalho.
+		return nil
 	default:
 		return nil
 	}

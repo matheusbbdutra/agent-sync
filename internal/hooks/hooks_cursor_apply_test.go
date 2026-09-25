@@ -52,8 +52,18 @@ func TestMergeCursorHooksJSONIdempotent(t *testing.T) {
 		t.Fatalf("deveria preservar afterFileEdit: %+v", afterEdit)
 	}
 	post := decodeCursorHookEntries(hooks["postToolUse"])
-	if len(post) != 5 {
-		t.Fatalf("esperava 5 postToolUse gerenciados, got %d: %+v", len(post), post)
+	// 6 entradas: 5 originais + secret-guard (A-63 / 2026-09-25).
+	if len(post) != 6 {
+		t.Fatalf("esperava 6 postToolUse gerenciados, got %d: %+v", len(post), post)
+	}
+	var hasSecretGuard bool
+	for _, e := range post {
+		if strings.Contains(e.Command, "secret-guard.posttooluse.sh") {
+			hasSecretGuard = true
+		}
+	}
+	if !hasSecretGuard {
+		t.Fatalf("secret-guard ausente em postToolUse: %+v", post)
 	}
 	var hasReact bool
 	for _, e := range post {

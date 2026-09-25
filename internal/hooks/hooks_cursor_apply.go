@@ -30,6 +30,14 @@ func cursorManagedHooks() []cursorHookDef {
 		{Event: "postToolUse", Script: "docs-cache.cursor.sh", Matcher: "WebFetch", WrapStage: "postToolUse"},
 		{Event: "afterMCPExecution", Script: "docs-cache-mcp.cursor.sh", Matcher: "query-docs", WrapStage: "afterMCPExecution"},
 		{Event: "beforeShellExecution", Script: "bash-guardian.cursor.sh", WrapStage: "beforeShellExecution"},
+		// Secret guard (A-63 / ADR-secret-guard-cross-cli.md). postToolUse
+		// wirado para redacao total (<REDACTED:FILE_IN_DENYLIST>) quando o
+		// file_path do input PostToolUse casa deny-list + redacao por regex
+		// (JWT/AWS/GitHub PAT) para outputs de arquivos fora da deny-list.
+		// PreToolUse em Cursor = so shell (beforeShellExecution para Bash);
+		// Read/Edit/Write/etc. nao tem equivalente gerenciado pelo
+		// agent-sync -> gap parcial (reconhecido no ADR §2).
+		{Event: "postToolUse", Script: "secret-guard.posttooluse.sh", WrapStage: "postToolUse"},
 		{Event: "stop", Script: "agent-stop.cursor.sh", WrapStage: "stop"},
 		{Event: "stop", Script: "agent-react-nudge.stop.cursor.sh", WrapStage: "stop", LoopLimit: 5},
 		{Event: "stop", Script: "ctx-window-summarize-at-stop.sh", WrapStage: "stop"},
