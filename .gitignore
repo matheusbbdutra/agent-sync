@@ -29,3 +29,4 @@ review-receipts/
 .agent-sync/summary.md
 .agent-sync/.gitignore
 !.agent-sync/session-state.json
+.cartographer/
