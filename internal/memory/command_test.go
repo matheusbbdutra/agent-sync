@@ -299,3 +299,23 @@ func TestMemoryWritePageGravaAppendOnly(t *testing.T) {
 		t.Errorf("expires-at invalido nao deveria gravar: antes=%d depois=%d", beforeCount, len(afterLines))
 	}
 }
+
+func TestRunMemoryAddValidation(t *testing.T) {
+	// 1. note curto (< 5 chars)
+	err := runMemoryAdd([]string{"--kind=decision", "--note=abc"})
+	if err == nil || !strings.Contains(err.Error(), "pelo menos 5 caracteres") {
+		t.Errorf("esperava erro de note curto, obtive: %v", err)
+	}
+
+	// 2. kind inválido
+	err = runMemoryAdd([]string{"--kind=invalid_kind", "--note=nota suficientemente longa"})
+	if err == nil || !strings.Contains(err.Error(), "inválido") {
+		t.Errorf("esperava erro de kind inválido, obtive: %v", err)
+	}
+
+	// 3. source inválido
+	err = runMemoryAdd([]string{"--kind=decision", "--note=nota suficientemente longa", "--source=invalid_source"})
+	if err == nil || !strings.Contains(err.Error(), "source") {
+		t.Errorf("esperava erro de source inválido, obtive: %v", err)
+	}
+}

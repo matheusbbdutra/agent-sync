@@ -25,6 +25,8 @@ func RunCommand(args []string) error {
 		return memoryUsage(os.Stderr)
 	}
 	switch args[0] {
+	case "add":
+		return runMemoryAdd(args[1:])
 	case "recent":
 		return runMemoryRecent(args[1:])
 	case "feedback":
@@ -51,6 +53,7 @@ func RunCommand(args []string) error {
 func memoryUsage(w io.Writer) error {
 	fmt.Fprintf(w, "Uso: agent-sync memory <subcommand> [-root <path>]\n\n")
 	fmt.Fprintf(w, "Subcommands:\n")
+	fmt.Fprintf(w, "  add          Adiciona uma memória permanente estruturada (ADR-memory-scope-matrix)\n")
 	fmt.Fprintf(w, "  recent       Lista os N eventos mais recentes (wrapper sobre 'event read')\n")
 	fmt.Fprintf(w, "  feedback     Registra feedback sobre uma memoria (append-only JSONL)\n")
 	fmt.Fprintf(w, "  write-page   Grava uma pagina de memoria (append-only JSONL, formato F1)\n")
@@ -395,5 +398,75 @@ func runMemoryWritePage(args []string) error {
 	}
 
 	fmt.Fprintf(os.Stdout, "page gravada: path=%s scope=%s agent=%s expires_at=%s\n", path, scope, agent, expiresAt)
+	return nil
+}
+
+// runMemoryAdd implementa `agent-sync memory add --kind=<kind> --note="..." [--source=manual|agent] [--session-id=<>]`.
+// ADR-memory-scope-matrix §4:
+// - Defaults: source=manual, retention=permanent
+// - Kinds válidos para manual: decision, hypothesis_validated, task_completed, note, blocker, open_question (ou todo o catálogo de EventKind)
+// - Validação: --note não vazio (mín 5 chars), --kind na enum
+// - Saída: confirmação textual informando que a memória permanente foi registrada
+func runMemoryAdd(args []string) error {
+	fs := flag.NewFlagSet("memory add", flag.ContinueOnError)
+	kind := fs.String("kind", "", "categoria do evento (ex: decision, hypothesis_validated, task_completed, note, blocker, open_question)")
+	note := fs.String("note", "", "descrição da memória (mínimo 5 caracteres)")
+	source := fs.String("source", "manual", "origem: manual | agent")
+	sessionID := fs.String("session-id", "", "ID da sessão (opcional)")
+	root := fs.String("root", "", "raiz do projeto (opcional)")
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	trimmedNote := strings.TrimSpace(*note)
+	if len(trimmedNote) < 5 {
+		return fmt.Errorf("memory add: --note deve ter pelo menos 5 caracteres (obtido %d)", len(trimmedNote))
+	}
+
+	validKinds := map[string]bool{
+		"decision":             true,
+		"hypothesis_validated": true,
+		"task_completed":       true,
+		"note":                 true,
+		"blocker":              true,
+		"open_question":        true,
+		"task_delegated":       true,
+		"guard_nudge":          true,
+		"action":               true,
+		"state_render":         true,
+	}
+	if !validKinds[*kind] {
+		return fmt.Errorf("memory add: kind %q inválido (esperado: decision, hypothesis_validated, task_completed, note, blocker, open_question, etc.)", *kind)
+	}
+
+	if *source != "manual" && *source != "agent" {
+		return fmt.Errorf("memory add: source %q inválido (esperado: manual ou agent)", *source)
+	}
+
+	projectRoot, _ := pathutil.ResolveStateRoot(*root)
+
+	agent := *source
+	if agent == "manual" {
+		agent = "user"
+	}
+
+	scratchFalse := false
+	req := event.RecordEventArgs{
+		Agent:       agent,
+		Kind:        *kind,
+		Note:        trimmedNote,
+		Source:      *source,
+		Retention:   "permanent",
+		SessionID:   *sessionID,
+		ProjectPath: projectRoot,
+		Scratch:     &scratchFalse,
+	}
+
+	if err := event.CallRecordEvent(req, 5*time.Second); err != nil {
+		return fmt.Errorf("memory add: erro ao registrar no memory-mcp: %w", err)
+	}
+
+	fmt.Fprintf(os.Stdout, "Memória registrada com sucesso: [%s] %s (source=%s, retention=permanent)\n", *kind, trimmedNote, *source)
 	return nil
 }
