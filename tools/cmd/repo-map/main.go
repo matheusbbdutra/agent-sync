@@ -31,8 +31,9 @@ type config struct {
 	mcp         bool
 	depth       int
 	summary     bool
-	maxTokens   int
-	showVersion bool
+	maxTokens     int
+	showVersion   bool
+	telemetryFile string
 }
 
 func parseFlags(args []string) (*config, error) {
@@ -50,6 +51,7 @@ func parseFlags(args []string) (*config, error) {
 	summary := fs.Bool("summary", false, "Retorna os símbolos centrais do projeto")
 	maxTokens := fs.Int("max-tokens", 0, "Em --summary/--brief, limita a saída a ~N tokens (0 = sem limite)")
 	showVersion := fs.Bool("version", false, "Mostra a versão do cache e sai")
+	telemetryFile := fs.String("telemetry-file", "", "Caminho do arquivo JSONL para gravar métricas de telemetria MCP (ou opt-in via AGENT_SYNC_GRAPH_TELEMETRY=1)")
 
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Uso: repo-map [flags]")
@@ -69,17 +71,18 @@ func parseFlags(args []string) (*config, error) {
 	}
 
 	cfg := &config{
-		update:      *update,
-		quiet:       *quiet,
-		root:        *root,
-		cacheDir:    *cacheDir,
-		focus:       *focus,
-		brief:       *brief,
-		mcp:         *mcp,
-		depth:       *depth,
-		summary:     *summary,
-		maxTokens:   *maxTokens,
-		showVersion: *showVersion,
+		update:        *update,
+		quiet:         *quiet,
+		root:          *root,
+		cacheDir:      *cacheDir,
+		focus:         *focus,
+		brief:         *brief,
+		mcp:           *mcp,
+		depth:         *depth,
+		summary:       *summary,
+		maxTokens:     *maxTokens,
+		showVersion:   *showVersion,
+		telemetryFile: *telemetryFile,
 	}
 	if cfg.root == "" {
 		if wd, err := os.Getwd(); err == nil {
