@@ -90,10 +90,10 @@ var standardHooks = []hookSpec{
 	// no OpenCode). Codex fica fora — PreToolUse só suporta allow/deny binário.
 	{name: "bash-guardian", fn: syncBashGuardianClaude, agentKinds: []string{"claude"}, detail: settingsPathDetail},
 	{name: "bash-guardian", fn: syncBashGuardianAntigravity, agentKinds: []string{"antigravity"}, detail: settingsPathDetail},
-	// bash-rm-guardian (A-75): detecta rm/rmdir/mv destrutivo, roda audit_removal,
-	// emite injectSteps warn. Wirar inicialmente só em Antigravity (modelo de
-	// referência); replicar para cursor/claude/opencode/codex em A-76+.
-	{name: "bash-rm-guardian", fn: syncBashRmGuardian, agentKinds: []string{"antigravity"}, detail: settingsPathDetail},
+	// bash-rm-guardian (A-75/A-76): detecta rm/rmdir/mv destrutivo, roda audit_removal,
+	// emite additionalContext warn (Claude/Codex) ou injectSteps (Antigravity). NÃO bloqueia.
+	// Wirar em claude + codex (mesmo PreToolUse nativo) + antigravity + cursor (beforeShellExecution).
+	{name: "bash-rm-guardian", fn: syncBashRmGuardian, agentKinds: []string{"antigravity", "claude", "codex"}, detail: settingsPathDetail},
 	{
 		name:       "bash-guardian",
 		fn:         syncBashGuardianOpenCode,

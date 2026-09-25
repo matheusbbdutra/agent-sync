@@ -12,15 +12,32 @@ import (
 const bashRmGuardianHookName = "agent-sync-bash-rm-guardian"
 
 // syncBashRmGuardian é o entry-point registrado em hooks_all.go.
-// Despacha por HooksFormat. Por enquanto só antigravity é wirado; outras
-// CLIs ficam como no-op silencioso (return nil) até A-76+.
+// Despacha por AgentKind (não HooksFormat, porque claude/codex compartilham
+// formato mas se identificam por AgentKind). Cada CLI wirar em PreToolUse
+// para consistency — formato do output adapta-se ao contrato de cada CLI.
 func syncBashRmGuardian(baseDir string, target TargetCLI) error {
-	switch target.HooksFormat {
+	switch target.AgentKind {
 	case "antigravity":
 		return syncBashRmGuardianAntigravity(baseDir, target)
+	case "claude":
+		return syncBashRmGuardianStandard(baseDir, target)
+	case "codex":
+		return syncBashRmGuardianStandard(baseDir, target)
 	default:
 		return nil
 	}
+}
+
+// syncBashRmGuardianStandard wirar PreToolUse para Claude Code e Codex.
+// Usa o script `bash-rm-guardian.pretooluse.sh` que emite no formato
+// `hookSpecificOutput.additionalContext` (Claude/Codex nativos) em vez de
+// injectSteps (Antigravity-only).
+func syncBashRmGuardianStandard(baseDir string, target TargetCLI) error {
+	if target.HooksSettingsPath == "" {
+		return nil
+	}
+	return syncStandardHookAtEvent(baseDir, target, bashRmGuardianHookName,
+		"bash-rm-guardian.pretooluse.sh", "*", "PreToolUse", nil)
 }
 
 // syncBashRmGuardianAntigravity instala o hook PreToolUse que detecta
