@@ -154,6 +154,8 @@ func toolDefinitions() []map[string]any {
 					"agent":        map[string]any{"type": "string", "enum": agentEnum, "description": "Quem está emitindo"},
 					"kind":         map[string]any{"type": "string", "enum": []string{"decision", "hypothesis_validated", "task_completed", "task_delegated", "guard_nudge", "action", "blocker", "open_question", "state_render", "note"}, "description": "Categoria do evento"},
 					"note":         map[string]any{"type": "string", "description": "Descrição curta do evento"},
+					"source":       map[string]any{"type": "string", "enum": []string{"auto-hook", "manual", "agent"}, "description": "Origem da gravação (default: auto-hook)"},
+					"retention":    map[string]any{"type": "string", "enum": []string{"scratch", "permanent"}, "description": "Ciclo de vida (scratch=7d removível, permanent=sem prune)"},
 					"session_id":   map[string]any{"type": "string", "description": "ID da sessão de origem (opcional)"},
 					"project_path": map[string]any{"type": "string", "description": "Diretório do projeto; se omitido, usa o projeto Git do diretório inicial do MCP"},
 					"global":       map[string]any{"type": "boolean", "description": "Vincular a um projeto (default) ou gravar sem projeto (global)"},
@@ -540,6 +542,8 @@ func callTool(store *agentmemory.Store, name string, args json.RawMessage) map[s
 			Agent       string `json:"agent"`
 			Kind        string `json:"kind"`
 			Note        string `json:"note"`
+			Source      string `json:"source"`
+			Retention   string `json:"retention"`
 			SessionID   string `json:"session_id"`
 			ProjectPath string `json:"project_path"`
 			Global      bool   `json:"global"`
@@ -556,6 +560,42 @@ func callTool(store *agentmemory.Store, name string, args json.RawMessage) map[s
 		if !agentmemory.EventKind[in.Kind] {
 			return errorResult(fmt.Sprintf("kind %q não está no catálogo aceito (%s)", in.Kind, "decision, hypothesis_validated, task_completed, task_delegated, guard_nudge, action, blocker, open_question, state_render, note"))
 		}
+
+		source := in.Source
+		if source == "" {
+			source = "auto-hook"
+		}
+		if source != "auto-hook" && source != "manual" && source != "agent" {
+			return errorResult(fmt.Sprintf("source %q inválido (esperado: auto-hook, manual, agent)", source))
+		}
+
+		// ADR §2 Regra de Ouro:
+		// auto-hook grava APENAS kind ∈ {action, guard_nudge, state_render} com retention=scratch.
+		// Garantia de integridade: se auto-hook tentar gravar decision, hypothesis_validated ou
+		// task_completed, é silenciosamente descartado para proteger permanent contra lixo.
+		if source == "auto-hook" {
+			if in.Kind == "decision" || in.Kind == "hypothesis_validated" || in.Kind == "task_completed" {
+				return textResult("evento descartado pela regra de integridade (auto-hook não pode gravar kinds permanentes)")
+			}
+		}
+
+		// Retention: scratch (default para auto-hook ou quando omitido) vs permanent.
+		// Regra de Ouro: auto-hook NUNCA grava permanent (forçado para scratch).
+		scratchFlag := true
+		if in.Retention == "permanent" {
+			scratchFlag = false
+		} else if in.Retention == "scratch" {
+			scratchFlag = true
+		} else if in.Retention != "" {
+			return errorResult(fmt.Sprintf("retention %q inválido (esperado: scratch, permanent)", in.Retention))
+		} else if in.Scratch != nil {
+			// Backward-compat: se retention não foi enviado, respeita scratch booleano legado.
+			scratchFlag = *in.Scratch
+		}
+		if source == "auto-hook" {
+			scratchFlag = true // forçado pela regra de ouro
+		}
+
 		origin := agentmemory.Origin{}
 		if in.Global {
 			origin.PC, _ = os.Hostname()
@@ -574,12 +614,6 @@ func callTool(store *agentmemory.Store, name string, args json.RawMessage) map[s
 		desc := in.Note
 		if len(desc) > 120 {
 			desc = desc[:120]
-		}
-		// Default: scratch=true (removível). Só é permanente se o cliente
-		// enviar explicitamente scratch=false.
-		scratchFlag := true
-		if in.Scratch != nil {
-			scratchFlag = *in.Scratch
 		}
 		err := store.Upsert(agentmemory.Memory{
 			Agent: in.Agent, SessionID: in.SessionID, Type: "event",
@@ -770,6 +804,9 @@ type BufferObservation struct {
 	Tool      string    `json:"tool"`
 	Status    string    `json:"status"`
 	Note      string    `json:"note"`
+	Source    string    `json:"source,omitempty"`
+	Kind      string    `json:"kind,omitempty"`
+	Retention string    `json:"retention,omitempty"`
 	Path      string    `json:"path,omitempty"`
 }
 
@@ -795,6 +832,9 @@ func runBufferRecord(args []string) error {
 	status := fs.String("status", "ok", "status ou exit code")
 	note := fs.String("note", "", "resumo ou observação")
 	path := fs.String("path", "", "caminho de arquivo ou projeto")
+	source := fs.String("source", "auto-hook", "origem da gravação")
+	kind := fs.String("kind", "action", "categoria semântica (default action)")
+	retention := fs.String("retention", "scratch", "ciclo de vida: scratch | permanent")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -807,6 +847,9 @@ func runBufferRecord(args []string) error {
 		Tool:      *tool,
 		Status:    *status,
 		Note:      *note,
+		Source:    *source,
+		Kind:      *kind,
+		Retention: *retention,
 		Path:      *path,
 	}
 	bPath := bufferFilePath(*session)
@@ -925,8 +968,29 @@ func runConsolidate(store *agentmemory.Store, args []string, out io.Writer) erro
 		}
 		seen[dedupKey] = true
 
+		kind := obs.Kind
+		if kind == "" {
+			kind = "action"
+		}
+		source := obs.Source
+		if source == "" {
+			source = "auto-hook"
+		}
+		// Regra de ouro §2: se auto-hook tentar gravar kind permanente, descarta
+		if source == "auto-hook" && (kind == "decision" || kind == "hypothesis_validated" || kind == "task_completed") {
+			continue
+		}
+		scratchFlag := true
+		if obs.Retention == "permanent" && source != "auto-hook" {
+			scratchFlag = false
+		}
+
 		sum := sha1.Sum([]byte(obs.Note))
-		slug := fmt.Sprintf("obs-%s-%x", obs.Tool, sum[:6])
+		toolPart := obs.Tool
+		if toolPart == "" {
+			toolPart = "tool"
+		}
+		slug := fmt.Sprintf("obs-%s-%s-%x", kind, toolPart, sum[:6])
 		slug = strings.ReplaceAll(slug, " ", "-")
 
 		mem := agentmemory.Memory{
@@ -934,12 +998,12 @@ func runConsolidate(store *agentmemory.Store, args []string, out io.Writer) erro
 			SessionID:   obs.SessionID,
 			Type:        "project",
 			Name:        slug,
-			Description: fmt.Sprintf("[%s/%s] %s", obs.Tool, obs.Status, obs.Note),
+			Description: fmt.Sprintf("[%s/%s/%s] %s", kind, obs.Tool, obs.Status, obs.Note),
 			Content:     obs.Note,
 			PC:          origin.PC,
 			ProjectPath: origin.ProjectPath,
 			ProjectID:   origin.ProjectID,
-			Scratch:     true,
+			Scratch:     scratchFlag,
 		}
 		if err := store.Upsert(mem); err == nil {
 			consolidatedCount++
@@ -1047,6 +1111,12 @@ func runStats(store *agentmemory.Store, args []string, out io.Writer) error {
 		fmt.Fprintln(out, "  by_agent:")
 		for k, v := range st.ByAgent {
 			fmt.Fprintf(out, "    %-16s %d\n", k+":", v)
+		}
+		if len(st.ByKindScratch) > 0 {
+			fmt.Fprintln(out, "  by_kind_scratch:")
+			for k, v := range st.ByKindScratch {
+				fmt.Fprintf(out, "    %-20s %d\n", k+":", v)
+			}
 		}
 		if st.OldestUpdateAt != "" {
 			fmt.Fprintf(out, "  oldest:    %s\n", st.OldestUpdateAt)

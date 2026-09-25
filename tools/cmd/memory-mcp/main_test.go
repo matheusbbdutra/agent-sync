@@ -632,3 +632,65 @@ func TestRunStats(t *testing.T) {
 		t.Fatalf("JSON ByType=%+v", got.ByType)
 	}
 }
+
+// TestRecordEventA71Matrix testa o comportamento da matriz de escopos de memória (A-71):
+// 1. source=auto-hook tentando gravar decision, hypothesis_validated ou task_completed é descartado pela regra de ouro (§2).
+// 2. auto-hook tem retention forçado para scratch.
+// 3. source=manual ou agent com retention=permanent grava permanentemente.
+func TestRecordEventA71Matrix(t *testing.T) {
+	store := openTestStoreFromTempDir(t)
+
+	// 1. auto-hook tentando gravar decision -> descartado
+	argsDisc := mustJSON(t, map[string]any{
+		"agent":  "claude-code",
+		"kind":   "decision",
+		"note":   "escolhemos arquitetura X",
+		"source": "auto-hook",
+	})
+	res := callTool(store, "record_event", argsDisc)
+	if isErr(res) {
+		t.Fatalf("callTool descartado gerou erro inesperado: %v", res)
+	}
+	content := textOf(res)
+	if !strings.Contains(content, "descartado") {
+		t.Fatalf("esperava descarte pela regra de ouro, obtive: %s", content)
+	}
+	st, err := store.Stats()
+	if err != nil || st.Total != 0 {
+		t.Fatalf("esperava 0 memórias gravadas após descarte, total=%d", st.Total)
+	}
+
+	// 2. auto-hook com retention=permanent -> forçado para scratch
+	argsAuto := mustJSON(t, map[string]any{
+		"agent":     "claude-code",
+		"kind":      "guard_nudge",
+		"note":      "nudge efêmero #1",
+		"source":    "auto-hook",
+		"retention": "permanent", // tentativa de gravar permanente via auto-hook
+	})
+	res = callTool(store, "record_event", argsAuto)
+	if isErr(res) {
+		t.Fatalf("callTool falhou: %v", res)
+	}
+	st, _ = store.Stats()
+	if st.Total != 1 || st.ByScratch["scratch"] != 1 {
+		t.Fatalf("esperava 1 scratch gravado (forçado), obtive %+v", st.ByScratch)
+	}
+
+	// 3. manual com retention=permanent -> grava permanent
+	argsManual := mustJSON(t, map[string]any{
+		"agent":     "user",
+		"kind":      "decision",
+		"note":      "decisão manual relevante",
+		"source":    "manual",
+		"retention": "permanent",
+	})
+	res = callTool(store, "record_event", argsManual)
+	if isErr(res) {
+		t.Fatalf("callTool manual falhou: %v", res)
+	}
+	st, _ = store.Stats()
+	if st.Total != 2 || st.ByScratch["permanent"] != 1 {
+		t.Fatalf("esperava 1 permanente gravado, obtive %+v", st.ByScratch)
+	}
+}

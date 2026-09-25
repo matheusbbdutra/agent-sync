@@ -149,9 +149,9 @@ func isUnavailable(err error) bool {
 		strings.Contains(s, "not found in $PATH")
 }
 
-// callRecordEvent faz o equivalente a memory-mcp tools/call record_event.
+// CallRecordEvent faz o equivalente a memory-mcp tools/call record_event.
 // Retorna ErrEventStoreUnavailable quando o binário não está disponível.
-func callRecordEvent(args RecordEventArgs, timeout time.Duration) error {
+func CallRecordEvent(args RecordEventArgs, timeout time.Duration) error {
 	params := map[string]any{
 		"name":      "record_event",
 		"arguments": args,
@@ -163,12 +163,18 @@ func callRecordEvent(args RecordEventArgs, timeout time.Duration) error {
 	return err
 }
 
+func callRecordEvent(args RecordEventArgs, timeout time.Duration) error {
+	return CallRecordEvent(args, timeout)
+}
+
 // RecordEventArgs mapeia o input da tool MCP record_event. Ponteiro em Scratch
 // distingue "campo omitido" (default true) de "false explícito" (permanente).
 type RecordEventArgs struct {
 	Agent       string `json:"agent"`
 	Kind        string `json:"kind"`
 	Note        string `json:"note"`
+	Source      string `json:"source,omitempty"`
+	Retention   string `json:"retention,omitempty"`
 	SessionID   string `json:"session_id,omitempty"`
 	ProjectPath string `json:"project_path,omitempty"`
 	Global      bool   `json:"global,omitempty"`

@@ -296,6 +296,7 @@ type Stats struct {
 	ByScratch      map[string]int `json:"by_scratch"` // {"scratch": N, "permanent": N}
 	ByType         map[string]int `json:"by_type"`
 	ByAgent        map[string]int `json:"by_agent"`
+	ByKindScratch  map[string]int `json:"by_kind_scratch,omitempty"`
 	OldestUpdateAt string         `json:"oldest_updated_at,omitempty"`
 	NewestUpdateAt string         `json:"newest_updated_at,omitempty"`
 }
@@ -304,9 +305,10 @@ type Stats struct {
 // normalizado para map vazio (nao nil) para output JSON estavel.
 func (s *Store) Stats() (*Stats, error) {
 	st := &Stats{
-		ByScratch: map[string]int{},
-		ByType:    map[string]int{},
-		ByAgent:   map[string]int{},
+		ByScratch:     map[string]int{},
+		ByType:        map[string]int{},
+		ByAgent:       map[string]int{},
+		ByKindScratch: map[string]int{},
 	}
 	// Total
 	if err := s.db.QueryRow(`SELECT COUNT(*) FROM memories`).Scan(&st.Total); err != nil {
@@ -362,6 +364,32 @@ func (s *Store) Stats() (*Stats, error) {
 			return nil, fmt.Errorf("agentmemory: stats by_agent scan: %w", err)
 		}
 		st.ByAgent[agent] = n
+	}
+	rows.Close()
+	// ByKindScratch (agrega kinds declarados nas memórias scratch via prefixo de name ou obs-<kind>-)
+	rows, err = s.db.Query(`SELECT name FROM memories WHERE scratch = 1`)
+	if err != nil {
+		return nil, fmt.Errorf("agentmemory: stats by_kind_scratch: %w", err)
+	}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("agentmemory: stats by_kind_scratch scan: %w", err)
+		}
+		kind := "unspecified"
+		if strings.HasPrefix(name, "obs-") {
+			parts := strings.Split(name, "-")
+			if len(parts) >= 3 && EventKind[parts[1]] {
+				kind = parts[1]
+			}
+		} else if dash := strings.IndexByte(name, '-'); dash > 0 {
+			candidate := name[:dash]
+			if EventKind[candidate] {
+				kind = candidate
+			}
+		}
+		st.ByKindScratch[kind]++
 	}
 	rows.Close()
 	// Oldest/newest updated_at
