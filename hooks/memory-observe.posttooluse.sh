@@ -7,9 +7,20 @@
 
 set -uo pipefail
 
+# A-66 patch (c): SCOPE generaliza DISABLE=1. Aceita:
+#   off         → sai cedo sem gravar
+#   high-signal → grava so mutacoes + erros (default)
+#   all         → grava tudo (desliga filtro allowlist em b)
+# Back-compat: AGENT_SYNC_MEMORY_OBSERVE_DISABLE=1 ainda equivale a off.
+OBSERVE_SCOPE="${AGENT_SYNC_MEMORY_OBSERVE_SCOPE:-high-signal}"
 if [ "${AGENT_SYNC_MEMORY_OBSERVE_DISABLE:-0}" = "1" ]; then
-  exit 0
+  OBSERVE_SCOPE="off"
 fi
+case "$OBSERVE_SCOPE" in
+  off) exit 0 ;;
+  all|high-signal) : ;;
+  *) OBSERVE_SCOPE="high-signal" ;;
+esac
 
 MEM_BIN="${AGENT_SYNC_MEMORY_BIN:-}"
 if [ -z "$MEM_BIN" ]; then
@@ -49,6 +60,26 @@ status="$(printf '%s' "$input" \
   | { grep -o '"status"[[:space:]]*:[[:space:]]*"[^"]*"' || true; } \
   | head -n1 | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/')"
 status="${status:-ok}"
+
+# A-66 patch (b): filtro de alto-sinal. SCOPE=all pula o filtro.
+# Allowlist alinhada com nudgeIfFilters em internal/hooks/hooks_constants.go:19
+# + Bash (comando shell executado é alto-sinal por intencao/mutacao).
+# Excecao: status!=ok sempre grava, mesmo que tool fora da allowlist
+# (erros sao alto-sinal independente da tool).
+if [ "$OBSERVE_SCOPE" = "high-signal" ]; then
+  case "$tool_name" in
+    Edit|Write|MultiEdit|NotebookEdit|Bash)
+      : # allowlist — continua para gravar
+      ;;
+    *)
+      if [ "$status" = "ok" ]; then
+        printf '{}'
+        exit 0
+      fi
+      : # status!=ok → alto-sinal por erro, continua para gravar
+      ;;
+  esac
+fi
 
 note="$(printf '%s' "$input" \
   | { grep -o '"error"[[:space:]]*:[[:space:]]*"[^"]*"' || true; } \

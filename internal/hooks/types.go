@@ -100,4 +100,7 @@ func RunCursorHooks(baseDir string, t TargetCLI, log Logger) {
 	if err := syncCtxHandoffHook(baseDir, t); err != nil {
 		log.Append("⚠️  [%s/ctx-handoff] %v", t.Name, err)
 	}
+	if err := syncMemoryPruneSessionStartHook(baseDir, t); err != nil {
+		log.Append("⚠️  [%s/memory-prune-session-start] %v", t.Name, err)
+	}
 }

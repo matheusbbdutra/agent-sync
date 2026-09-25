@@ -63,6 +63,9 @@ var standardHooks = []hookSpec{
 	{name: "opencode-docs-cache", fn: syncOpenCodeDocsCachePlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetail},
 	{name: "opencode-repo-map-warmup", fn: syncOpenCodeRepoMapWarmupPlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetail},
 	{name: "opencode-memory-pipeline", fn: syncOpenCodeMemoryPipelinePlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetail},
+	// Auto-prune SessionStart proxy (A-69). tool.execute.after + flag armed ate
+	// @opencode/plugin expor session.hook("created") nativo.
+	{name: "opencode-memory-prune-session-start", fn: syncOpenCodeMemoryPruneSessionStartPlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetail},
 	// Secret guard cross-CLI (A-63 / ADR-secret-guard-cross-cli.md). Defesa
 	// em 2 camadas: deny-list de path (primario) + regex de literal nos args
 	// (secundario). Wirar PreToolUse + PostToolUse em Claude Code + Codex +
@@ -77,6 +80,11 @@ var standardHooks = []hookSpec{
 	// Observação e consolidação contínua de memória (A-39 / ADR-automated-memory-observation-pipeline).
 	{name: "memory-observe", fn: syncMemoryObserveHook, detail: settingsPathDetail},
 	{name: "memory-consolidate", fn: syncMemoryConsolidateHook, detail: settingsPathDetail},
+	// Auto-prune scratch + alerta staleness no SessionStart (A-68).
+	// Wirar Claude Code + Codex + Antigravity (PreInvocation como proxy) +
+	// Cursor. OpenCode fica A-69 (sem hook nativo SessionStart em
+	// @opencode/plugin v2.0.11).
+	{name: "memory-prune-session-start", fn: syncMemoryPruneSessionStartHook, detail: settingsPathDetail},
 	// bash-guardian: 3 entradas porque cada CLI tem implementação própria
 	// (permissions.ask no Claude, PreToolUse ask no Antigravity, permission.bash
 	// no OpenCode). Codex fica fora — PreToolUse só suporta allow/deny binário.

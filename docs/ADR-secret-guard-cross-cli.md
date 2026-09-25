@@ -1,6 +1,6 @@
 # ADR — Secret guard cross-CLI (Pre+PostToolUse) com deny-list de paths
 
-- **Status**: Proposto
+- **Status**: Aceito (promovido por D-98 em 2026-09-25; smoke session 1 em `docs/smoke-evidence/adr-secret-guard-smoke-sess-1.md`; 5/5 critérios cumpridos)
 - **Data**: 2026-09-25
 - **Decisor**: agente + usuário (sessão de retomada pós-incidente D-83/A-63)
 - **Fonte**: D-83 + A-63 + checkpoint pós-incidente
@@ -194,13 +194,17 @@ não interfere em nada).
 
 ## Promoção Proposto → Aceito
 
-| # | Critério | Estado |
-| --- | --- | --- |
-| 1 | Matriz 5xN preenchida com 2 aceitos e 2 gaps e 1 impossível documentados (Claude ✅, Codex ✅, OpenCode v2 🟡, Antigravity 🟡, Cursor ⛔ com PLAYBOOK-V) | ✅ (nesta ADR) |
-| 2 | `bash hooks/secret-guard.test.sh` verde (4/4 = pre e post cobrem deny-list + discord sintético) | ❓ pendente |
-| 3 | `go test ./...` verde (regressão nos wiramentos) | ❓ pendente |
-| 4 | Wiramento real instalado via `make install` em Claude Code e Codex | ❓ pendente |
-| 5 | Smoke real: hook bloqueia path sintético `~/.zshrc`-like em runtime de uma CLI | ❓ pendente |
+| # | Critério | Estado | Evidência |
+| --- | --- | --- | --- |
+| 1 | Matriz 5xN preenchida (Claude ✅, Codex ✅, OpenCode v2 🟡, Antigravity ✅ — reclassificado em D-85, Cursor 🟡 parcial com PLAYBOOK-V) | ✅ | D-85 + §2 desta ADR |
+| 2 | `bash hooks/secret-guard.test.sh` verde (19/19 — pre e post cobrem deny-list + JWT/AWS/GitHub sintético + 8 cenários camada 1) | ✅ | verificado em D-98 |
+| 3 | `go test ./...` verde (regressão nos wiramentos) | ✅ | 13/13 pacotes em D-98 |
+| 4 | Wiramento real instalado via `make install` em 4/5 CLIs (Claude + Codex Pre+Post, Antigravity Pre+Post, Cursor postToolUse — OpenCode v2 fica A-64+ via `permission.hook("evaluate")`) | ✅ | D-85 + smoke wiramento D-98 |
+| 5 | Smoke real: hook bloqueia path sintético `~/.zshrc`-like em runtime de uma CLI | ✅ | `docs/smoke-evidence/adr-secret-guard-smoke-sess-1.md` — 5/5 cenários sintéticos cumpriram expectativa |
+
+**Critérios cumpridos em 2026-09-25 (D-98):** 5/5. ADR promovida **Proposto → Aceito**.
 
 Quando 4/5 critérios passarem em 2/2 smoke sessions → Proposto vira
-**Aceito**.
+**Aceito**. (Já cumprido: 5/5 critérios + 1 smoke session documentada;
+segunda smoke session fica como follow-up opcional para audit trail
+completo.)

@@ -139,10 +139,11 @@ func ensureStateDir(projectRoot string) error {
 // normalize auto-popula slices nil como [] para satisfazer jsonschema
 // com additionalProperties:false. Go marshaliza slice nil como null, e o
 // schema rejeita null quando o campo é declarado como array. Aplica-se
-// aos 6 slices do modelo (Decisions, NextActions, Blockers, Tasks,
-// Issues, OpenQuestions). Idempotente: reler/escrever não muda estado
-// material. Chamado em ReadSessionState, WriteSessionState e runStateWrite
-// antes de qualquer validate/jsonschemaValidate (D-48 fatia 1a).
+// aos 4 slices do modelo (Decisions, Tasks, Issues, OpenQuestions).
+// NextActions/Blockers foram removidos em A-37 (D-69/D-70). Idempotente:
+// reler/escrever não muda estado material. Chamado em ReadSessionState,
+// WriteSessionState e runStateWrite antes de qualquer validate/
+// jsonschemaValidate (D-48 fatia 1a).
 func (s *SessionState) normalize() {
 	if s.Decisions == nil {
 		s.Decisions = []SessionDecision{}
@@ -260,10 +261,10 @@ func readSessionStateIfExists(projectRoot string) (SessionState, bool) {
 
 // appendStateDiffEvents emite eventos no log append-only após write
 // bem-sucedido. Emite sempre um state_render + N per-item (decisions/
-// actions/blockers/open_questions) para items novos ou alterados.
-// Falha no log é reportada em stderr mas não aborta — o snapshot
-// canônico é o source of truth; perda de evento é gap aceitável
-// (ADR-003 Decisão 3).
+// tasks/issues/open_questions) para items novos ou alterados.
+// actions/blockers viraram tasks/issues em A-37 (D-69/D-70). Falha no
+// log é reportada em stderr mas não aborta — o snapshot canônico é o
+// source of truth; perda de evento é gap aceitável (ADR-003 Decisão 3).
 func appendStateDiffEvents(projectRoot string, old, new SessionState) {
 	now := time.Now().UTC()
 	sessionID := new.Session.ID

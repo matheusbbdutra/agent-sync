@@ -31,6 +31,16 @@ func RunCommand(args []string) error {
 		return runMemoryFeedback(args[1:])
 	case "write-page":
 		return runMemoryWritePage(args[1:])
+	case "lint":
+		return runMemoryLint(args[1:])
+	case "query":
+		return runMemoryQuery(args[1:])
+	case "read-page":
+		return runMemoryReadPage(args[1:])
+	case "read-session":
+		return runMemoryReadSession(args[1:])
+	case "delete-page":
+		return runMemoryDeletePage(args[1:])
 	case "help", "-h", "--help":
 		return memoryUsage(os.Stdout)
 	default:
@@ -44,6 +54,14 @@ func memoryUsage(w io.Writer) error {
 	fmt.Fprintf(w, "  recent       Lista os N eventos mais recentes (wrapper sobre 'event read')\n")
 	fmt.Fprintf(w, "  feedback     Registra feedback sobre uma memoria (append-only JSONL)\n")
 	fmt.Fprintf(w, "  write-page   Grava uma pagina de memoria (append-only JSONL, formato F1)\n")
+	fmt.Fprintf(w, "  lint         Roda 3 checks sobre memory_pages.jsonl (frontmatter, dangling refs, orphans)\n")
+	fmt.Fprintf(w, "  query        Grep simples em session-events (sem FTS5/Store)\n")
+	fmt.Fprintf(w, "  read-page    Le uma pagina do memory_pages.jsonl por path\n")
+	fmt.Fprintf(w, "  read-session Lista eventos de uma session_id (do session-events.jsonl)\n")
+	fmt.Fprintf(w, "  delete-page  Remove uma pagina do JSONL (idempotente, --dry-run default ON)\n")
+	fmt.Fprintf(w, "\nFlags (lint):\n")
+	fmt.Fprintf(w, "  -json         saida em JSON\n")
+	fmt.Fprintf(w, "  -cache-dir D  Diretorio do JSONL (default: ~/.cache/agent-sync)\n")
 	fmt.Fprintf(w, "\nFlags (recent):\n")
 	fmt.Fprintf(w, "  -last N      Apenas os ultimos N eventos (0 = todos, default 10)\n")
 	fmt.Fprintf(w, "  -kind K      Filtra por kind (decision|action|blocker|open_question|state_render)\n")

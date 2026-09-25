@@ -69,12 +69,18 @@ if [ "$trigger" -ne 1 ]; then
 fi
 
 # Mirror best-effort para memory-mcp.
-if command -v memory-mcp >/dev/null 2>&1; then
-  printf '%s\n' \
-    '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
-    '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
-    "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"record_event\",\"arguments\":{\"agent\":\"claude-code\",\"kind\":\"guard_nudge\",\"note\":\"ctx-window-nudge #$count ($reason)\",\"session_id\":\"$session_id\"}}}" \
-    | memory-mcp -db "${AGENT_SYNC_MEMORY_DB:-${XDG_CACHE_HOME:-$HOME/.cache}/agent-sync/memory.db}" >/dev/null 2>&1 || true
+# A-66 patch (a): protege contra gravação em toda tool call apos trigger
+# permanente (count>=MIN_TOOL_CALLS). Padrao espelha hooks/memory-nudge.sh:24
+# (count%THRESHOLD==0). Default 25 alinha com memory-nudge.
+MIRROR_THRESHOLD="${AGENT_SYNC_CTX_WINDOW_NUDGE_MIRROR_THRESHOLD:-25}"
+if [ "$((count % MIRROR_THRESHOLD))" -eq 0 ]; then
+  if command -v memory-mcp >/dev/null 2>&1; then
+    printf '%s\n' \
+      '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+      '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+      "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"record_event\",\"arguments\":{\"agent\":\"claude-code\",\"kind\":\"guard_nudge\",\"note\":\"ctx-window-nudge #$count ($reason)\",\"session_id\":\"$session_id\"}}}" \
+      | memory-mcp -db "${AGENT_SYNC_MEMORY_DB:-${XDG_CACHE_HOME:-$HOME/.cache}/agent-sync/memory.db}" >/dev/null 2>&1 || true
+  fi
 fi
 
 # Schema correto do Antigravity PreInvocation/PostToolUse: {"decision":"allow"}

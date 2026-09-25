@@ -286,6 +286,99 @@ func TestPruneScratchRemovesOnlyExpiredScratch(t *testing.T) {
 	}
 }
 
+// TestPreviewScratchOlderThan valida que o preview é read-only (não deleta) e
+// conta apenas scratch expirada (A-67, dry-run antes de prune).
+func TestPreviewScratchOlderThan(t *testing.T) {
+	s := openTestStore(t)
+	// permanente-velha: scratch=false (não conta no preview)
+	if err := s.Upsert(Memory{Agent: "codex", Type: "project", Name: "permanente-velha", Description: "d", Content: "c", Scratch: false}); err != nil {
+		t.Fatal(err)
+	}
+	// scratch-velha: scratch=true, accessed_at velho (deve aparecer no preview)
+	if err := s.Upsert(Memory{Agent: "claude-code", Type: "event", Name: "scratch-velha", Description: "d", Content: "c", Scratch: true}); err != nil {
+		t.Fatal(err)
+	}
+	// scratch-recente: scratch=true mas accessed_at recente (não deve aparecer)
+	if err := s.Upsert(Memory{Agent: "claude-code", Type: "event", Name: "scratch-recente", Description: "d", Content: "c", Scratch: true}); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().UTC().Add(-60 * 24 * time.Hour).Format(time.RFC3339)
+	if _, err := s.db.Exec(`UPDATE memories SET accessed_at = ? WHERE name IN ('permanente-velha', 'scratch-velha')`, old); err != nil {
+		t.Fatal(err)
+	}
+
+	prev, err := s.PreviewScratchOlderThan(30*24*time.Hour, 10)
+	if err != nil {
+		t.Fatalf("PreviewScratchOlderThan: %v", err)
+	}
+	if prev.Total != 1 {
+		t.Fatalf("esperava Total=1, obtive %d", prev.Total)
+	}
+	if len(prev.Entries) != 1 {
+		t.Fatalf("esperava 1 entry, obtive %d", len(prev.Entries))
+	}
+	if prev.Entries[0].Name != "scratch-velha" {
+		t.Fatalf("esperava scratch-velha, obtive %s", prev.Entries[0].Name)
+	}
+	// Confirma read-only: a entrada ainda existe no store.
+	if got, _ := s.Get("scratch-velha"); got == nil {
+		t.Fatal("Preview alterou o store (read-only esperado)")
+	}
+}
+
+// TestStats valida agregações por type/agent/scratch + idade (A-67).
+func TestStats(t *testing.T) {
+	s := openTestStore(t)
+	// Store vazio: total=0, mapas vazios.
+	st, err := s.Stats()
+	if err != nil {
+		t.Fatalf("Stats empty: %v", err)
+	}
+	if st.Total != 0 {
+		t.Fatalf("store vazio: esperava Total=0, obtive %d", st.Total)
+	}
+	if st.ByScratch == nil || len(st.ByScratch) != 0 {
+		t.Fatalf("ByScratch deve ser map vazio (não nil), obtive %+v", st.ByScratch)
+	}
+
+	// 2 permanentes (tipos diferentes) + 3 scratch (tipos diferentes + agents diferentes)
+	inputs := []Memory{
+		{Agent: "claude-code", Type: "project", Name: "p1", Description: "d", Content: "c", Scratch: false},
+		{Agent: "codex", Type: "feedback", Name: "f1", Description: "d", Content: "c", Scratch: false},
+		{Agent: "claude-code", Type: "event", Name: "e1", Description: "d", Content: "c", Scratch: true},
+		{Agent: "claude-code", Type: "event", Name: "e2", Description: "d", Content: "c", Scratch: true},
+		{Agent: "codex", Type: "event", Name: "e3", Description: "d", Content: "c", Scratch: true},
+	}
+	for _, m := range inputs {
+		if err := s.Upsert(m); err != nil {
+			t.Fatalf("Upsert %s: %v", m.Name, err)
+		}
+	}
+
+	st, err = s.Stats()
+	if err != nil {
+		t.Fatalf("Stats: %v", err)
+	}
+	if st.Total != 5 {
+		t.Fatalf("esperava Total=5, obtive %d", st.Total)
+	}
+	if st.ByScratch["permanent"] != 2 || st.ByScratch["scratch"] != 3 {
+		t.Fatalf("ByScratch errado: %+v (esperava permanent=2, scratch=3)", st.ByScratch)
+	}
+	if st.ByType["project"] != 1 || st.ByType["feedback"] != 1 || st.ByType["event"] != 3 {
+		t.Fatalf("ByType errado: %+v", st.ByType)
+	}
+	if st.ByAgent["claude-code"] != 3 || st.ByAgent["codex"] != 2 {
+		t.Fatalf("ByAgent errado: %+v", st.ByAgent)
+	}
+	if st.OldestUpdateAt == "" || st.NewestUpdateAt == "" {
+		t.Fatalf("oldest/newest nao devem estar vazios: %+v", st)
+	}
+	if st.OldestUpdateAt > st.NewestUpdateAt {
+		t.Fatalf("oldest > newest: %s > %s", st.OldestUpdateAt, st.NewestUpdateAt)
+	}
+}
+
 func TestListEvents(t *testing.T) {
 	s := openTestStore(t)
 

@@ -160,6 +160,13 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
+// DB expõe o *sql.DB subjacente para queries customizadas (ex.: testes que
+// precisam popular accessed_at/updated_at diretamente). Útil também para
+// integrações com outras libs que esperam *sql.DB.
+func (s *Store) DB() *sql.DB {
+	return s.db
+}
+
 // Upsert grava ou atualiza uma memória (chave única: type+name).
 func (s *Store) Upsert(m Memory) error {
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -218,6 +225,150 @@ func (s *Store) PruneScratch(olderThan time.Duration) (int, error) {
 		return 0, fmt.Errorf("agentmemory: prune scratch: %w", err)
 	}
 	return int(n), nil
+}
+
+// PrunePreviewEntry é uma entrada individual do preview de prune (read-only).
+type PrunePreviewEntry struct {
+	Name      string `json:"name"`
+	Type      string `json:"type"`
+	Agent     string `json:"agent"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+// PrunePreview agrega total + sample (até limit) das entradas scratch que
+// cairiam no prune. Read-only — não deleta nada. Mesma regra de
+// PruneScratch para accessed_at vs updated_at (legados).
+type PrunePreview struct {
+	Total   int                `json:"total"`
+	Entries []PrunePreviewEntry `json:"entries"`
+}
+
+// PreviewScratchOlderThan retorna quantas memórias scratch cairiam no prune
+// (dada olderThan) + até limit entradas mais antigas. Read-only, alinhado
+// com a query de PruneScratch. Origem: A-67 — dry-run antes de remover.
+func (s *Store) PreviewScratchOlderThan(olderThan time.Duration, limit int) (*PrunePreview, error) {
+	if olderThan <= 0 {
+		return nil, fmt.Errorf("agentmemory: preview scratch com duração não-positiva")
+	}
+	cutoff := time.Now().UTC().Add(-olderThan).Format(time.RFC3339)
+	p := &PrunePreview{Entries: []PrunePreviewEntry{}}
+	if err := s.db.QueryRow(`
+		SELECT COUNT(*) FROM memories WHERE scratch = 1 AND
+			((accessed_at != '' AND accessed_at < ?) OR (accessed_at = '' AND updated_at < ?))
+	`, cutoff, cutoff).Scan(&p.Total); err != nil {
+		return nil, fmt.Errorf("agentmemory: preview count: %w", err)
+	}
+	if p.Total == 0 {
+		return p, nil
+	}
+	rows, err := s.db.Query(`
+		SELECT name, type, agent, updated_at FROM memories WHERE scratch = 1 AND
+			((accessed_at != '' AND accessed_at < ?) OR (accessed_at = '' AND updated_at < ?))
+		ORDER BY updated_at ASC LIMIT ?
+	`, cutoff, cutoff, limit)
+	if err != nil {
+		return nil, fmt.Errorf("agentmemory: preview select: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var e PrunePreviewEntry
+		if err := rows.Scan(&e.Name, &e.Type, &e.Agent, &e.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("agentmemory: preview scan: %w", err)
+		}
+		p.Entries = append(p.Entries, e)
+	}
+	return p, rows.Err()
+}
+
+// Stats agrega contadores por type/agent/scratch + idade (oldest/newest
+// updated_at). Origem: A-67 — telemetria para validar impacto de A-66 (caiu
+// de ~100+ para ~10-15 entries/sessao) e monitorar crescimento futuro.
+//
+// Queries sao read-only e separadas por dimensao para clareza (3 queries
+// simples vs 1 mega-join com subqueries). Volume atual esperado: ~1k rows,
+// entao performance nao eh problema.
+//
+// Nota: ByScratch usa map[string]int (chaves "scratch"/"permanent") porque
+// encoding/json do Go (1.24+) recusa chaves nao-string em objects — map[bool]int
+// falha com "object member name must be a string within /by_scratch".
+type Stats struct {
+	Total          int            `json:"total"`
+	ByScratch      map[string]int `json:"by_scratch"` // {"scratch": N, "permanent": N}
+	ByType         map[string]int `json:"by_type"`
+	ByAgent        map[string]int `json:"by_agent"`
+	OldestUpdateAt string         `json:"oldest_updated_at,omitempty"`
+	NewestUpdateAt string         `json:"newest_updated_at,omitempty"`
+}
+
+// Stats retorna agregacoes uteis para telemetria. Zero-value de map eh
+// normalizado para map vazio (nao nil) para output JSON estavel.
+func (s *Store) Stats() (*Stats, error) {
+	st := &Stats{
+		ByScratch: map[string]int{},
+		ByType:    map[string]int{},
+		ByAgent:   map[string]int{},
+	}
+	// Total
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM memories`).Scan(&st.Total); err != nil {
+		return nil, fmt.Errorf("agentmemory: stats total: %w", err)
+	}
+	if st.Total == 0 {
+		return st, nil
+	}
+	// ByScratch
+	rows, err := s.db.Query(`SELECT scratch, COUNT(*) FROM memories GROUP BY scratch`)
+	if err != nil {
+		return nil, fmt.Errorf("agentmemory: stats by_scratch: %w", err)
+	}
+	for rows.Next() {
+		var sc int
+		var n int
+		if err := rows.Scan(&sc, &n); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("agentmemory: stats by_scratch scan: %w", err)
+		}
+		if sc != 0 {
+			st.ByScratch["scratch"] = n
+		} else {
+			st.ByScratch["permanent"] = n
+		}
+	}
+	rows.Close()
+	// ByType
+	rows, err = s.db.Query(`SELECT type, COUNT(*) FROM memories GROUP BY type ORDER BY type`)
+	if err != nil {
+		return nil, fmt.Errorf("agentmemory: stats by_type: %w", err)
+	}
+	for rows.Next() {
+		var typ string
+		var n int
+		if err := rows.Scan(&typ, &n); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("agentmemory: stats by_type scan: %w", err)
+		}
+		st.ByType[typ] = n
+	}
+	rows.Close()
+	// ByAgent
+	rows, err = s.db.Query(`SELECT agent, COUNT(*) FROM memories GROUP BY agent ORDER BY agent`)
+	if err != nil {
+		return nil, fmt.Errorf("agentmemory: stats by_agent: %w", err)
+	}
+	for rows.Next() {
+		var agent string
+		var n int
+		if err := rows.Scan(&agent, &n); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("agentmemory: stats by_agent scan: %w", err)
+		}
+		st.ByAgent[agent] = n
+	}
+	rows.Close()
+	// Oldest/newest updated_at
+	if err := s.db.QueryRow(`SELECT MIN(updated_at), MAX(updated_at) FROM memories`).Scan(&st.OldestUpdateAt, &st.NewestUpdateAt); err != nil {
+		return nil, fmt.Errorf("agentmemory: stats updated_at range: %w", err)
+	}
+	return st, nil
 }
 
 // ErrNotScratch é retornado quando Delete é chamado numa memória com Scratch=false:

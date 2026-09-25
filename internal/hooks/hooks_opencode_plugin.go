@@ -144,3 +144,12 @@ func syncOpenCodeMemoryPipelinePlugin(baseDir string, target TargetCLI) error {
 	return syncOpenCodePluginVersioned(baseDir, target, "memory-pipeline", "memory-pipeline.ts", false)
 }
 
+// syncOpenCodeMemoryPruneSessionStartPlugin: OpenCode plugin memory-prune (A-69)
+// Wirar auto-prune SessionStart via proxy tool.execute.after com flag armed
+// (padrao repo-map-warmup.opencode.ts:52-62). Plugin novo: so existe em v2
+// (hooks/memory-prune-session-start.opencode.v2.ts). Em v1 silencioso ate
+// @opencode/plugin expor session.hook("created") nativo.
+func syncOpenCodeMemoryPruneSessionStartPlugin(baseDir string, target TargetCLI) error {
+	return syncOpenCodePluginVersioned(baseDir, target, "memory-prune-session-start", "memory-prune-session-start.ts", false)
+}
+

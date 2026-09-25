@@ -497,3 +497,138 @@ func TestRequireEvidence(t *testing.T) {
 		})
 	}
 }
+
+// openTestStoreFromTempDir cria um Store SQLite em arquivo temporário isolado
+// (evita colisão com a ~/.cache/agent-sync/memory.db real). Usado pelos
+// testes de runPrune/runStats introduzidos em A-67.
+func openTestStoreFromTempDir(t *testing.T) *agentmemory.Store {
+	t.Helper()
+	tmpDir := t.TempDir()
+	store, err := agentmemory.Open(filepath.Join(tmpDir, "test.db"))
+	if err != nil {
+		t.Fatalf("Open test store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	return store
+}
+
+// TestRunPruneDryRun valida que --dry-run (default ON) mostra preview sem
+// deletar; --confirm remove de fato (A-67).
+//
+// Cuidado: store.Get() chama touchHit (atualiza accessed_at=now), entao
+// validacoes intermediarias com Get podem invalidar accessed_at artificial.
+// Por isso so chamamos Get() no final, apos os 3 sub-testes.
+func TestRunPruneDryRun(t *testing.T) {
+	store := openTestStoreFromTempDir(t)
+	// 1 scratch velha + 1 scratch recente + 1 permanente velha
+	for _, m := range []agentmemory.Memory{
+		{Agent: "codex", Type: "event", Name: "old-scratch", Description: "d", Content: "c", Scratch: true},
+		{Agent: "codex", Type: "event", Name: "recent-scratch", Description: "d", Content: "c", Scratch: true},
+		{Agent: "codex", Type: "project", Name: "old-permanent", Description: "d", Content: "c", Scratch: false},
+	} {
+		if err := store.Upsert(m); err != nil {
+			t.Fatalf("Upsert %s: %v", m.Name, err)
+		}
+	}
+	setAccessedAt := func(name string, ago time.Duration) {
+		t.Helper()
+		old := time.Now().UTC().Add(-ago).Format(time.RFC3339)
+		if _, err := store.DB().Exec(`UPDATE memories SET accessed_at = ? WHERE name = ?`, old, name); err != nil {
+			t.Fatalf("UPDATE accessed_at %s: %v", name, err)
+		}
+	}
+	setAccessedAt("old-scratch", 60*24*time.Hour)
+	setAccessedAt("old-permanent", 60*24*time.Hour)
+
+	var out bytes.Buffer
+
+	// 1) Default = dry-run: NAO deleta, mas mostra preview.
+	if err := runPrune(store, []string{"-older-than", "720h"}, &out); err != nil {
+		t.Fatalf("runPrune dry-run: %v", err)
+	}
+	if !strings.Contains(out.String(), "1 memória(s) scratch") {
+		t.Fatalf("preview deveria mostrar 1 entrada, obtive: %s", out.String())
+	}
+	if !strings.Contains(out.String(), "old-scratch") {
+		t.Fatalf("preview deveria listar old-scratch: %s", out.String())
+	}
+	out.Reset()
+
+	// 2) --dry-run=false sem --confirm: tambem nao deleta (seguranca em camadas).
+	if err := runPrune(store, []string{"-older-than", "720h", "-dry-run=false"}, &out); err != nil {
+		t.Fatalf("runPrune dry-run=false: %v", err)
+	}
+	out.Reset()
+
+	// 3) --dry-run=false --confirm: remove de fato.
+	// Re-set accessed_at (passos 1-2 podem ter alterado via side-effect de query?).
+	// Nao, SELECT nao altera; seguro re-set para garantir isolamento.
+	setAccessedAt("old-scratch", 60*24*time.Hour)
+	if err := runPrune(store, []string{"-older-than", "720h", "-dry-run=false", "-confirm"}, &out); err != nil {
+		t.Fatalf("runPrune confirm: %v", err)
+	}
+	if !strings.Contains(out.String(), "1 memória(s) scratch removida(s)") {
+		t.Fatalf("--confirm deveria remover 1: %s", out.String())
+	}
+	out.Reset()
+
+	// Validacoes finais (Get so agora para nao invalidar accessed_at).
+	if got, _ := store.Get("old-scratch"); got != nil {
+		t.Fatal("--confirm deveria ter removido old-scratch")
+	}
+	if got, _ := store.Get("old-permanent"); got == nil {
+		t.Fatal("--confirm removeu permanente (invariante violada)")
+	}
+	if got, _ := store.Get("recent-scratch"); got == nil {
+		t.Fatal("--confirm removeu scratch recente (nao devia)")
+	}
+}
+
+// TestRunStats valida que runStats imprime agregacoes (text) e JSON estruturado.
+func TestRunStats(t *testing.T) {
+	store := openTestStoreFromTempDir(t)
+	for _, m := range []agentmemory.Memory{
+		{Agent: "claude-code", Type: "event", Name: "e1", Description: "d", Content: "c", Scratch: true},
+		{Agent: "codex", Type: "event", Name: "e2", Description: "d", Content: "c", Scratch: true},
+		{Agent: "claude-code", Type: "project", Name: "p1", Description: "d", Content: "c", Scratch: false},
+	} {
+		if err := store.Upsert(m); err != nil {
+			t.Fatalf("Upsert %s: %v", m.Name, err)
+		}
+	}
+
+	// text
+	var out bytes.Buffer
+	if err := runStats(store, []string{}, &out); err != nil {
+		t.Fatalf("runStats text: %v", err)
+	}
+	text := out.String()
+	if !strings.Contains(text, "total:     3") {
+		t.Fatalf("text deveria ter total=3: %s", text)
+	}
+	if !strings.Contains(text, "scratch:   2") || !strings.Contains(text, "permanent: 1") {
+		t.Fatalf("text deveria ter scratch=2 permanent=1: %s", text)
+	}
+	if !strings.Contains(text, "event:") || !strings.Contains(text, "project:") {
+		t.Fatalf("text deveria ter by_type: %s", text)
+	}
+	out.Reset()
+
+	// JSON
+	if err := runStats(store, []string{"-json"}, &out); err != nil {
+		t.Fatalf("runStats json: %v", err)
+	}
+	var got agentmemory.Stats
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("JSON unmarshal: %v (output=%s)", err, out.String())
+	}
+	if got.Total != 3 {
+		t.Fatalf("JSON Total=%d, want 3", got.Total)
+	}
+	if got.ByScratch["scratch"] != 2 || got.ByScratch["permanent"] != 1 {
+		t.Fatalf("JSON ByScratch=%+v", got.ByScratch)
+	}
+	if got.ByType["event"] != 2 || got.ByType["project"] != 1 {
+		t.Fatalf("JSON ByType=%+v", got.ByType)
+	}
+}

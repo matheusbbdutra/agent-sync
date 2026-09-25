@@ -956,16 +956,106 @@ func runConsolidate(store *agentmemory.Store, args []string, out io.Writer) erro
 // runPrune executa a poda de memórias scratch expiradas e sai — não entra no
 // loop stdio do servidor MCP. É operação de manutenção local, não uma tool
 // MCP: o agente não deve poder disparar remoção em massa via protocolo.
-func runPrune(store *agentmemory.Store, args []string) {
-	fs := flag.NewFlagSet("prune", flag.ExitOnError)
-	olderThan := fs.Duration("older-than", 30*24*time.Hour, "idade mínima (accessed_at/updated_at) para remover memórias scratch")
-	fs.Parse(args)
+//
+// A-67: dry-run default ON (seguro), requer --confirm para realmente deletar.
+// Default older-than reduzido de 30d para 7d (alinhado com A-66 snapshot —
+// ciclo de prune mais frequente casa com cadência do memory-observe).
+//
+// Regra de segurança: --confirm=false (default) -> SEMPRE preview, nunca
+// deleta. --confirm=true -> deleta (e mostra quantos foram removidos).
+// --dry-run é mantido por back-compat/intuição mas é redundante: sem
+// --confirm, nada é removido independente do valor de --dry-run.
+func runPrune(store *agentmemory.Store, args []string, out io.Writer) error {
+	fs := flag.NewFlagSet("prune", flag.ContinueOnError)
+	olderThan := fs.Duration("older-than", 7*24*time.Hour, "idade mínima (accessed_at/updated_at) para remover memórias scratch")
+	dryRun := fs.Bool("dry-run", true, "cosmético: sem --confirm nada é removido de qualquer jeito")
+	confirm := fs.Bool("confirm", false, "confirma a remoção (sem --confirm só mostra preview)")
+	limit := fs.Int("limit", 10, "número máximo de entradas a listar no preview")
+	asJSON := fs.Bool("json", false, "saída em JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	preview, err := store.PreviewScratchOlderThan(*olderThan, *limit)
+	if err != nil {
+		return fmt.Errorf("prune preview: %w", err)
+	}
+
+	if !*confirm {
+		// Modo seguro: só mostra preview, não deleta.
+		if *asJSON {
+			data, _ := json.MarshalIndent(preview, "", "  ")
+			fmt.Fprintln(out, string(data))
+			return nil
+		}
+		fmt.Fprintf(out, "memory-mcp prune (dry-run): %d memória(s) scratch mais antiga(s) que %s seriam removidas\n", preview.Total, *olderThan)
+		if preview.Total == 0 {
+			return nil
+		}
+		fmt.Fprintf(out, "  mostro apenas as %d mais antigas:\n", len(preview.Entries))
+		for _, e := range preview.Entries {
+			fmt.Fprintf(out, "    [%s/%s] %s — updated_at=%s\n", e.Type, e.Agent, e.Name, e.UpdatedAt)
+		}
+		fmt.Fprintln(out, "  Re-rode com --confirm para remover de fato.")
+		return nil
+	}
+
+	// Confirmado: deleta de verdade.
 	n, err := store.PruneScratch(*olderThan)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "memory-mcp: prune: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("prune: %w", err)
 	}
-	fmt.Printf("memory-mcp: %d memória(s) scratch removida(s) (mais antigas que %s)\n", n, *olderThan)
+	if *asJSON {
+		data, _ := json.MarshalIndent(map[string]any{
+			"removed": n, "older_than": olderThan.String(),
+		}, "", "  ")
+		fmt.Fprintln(out, string(data))
+		return nil
+	}
+	fmt.Fprintf(out, "memory-mcp prune: %d memória(s) scratch removida(s) (mais antigas que %s)\n", n, *olderThan)
+	_ = dryRun
+	return nil
+}
+
+// runStats imprime (ou devolve JSON com) agregacoes uteis para telemetria.
+// A-67: nova ferramenta, base para validar impacto de A-66 e monitorar
+// crescimento futuro do memory-mcp.
+func runStats(store *agentmemory.Store, args []string, out io.Writer) error {
+	fs := flag.NewFlagSet("stats", flag.ContinueOnError)
+	asJSON := fs.Bool("json", false, "saída em JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	st, err := store.Stats()
+	if err != nil {
+		return fmt.Errorf("stats: %w", err)
+	}
+	if *asJSON {
+		data, _ := json.MarshalIndent(st, "", "  ")
+		fmt.Fprintln(out, string(data))
+		return nil
+	}
+	fmt.Fprintln(out, "memory-mcp stats:")
+	fmt.Fprintf(out, "  total:     %d\n", st.Total)
+	fmt.Fprintf(out, "  scratch:   %d\n", st.ByScratch["scratch"])
+	fmt.Fprintf(out, "  permanent: %d\n", st.ByScratch["permanent"])
+	if st.Total > 0 {
+		fmt.Fprintln(out, "  by_type:")
+		for k, v := range st.ByType {
+			fmt.Fprintf(out, "    %-12s %d\n", k+":", v)
+		}
+		fmt.Fprintln(out, "  by_agent:")
+		for k, v := range st.ByAgent {
+			fmt.Fprintf(out, "    %-16s %d\n", k+":", v)
+		}
+		if st.OldestUpdateAt != "" {
+			fmt.Fprintf(out, "  oldest:    %s\n", st.OldestUpdateAt)
+		}
+		if st.NewestUpdateAt != "" {
+			fmt.Fprintf(out, "  newest:    %s\n", st.NewestUpdateAt)
+		}
+	}
+	return nil
 }
 
 func main() {
@@ -992,7 +1082,10 @@ func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "prune":
-			runPrune(store, os.Args[2:])
+			if err := runPrune(store, os.Args[2:], os.Stdout); err != nil {
+				fmt.Fprintf(os.Stderr, "memory-mcp: prune: %v\n", err)
+				os.Exit(1)
+			}
 			return
 		case "query":
 			if err := runQuery(store, os.Args[2:], os.Stdout); err != nil {
@@ -1006,8 +1099,14 @@ func main() {
 				os.Exit(1)
 			}
 			return
+		case "stats":
+			if err := runStats(store, os.Args[2:], os.Stdout); err != nil {
+				fmt.Fprintf(os.Stderr, "memory-mcp: stats: %v\n", err)
+				os.Exit(1)
+			}
+			return
 		case "help", "-h", "--help":
-			fmt.Println("Uso: memory-mcp [prune | query | buffer-record | consolidate] [flags]")
+			fmt.Println("Uso: memory-mcp [prune | query | buffer-record | consolidate | stats] [flags]")
 			return
 		}
 	}
