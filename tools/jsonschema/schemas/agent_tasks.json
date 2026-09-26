@@ -25,7 +25,7 @@
     },
     "cli": {
       "type": "string",
-      "enum": ["claude", "codex", "opencode", "cursor", "agy"],
+      "enum": ["claude", "codex", "opencode", "cursor", "agy", "cline"],
       "description": "CLI que executou a task."
     },
     "model": {

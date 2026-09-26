@@ -27,7 +27,7 @@
 # Subcommand: agent-sync budget write (le AgentTask JSON do stdin).
 #
 # Variaveis:
-#   AGENT_SYNC_AGENT_KIND=<claude|codex|agy|cursor>  CLI origem (passado pelo wirar)
+#   AGENT_SYNC_AGENT_KIND=<claude|codex|agy|cursor|cline>  CLI origem (passado pelo wirar/ponte)
 #   AGENT_SYNC_BUDGET_BIN=<path>                     binario agent-sync (default: PATH)
 #   AGENT_SYNC_BUDGET_DISABLE=1                      no-op
 #   AGENT_SYNC_BUDGET_BG=1                           roda em background (default)
