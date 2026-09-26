@@ -91,11 +91,18 @@ func GetTargetsForHome(home string) []TargetCLI {
 			HooksFormat:       "cursor",
 		},
 		{
-			Name:              "cline",
-			RulesPath:         filepath.Join(home, ".cline", "AGENTS.md"),
-			SkillsDir:         filepath.Join(home, ".cline", "skills"),
-			AgentsDir:         filepath.Join(home, ".cline", "agents"),
-			AgentKind:         "cline",
+			Name:      "cline",
+			RulesPath: filepath.Join(home, ".cline", "AGENTS.md"),
+			SkillsDir: filepath.Join(home, ".cline", "skills"),
+			// AgentsDir vazio de proposito: o Cline CLI v3.0.65 NAO tem superficie
+			// de agents custom — o validador de config-extensions aceita so
+			// rules/skills/plugins, nao ha loader de agents, e probes reais
+			// (~/.cline/agents/*.md E agents/ no root do plugin) NAO expuseram
+			// nenhum agente ao modelo. Gerar arquivos ali seria um falso positivo
+			// (mesmo padrao do A-79). Para o Cline, os agentes especialistas sao
+			// entregues via Skills (~/.cline/skills). Ver A-83 e
+			// docs/ADR-cline-hooks-mcp-wiramento.md.
+			AgentKind:         "cline", // usado pelos hooks (ctx-handoff, agent-task-record)
 			HooksSettingsPath: filepath.Join(home, ".cline", "hooks"),
 			HooksEvent:        "PreToolUse",
 			HooksFormat:       "cline",
