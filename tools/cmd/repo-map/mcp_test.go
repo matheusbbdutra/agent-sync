@@ -47,8 +47,19 @@ func TestMCPToolsListAndCall(t *testing.T) {
 		t.Fatalf("resultado inválido de tools/list: %+v", resp.Result)
 	}
 	toolsList, ok := toolsMap["tools"].([]map[string]any)
-	if !ok || len(toolsList) != 3 {
-		t.Fatalf("esperava 3 tools no MCP, obteve %d", len(toolsList))
+	if !ok || len(toolsList) != 4 {
+		t.Fatalf("esperava 4 tools no MCP (3 originais + audit_removal A-74), obteve %d", len(toolsList))
+	}
+	// A-74: audit_removal deve estar presente
+	hasAuditRemoval := false
+	for _, tool := range toolsList {
+		if name, _ := tool["name"].(string); name == "audit_removal" {
+			hasAuditRemoval = true
+			break
+		}
+	}
+	if !hasAuditRemoval {
+		t.Errorf("audit_removal ausente da lista de tools")
 	}
 
 	// 2. Test get_file_impact

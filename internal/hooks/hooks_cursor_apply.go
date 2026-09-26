@@ -30,6 +30,9 @@ func cursorManagedHooks() []cursorHookDef {
 		{Event: "postToolUse", Script: "docs-cache.cursor.sh", Matcher: "WebFetch", WrapStage: "postToolUse"},
 		{Event: "afterMCPExecution", Script: "docs-cache-mcp.cursor.sh", Matcher: "query-docs", WrapStage: "afterMCPExecution"},
 		{Event: "beforeShellExecution", Script: "bash-guardian.cursor.sh", WrapStage: "beforeShellExecution"},
+		// bash-rm-guardian (A-76): detecta rm/rmdir/mv destrutivo, roda
+		// audit_removal, emite agent_message warn (Cursor). NÃO bloqueia.
+		{Event: "beforeShellExecution", Script: "bash-rm-guardian.cursor.sh", WrapStage: "beforeShellExecution"},
 		// Secret guard (A-63 / ADR-secret-guard-cross-cli.md). postToolUse
 		// wirado para redacao total (<REDACTED:FILE_IN_DENYLIST>) quando o
 		// file_path do input PostToolUse casa deny-list + redacao por regex

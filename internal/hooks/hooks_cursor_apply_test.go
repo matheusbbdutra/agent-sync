@@ -75,8 +75,23 @@ func TestMergeCursorHooksJSONIdempotent(t *testing.T) {
 		t.Fatalf("agent-react-nudge ausente em postToolUse: %+v", post)
 	}
 	before := decodeCursorHookEntries(hooks["beforeShellExecution"])
-	if len(before) != 1 || !strings.Contains(before[0].Command, "bash-guardian.cursor.sh") {
-		t.Fatalf("bash-guardian ausente: %+v", before)
+	if len(before) != 2 {
+		t.Fatalf("beforeShellExecution esperado 2 entries (bash-guardian + bash-rm-guardian A-76); obteve %d: %+v", len(before), before)
+	}
+	hasBashGuardian, hasBashRmGuardian := false, false
+	for _, e := range before {
+		if strings.Contains(e.Command, "bash-guardian.cursor.sh") {
+			hasBashGuardian = true
+		}
+		if strings.Contains(e.Command, "bash-rm-guardian.cursor.sh") {
+			hasBashRmGuardian = true
+		}
+	}
+	if !hasBashGuardian {
+		t.Errorf("bash-guardian ausente em beforeShellExecution: %+v", before)
+	}
+	if !hasBashRmGuardian {
+		t.Errorf("bash-rm-guardian ausente em beforeShellExecution (A-76): %+v", before)
 	}
 	afterMCP := decodeCursorHookEntries(hooks["afterMCPExecution"])
 	if len(afterMCP) != 1 || afterMCP[0].Matcher != "query-docs" {
