@@ -90,11 +90,12 @@ var standardHooks = []hookSpec{
 	// no OpenCode). Codex fica fora — PreToolUse só suporta allow/deny binário.
 	{name: "bash-guardian", fn: syncBashGuardianClaude, agentKinds: []string{"claude"}, detail: settingsPathDetail},
 	{name: "bash-guardian", fn: syncBashGuardianAntigravity, agentKinds: []string{"antigravity"}, detail: settingsPathDetail},
-	// bash-rm-guardian (A-75/A-76/A-77): detecta rm/rmdir/mv destrutivo, roda audit_removal,
-	// emite additionalContext warn (Claude/Codex), injectSteps (Antigravity), agent_message
-	// (Cursor) ou permission.bash=ask (OpenCode). NÃO bloqueia (exceto OpenCode "ask").
-	// Wirar em claude + codex + antigravity + cursor + opencode.
-	{name: "bash-rm-guardian", fn: syncBashRmGuardian, agentKinds: []string{"antigravity", "claude", "codex", "opencode"}, detail: settingsPathDetail},
+	// bash-rm-guardian (A-75/A-76/A-77/A-79): detecta rm/rmdir/mv destrutivo,
+	// roda audit_removal, emite additionalContext warn (Claude/Codex),
+	// injectSteps (Antigravity), agent_message (Cursor), permission.bash=ask
+	// (OpenCode) ou context (Cline v3). NÃO bloqueia (exceto OpenCode "ask").
+	// Wirar em claude + codex + antigravity + cursor + opencode + cline.
+	{name: "bash-rm-guardian", fn: syncBashRmGuardian, agentKinds: []string{"antigravity", "claude", "codex", "opencode", "cline"}, detail: settingsPathDetail},
 	{
 		name:       "bash-guardian",
 		fn:         syncBashGuardianOpenCode,
