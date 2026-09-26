@@ -7,15 +7,16 @@
 
 ## Estado do repositório
 
-- Branch: `main`
-- HEAD: `28bd065`
-- Working tree: dirty (HEAD 28bd065 = feat(agentmemory): AGENT_SYNC_TURSO_TOKEN env var; 1 arquivo modificado: .agent-sync/session-state.json + STATE.md sincronizado com D-86 + A-66 abertura da investigacao do fluxo de memory).
+- Branch: `worktree-a73-audit-removal-go` (worktree em `.claude/worktrees/a73-audit-removal-go`)
+- HEAD: `afa0911` (style(test) A-80: gofmt em cline_bridge_test.go)
+- Working tree: limpo (só `.agent-sync/` untracked). `main` segue em `2b39374` (A-73 Proposto) — a branch tem A-73 done..A-80 rev.1 e ainda **não foi pushada/mergeada**.
+- Host wirado nesta sessão (Cline, 6ª CLI): plugin `~/.cline/plugins/_installed/local/agent-sync-hooks-df3a8b490db8/package`, `~/.cline/hooks` vazio (shims inertes removidos), `~/.cline/data/settings/cline_mcp_settings.json` com context7/docs/memory/code-graph, `~/.local/bin/agent-sync` atualizado (backup `/tmp/agent-sync.bak-*`).
 
 ## Sessão atual
 
 - ID: `sess-20260920-170000`
 - Início: 2026-09-19T18:37:59Z
-- Última atualização: 2026-09-25T11:00:00Z
+- Última atualização: 2026-09-26T01:40:00Z
 
 ## Decisões
 
@@ -269,3 +270,73 @@
 - **B-1** [medium] [cancelado -> migrado para C-3] OpenCode porte v2 instalado; este blocker foi reabsorvido em C-3.
 - **B-2** [medium] [cancelado -> migrado para C-3] Token nudge contract, agora item estruturado da Trilha C.
 
+
+## Handoff — A-80 Cline (salvo em 2026-09-25 ~22:45, para a próxima sessão)
+
+> Memória durável (sobrevive a worktree/CLI): kinds `task_completed` (A-80),
+> `hypothesis_validated` (hooks de arquivo inertes), `open_question` (nome do módulo),
+> `decision` (atenção sobre memory.db concorrente), `action` (pendências) + páginas
+> `handoff/index` e `handoff/A-80-cline-hooks-mcp`
+> (`agent-sync memory read-page handoff/A-80-cline-hooks-mcp`; `memory lint` verde).
+
+### O que ficou pronto
+
+- A-80 [done] em 2 iterações: rev. 0 (hooks por arquivo) foi **descartada** após a
+  investigação empírica provar que `~/.cline/hooks` é inerte no CLI v3.0.65; rev. 1
+  wirou via **Cline Plugin** (`cline-plugin/` + `agent-sync hook cline`) e 4 MCPs
+  (`upsert_cline` no `scripts/setup-mcp.sh`).
+- Commits na branch (locais): `e074fe8`, `7c3b40f`, `afc4d09`, `afa0911`.
+- Evidência do smoke real: `/tmp/agent-sync-memory-nudge/conv_1790386423728_q0468tf.count`
+  + raciocínio do modelo citando o `appendContext` injetado pelo principles-inject.
+- **Correção de registro**: o A-79 (`~/.cline/hooks/PreToolUse` + `TestWiradoRealClineHook`)
+  era falso positivo — validava execução manual do script, sem passar pela CLI.
+
+### Achado que vale reler antes de mexer
+
+- Hooks por ARQUIVO em `~/.cline/hooks` são inertes no CLI v3.0.65 (loader gateado por
+  capability `hooks` ausente); o wiramento real é via Cline Plugin. O A-79 era falso
+  positivo. Evidências: `docs/investigations/cline-hooks-contract.md`.
+- Gotcha do plugin (memória `open_question`): exportar `name: "agent-sync"` no módulo do
+  plugin **não carrega** (nenhum callback executa); `agent-sync-hooks` funciona. Causa
+  raiz não isolada (suspeita: reserva/dedup por nome).
+- Ferramenta (memória `decision`): **não** abrir `~/.cache/agent-sync/memory.db` com
+  sqlite3/python externo enquanto o `memory-mcp` pode escrever — nesta sessão isso fez
+  `memory add` falhar com `memory-mcp saiu com erro: exit status 1` e uma gravação
+  reportar sucesso sem persistir. Usar sempre a CLI (`agent-sync memory ...`).
+
+
+### Pendências (ordem sugerida)
+
+1. **Merge/push** `worktree-a73-audit-removal-go` -> `main` (main ainda em `2b39374`).
+   Conflito esperado em `STATE.md` (hand-edited dos dois lados).
+2. **A-80.4** (nova): estender `clineHookSpecs` para hooks dependentes de transcript
+   (`ctx-window` summarize/handoff, `agent-task-record`, `false-success-guard`) e
+   avaliar `precompact-snapshot` (o runtime de plugin do Cline não expõe PreCompact) e
+   telemetria Cline em `.agent-sync/agent_tasks.jsonl`.
+3. **`make install`** completo (nesta sessão só `~/.local/bin/agent-sync` foi atualizado).
+4. Decidir sobre **path injection**: `agent-sync -apply` rodado de outro `baseDir`
+   reescreve o `agent-sync-config.json` do plugin apontando para aquele baseDir.
+5. Higiene pós-merge: conferir `~/.codex/hooks.json` / `~/.claude/settings.json`
+   (o apply desta sessão usou `baseDir` = worktree `a73-audit-removal-go`).
+6. **A-81 candidato** (novo): `memory add` é sensível a escrita concorrente no
+   `memory.db` (ver "Atencao de ferramenta" acima) — avaliar retry/erro explícito
+   em `event.CallRecordEvent` (`internal/event/store.go:154`) em vez de
+   `exit status 1` seco, e documentar a regra "não usar SQL externo concorrente".
+
+### Como revalidar rápido
+
+```bash
+cd .claude/worktrees/a73-audit-removal-go
+go vet ./... && go test ./... && (cd tools && go test ./...)
+go test ./internal/hooks/ -run Cline -v
+(cd tools && go test ./cmd/repo-map/ -run TestWiradoRealClineHook -v)
+AGENT_SYNC_HOME=$PWD ~/.local/bin/agent-sync -apply     # idempotente
+timeout 60 cline -t 120 "Liste os arquivos .md da raiz usando run_commands e responda so o total."
+ls /tmp/agent-sync-memory-nudge/ | tail -3                # counter conv_... novo = hooks rodaram
+```
+
+### Ponteiros
+
+- `docs/ADR-cline-hooks-mcp-wiramento.md` (Aceito rev. 1, com critérios verificados)
+- `docs/investigations/cline-hooks-contract.md` (contratos + 5 probes + gotchas)
+- `internal/hooks/cline_bridge.go`, `internal/hooks/apply_cline.go`, `cline-plugin/index.js`
