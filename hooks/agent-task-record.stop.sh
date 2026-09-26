@@ -60,6 +60,13 @@ if [ -z "$session_id" ]; then
     | { grep -o '"conversation_id"[[:space:]]*:[[:space:]]*"[^"]*"' || true; } \
     | head -n1 | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/')"
 fi
+# A-86: taskId é o que o Cline envia (conv_<ts>_<rand>); adiciona como fallback
+# de-3-nivel para nao cair no default compartilhado quando wirado via plugin.
+if [ -z "$session_id" ]; then
+  session_id="$(printf '%s' "$input" \
+    | { grep -o '"taskId"[[:space:]]*:[[:space:]]*"[^"]*"' || true; } \
+    | head -n1 | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/')"
+fi
 session_id="${session_id:-unknown}"
 
 # Codex-specific: campo model nativo no payload.

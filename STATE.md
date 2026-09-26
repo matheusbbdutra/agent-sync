@@ -10,7 +10,8 @@
 - Branch: `main` (merge de `worktree-a73-audit-removal-go` em `7cac536`; A-81=`dad1688`, A-82=`6b3057d`+`5bc282e`, A-83=`67a2c36`, A-84=`a34a12c`, A-85=pendente commit, docs=`74e07f2`+`d4a04da`)
 - HEAD: A-85 + docs; `main` tem A-73 [done]..A-85. Branch/worktree `a73-audit-removal-go` **removido**; plugin Cline único (`agent-sync-hooks-7bda9b533174`) apontando para o repo principal.
 - Working tree: limpo (só `.claude/` untracked). `make install`/`make apply` rodados: binários alinhados, wiramento sem warning (`[cline/agents]` eliminado no A-83) e **um só plugin** (A-84, com `repo` canônico em `~/.config/agent-sync/config.json`).
-- Host wirado nesta sessão (Cline, 6ª CLI): plugin `~/.cline/plugins/_installed/local/agent-sync-hooks-df3a8b490db8/package`, `~/.cline/hooks` vazio (shims inertes removidos), `~/.cline/data/settings/cline_mcp_settings.json` com context7/docs/memory/code-graph, `~/.local/bin/agent-sync` atualizado (backup `/tmp/agent-sync.bak-*`).
+- Host wirado nesta sessão (Cline, 6ª CLI): plugin `~/.cline/plugins/_installed/local/agent-sync-hooks-7bda9b533174/package`, `~/.cline/hooks` vazio (shims inertes removidos), `~/.cline/data/settings/cline_mcp_settings.json` com context7/docs/memory/code-graph, `~/.local/bin/agent-sync` atualizado (backup `/tmp/agent-sync.bak-*`).
+- Sessão atual (2026-09-26, ses_atual): auditoria de wiramento Cline descobriu hook `memory-prune-session-start` silencioso por chmod 664 + `session_id` não chegando ao script via env. **A-86**: chmod +x (`efc32d9`) + parse `taskId` do stdin em 3 hooks (memory-prune-session-start `696b5aa`, memory-observe + agent-task-record pendentes). Próximo: PR consolidado.
 
 ## Sessão atual
 

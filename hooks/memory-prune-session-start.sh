@@ -22,6 +22,20 @@ if [ "${AGENT_SYNC_AUTO_PRUNE:-1}" = "0" ]; then
   exit 0
 fi
 
+# A-86: fallback para CLIs que nao populam CLAUDE_SESSION_ID/CODEX_SESSION_ID
+# via env (Cline, OpenCode). Le o payload JSON do stdin e extrai
+# taskId/conversation_id/session_id antes de cair no default compartilhado.
+input="$(cat 2>/dev/null || true)"
+if [ -z "${CLAUDE_SESSION_ID:-}" ] && [ -z "${CODEX_SESSION_ID:-}" ] && [ -n "$input" ]; then
+  stdin_sid="$(printf '%s' "$input" \
+    | { grep -oE '"(session_id|taskId|conversation_id)"[[:space:]]*:[[:space:]]*"[^"]*"' || true; } \
+    | head -n1 \
+    | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/')"
+  if [ -n "$stdin_sid" ]; then
+    export CLAUDE_SESSION_ID="$stdin_sid"
+  fi
+fi
+
 # Resolve memory-mcp (padrao identico a memory-observe.posttooluse.sh:14-24)
 MEM_BIN="${AGENT_SYNC_MEMORY_BIN:-}"
 if [ -z "$MEM_BIN" ]; then
