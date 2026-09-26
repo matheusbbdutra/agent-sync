@@ -303,14 +303,24 @@
   hooks (gotcha: `~/.local/bin` não está no `PATH` do processo do Cline).
 - `TaskComplete`: + `ctx-window-summarize-at-stop.sh` e
   `agent-task-record.stop.sh` (telemetria `cli=cline` em
-  `.agent-sync/agent_tasks.jsonl`, `tokens: null`/`model: unknown` por ausência
-  de transcript).
+  `.agent-sync/agent_tasks.jsonl`; `tokens: null`/`model: unknown` por ausência
+  de transcript). Validado end-to-end com o binário instalado.
 - `TaskStart`: + `ctx-handoff` (`ctx-window handoff cline`); `ctx-window handoff`
   agora aceita `cline` (`handoffCLIs` map).
-- **Gaps aceitos**: `false-success-guard` (só age com `transcript_path`) e
+- **Bug de schema encontrado e corrigido**: o enum `cli` de
+  `tools/jsonschema/schemas/agent_tasks.json` nunca recebeu a 6ª CLI — o
+  `agent-task-record` morria em `jsonschema validation failed` (mascarado por
+  `>/dev/null 2>&1`) e **não gravava telemetria**. Adicionado `cline` (aditivo).
+- **Gap aceito**: `false-success-guard` (só age com `transcript_path`) e
   `precompact-snapshot` (runtime de plugin não expõe `PreCompact`) — mesma
   classe do gap já aceito no Cursor. Ver ADR rev. 2.
-- Commits: `d495e1f` (test fix do smoke), `fc5e3b4` (bridge v2).
+- **Gap novo (requer decisão — MAJOR bump)**: `token-nudge` é **inerte no Cline**.
+  O schema `token-budget-status.json` tem `actor` como enum fechado (sem `cline`);
+  `budget nudge -actor cline` falha, o script sai `exit 0` e o nudge nunca é
+  injetado. A ADR-003 (Decisão 2) exige MAJOR bump + migration para novo CLI no
+  enum `actor` (afeta também `session-event.json` e `precompact-snapshot.json`).
+- Commits: `d495e1f` (test fix do smoke), `fc5e3b4` (bridge v2),
+  `3eccfa1` (docs), + commit do fix de schema/telemetria.
 
 ### Achado que vale reler antes de mexer
 
@@ -356,6 +366,15 @@
    SQL externo (sqlite3/python) concorrente no `memory.db` — usar a CLI
    (`agent-sync memory ...`). Limitação conhecida: "sucesso sem persistir" (RPC
    ok) não é coberto pelo retry. Testes em `internal/event/store_test.go`.
+7. **Decidir MAJOR bump do enum `actor`** (PENDENTE, precisa do usuário): a 6ª
+   CLI não entrou nos enums `actor` de `session-event.json`,
+   `token-budget-status.json` e `precompact-snapshot.json` — por ADR-003
+   (Decisão 2), novo CLI no enum `actor` exige **MAJOR bump + migration**.
+   Consequência prática hoje: **`token-nudge` (wirado no Cline v1) é inerte** —
+   `budget nudge -actor cline` falha na validação e o script sai `exit 0` sem
+   injetar o nudge. Se aceito o bump, adicionar `cline` aos 3 enums + atualizar
+   produtores/consumidores; alternativa: manter o gap e documentar. Evidência e
+   impacto no ADR-cline-hooks-mcp-wiramento.md (rev. 2, "Gaps aceitos").
 
 ### Como revalidar rápido
 

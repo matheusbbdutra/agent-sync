@@ -84,6 +84,21 @@ de resolver `agent-sync`/`ctx-window`.
 - **`precompact-snapshot`**: o runtime de plugin do Cline não expõe `PreCompact`
   (o loader de arquivos mapeia o evento para `undefined`) → mesmo gap aceito já
   registrado para o Cursor (`ADR-precompact-snapshot-cross-cli`, Decisão 4).
+- **`token-nudge` inerte no Cline (gap novo, requer decisão de MAJOR bump)**:
+  o script passa `-actor cline` para `agent-sync budget nudge`, e o schema
+  `token-budget-status.json` tem `actor` como enum fechado
+  (`claude,codex,opencode,cursor,agy,agent-sync`). A validação falha, o stdout
+  fica vazio e o script sai com `exit 0` (silent no-op) → **o nudge de contexto
+  nunca é injetado no Cline**. Corrigir exige adicionar `cline` ao enum `actor`,
+  e a ADR-003 (Decisão 2) determina **MAJOR bump + migration** para novo CLI no
+  enum `actor`. Mesma situação para `session-event.json` e
+  `precompact-snapshot.json` (hoje não quebram porque nenhum hook do Cline
+  escreve `actor=cline`, mas bloqueiam o wiramento futuro de
+  `precompact-snapshot`). Decisão pendente do usuário.
+- **`agent_tasks.json` (`cli`)**: enum também ficou sem `cline` e **quebrava a
+  telemetria** (`budget write` rejeitava `cli=cline`); corrigido no A-80.4
+  (aditivo, sem bump — o schema de `cli` não está coberto pela regra de MAJOR da
+  ADR-003, que é específica do `actor` de `session-event`).
 - **`false-success-guard`/tokens por transcript**: se uma versão futura do Cline
   expuser transcript (ou habilitar capability `hooks` para config-extensions,
   permitindo os hooks por arquivo), basta revogar o gap — o bridge já aceita os
