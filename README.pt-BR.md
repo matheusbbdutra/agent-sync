@@ -2,12 +2,15 @@
 
 > [English](README.md) · [Português](README.pt-BR.md)
 
-Versiona, mantém e sincroniza **Regras Globais**, **Skills**, **Agentes Especialistas** e **Ferramentas de Baixo Consumo de Tokens** entre 5 CLIs:
+Versiona, mantém e sincroniza **Regras Globais**, **Skills**, **Agentes Especialistas** e **Ferramentas de Baixo Consumo de Tokens** entre 6 CLIs:
 - **Claude Code** (`~/.claude`)
 - **Codex / OpenAI** (`~/.codex`)
 - **Google Antigravity CLI** (`~/.gemini`) — sucessora da Gemini CLI standalone (encerrada em 18/06/2026 para contas não-enterprise)
 - **OpenCode** (`~/.config/opencode`)
 - **Cursor** (`~/.cursor`) — IDE + Agent CLI (`agent` / `cursor-agent`)
+- **Cline** (`~/.cline`) — CLI + extensão de IDE; hooks wirados via Cline Plugin
+  (`~/.cline/plugins/_installed/local/agent-sync-hooks-<hash>/`) que faz ponte para
+  `agent-sync hook cline` (hooks por arquivo em `~/.cline/hooks` são inertes na CLI v3)
 
 ---
 

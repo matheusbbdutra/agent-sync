@@ -29,3 +29,10 @@ func syncHooks(baseDir string, target TargetCLI) error {
 	return syncStandardHookAtEvent(baseDir, target, contextGuardHookName,
 		"context-guard-nudge.pretooluse.sh", "*", "PreToolUse", nudgeIfFilters)
 }
+
+// syncBashRmGuardianEntry é o entry-point wirado pelo apply de A-75.
+// Por enquanto só wirar em Antigravity; replicar para outras CLIs
+// nas próximas iterações (A-76+).
+func syncBashRmGuardianEntry(baseDir string, target TargetCLI) error {
+	return syncBashRmGuardian(baseDir, target)
+}

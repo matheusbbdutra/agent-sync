@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func captureRun(t *testing.T, args []string) (stdout, stderr string, exit int) {
@@ -198,5 +199,76 @@ func TestRunBrief(t *testing.T) {
 	if !strings.Contains(stdout, `"PORT"`) {
 		t.Errorf("brief deveria conter env PORT, stdout=%q", stdout)
 	}
+}
+
+func TestRunAuditRemoval(t *testing.T) {
+	dir := t.TempDir()
+	// arquivo referenciado + schema inline
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("# tools/cmd/foo\nreference\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "deps.go"), []byte("package x\nimport \"tools/cmd/foo/store\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "schema.go"), []byte("package s\nconst ddl = `CREATE TABLE foo (id INTEGER)`\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr, exit := captureRun(t, []string{"--root", dir, "--audit-removal", "tools/cmd/foo"})
+	if exit != 0 {
+		t.Errorf("audit-removal exit=%d stderr=%s", exit, stderr)
+	}
+	if !strings.Contains(stdout, `"schema_version": "agent-sync.audit-ledger.v1"`) {
+		t.Errorf("output deveria ter schema_version, stdout=%q", stdout)
+	}
+	if !strings.Contains(stdout, `"tools-cmd-foo-removal"`) {
+		t.Errorf("output deveria ter id slug, stdout=%q", stdout)
+	}
+	if !strings.Contains(stdout, `"go-package-reference"`) {
+		t.Errorf("output deveria ter classe go-package-reference, stdout=%q", stdout)
+	}
+	if !strings.Contains(stdout, `"foo"`) {
+		t.Errorf("output deveria mencionar tabela foo, stdout=%q", stdout)
+	}
+}
+
+func TestRunAuditRemovalLatencia(t *testing.T) {
+	// gera ~200 arquivos pequenos para validar que o walk+grep fica abaixo
+	// do orçamento de 500ms definido no ADR A-73 (Critério #2).
+	dir := t.TempDir()
+	for i := 0; i < 200; i++ {
+		name := filepath.Join(dir, "file"+itoaPad(i, 3)+".md")
+		if err := os.WriteFile(name, []byte("# target-name notes\nsome content\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	start := time.Now()
+	stdout, stderr, exit := captureRun(t, []string{"--root", dir, "--audit-removal", "target-name"})
+	elapsed := time.Since(start)
+	if exit != 0 {
+		t.Errorf("audit-removal exit=%d stderr=%s", exit, stderr)
+	}
+	if !strings.Contains(stdout, `"target-name-removal"`) {
+		t.Errorf("output deveria conter id, stdout=%q", stdout)
+	}
+	t.Logf("latência para 200 arquivos: %v", elapsed)
+	if elapsed > 500*time.Millisecond {
+		t.Errorf("latência %v excedeu orçamento de 500ms (ADR A-73)", elapsed)
+	}
+}
+
+func itoaPad(n, width int) string {
+	s := []byte{}
+	for n > 0 {
+		s = append([]byte{byte('0' + n%10)}, s...)
+		n /= 10
+	}
+	for len(s) < width {
+		s = append([]byte{'0'}, s...)
+	}
+	if len(s) == 0 {
+		return "0"
+	}
+	return string(s)
 }
 

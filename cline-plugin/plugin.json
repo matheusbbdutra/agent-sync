@@ -1,0 +1,8 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "agent-sync",
+  "version": "0.1.0",
+  "description": "Hooks do agent-sync para o Cline: nudges de contexto/memória, principles-inject, secret-guard e bash-rm-guardian (A-80)",
+  "keywords": ["agent-sync", "hooks", "cline"],
+  "license": "MIT"
+}

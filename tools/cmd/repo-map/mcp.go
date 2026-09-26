@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/matheusdutra/token-tools/internal/audit"
 	"github.com/matheusdutra/token-tools/internal/repomap"
 )
 
@@ -71,6 +72,18 @@ func toolDefinitions() []map[string]any {
 				},
 			},
 		},
+		{
+			"name":        "audit_removal",
+			"description": "Varre o repositório em busca de referências textuais a um diretório/arquivo-alvo (ex.: antes de deletar ou mover) e devolve um ledger JSON classificado em 9 classes. Use antes de qualquer refactor destrutivo.",
+			"inputSchema": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"target":       map[string]any{"type": "string", "description": "Caminho relativo do alvo (diretório ou arquivo). Obrigatório."},
+					"schema_globs": map[string]any{"type": "string", "description": "Lista separada por vírgula de paths (relativos ao root) com DDL inline para extrair tabelas. Vazio = auto-detecta *.sql e *schema*.go."},
+				},
+				"required": []string{"target"},
+			},
+		},
 	}
 }
 
@@ -89,6 +102,23 @@ func errorResult(msg string) map[string]any {
 		},
 		"isError": true,
 	}
+}
+
+// splitCSV divide uma string separada por vírgula em itens trim/não-vazios.
+// Helper local para `audit_removal` MCP tool.
+func splitCSV(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := parts[:0]
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func callTool(cacheDir, root string, name string, args json.RawMessage, telemetryFile string) map[string]any {
@@ -157,6 +187,35 @@ func callTool(cacheDir, root string, name string, args json.RawMessage, telemetr
 		_ = json.Unmarshal(args, &in)
 		out := repomap.Summary(cache, in.MaxTokens)
 		res = textResult(out)
+
+	case "audit_removal":
+		var in struct {
+			Target      string `json:"target"`
+			SchemaGlobs string `json:"schema_globs"`
+		}
+		if err := json.Unmarshal(args, &in); err != nil || strings.TrimSpace(in.Target) == "" {
+			res = errorResult("parâmetro 'target' é obrigatório")
+			break
+		}
+		schemaGlobs := splitCSV(in.SchemaGlobs)
+		if len(schemaGlobs) == 0 {
+			schemaGlobs = autoDetectSchemaFiles(root)
+		}
+		ledger, err := audit.BuildRemovalAudit(audit.BuildRemovalAuditOptions{
+			Root:        root,
+			Target:      in.Target,
+			SchemaGlobs: schemaGlobs,
+		})
+		if err != nil {
+			res = errorResult(err.Error())
+			break
+		}
+		data, err := ledger.MarshalOrdered()
+		if err != nil {
+			res = errorResult(err.Error())
+			break
+		}
+		res = textResult(string(data))
 
 	default:
 		res = errorResult("ferramenta desconhecida: " + name)

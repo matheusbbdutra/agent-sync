@@ -1,10 +1,11 @@
 # ADR — Audit removal para repo-map Go (port de cartographer)
 
-- **Status**: Proposto
+- **Status**: Aceito
 - **Data**: 2026-09-25
-- **Decisor**: agente + usuário (ses_atual)
+- **Decisor**: agente + smoke empírico (ses_atual)
 - **Fonte**: A-72 (cartographer teste manual), D-99/D-106 (investigação gap real), `internal/agentmemory/store.go` (libsql + tabela `memories`)
 - **Tags**: code-graph, audit-removal, text-references, go-port, no-bun
+- **Smoke**: `docs/investigations/cartographer-vs-go-sess-1.md`
 
 ## Contexto
 
@@ -31,12 +32,12 @@ cartographer tem 21 classes de classificação mas:
 
 ### Critérios de promoção (Proposto → Aceito)
 
-| # | Critério | Como medir |
-|---|---|---|
-| 1 | ≥80% match com cartographer no mesmo target | comparar outputs em `tools/cmd/memory-mcp` |
-| 2 | Latência <500ms para agent-sync (444 files) | `time agent-sync graph audit removal <target>` |
-| 3 | 9 classes funcionais com classificação correta | tests 4 camadas |
-| 4 | Schema introspection (libsql) extrai nomes de tabela | `SHOW TABLES` ou parse DDL inline |
+| # | Critério | Como medir | Resultado smoke |
+|---|---|---|---|
+| 1 | ≥80% match com cartographer no mesmo target | comparar outputs em `tools/cmd/memory-mcp` | ✓ 121% (40/33) |
+| 2 | Latência <500ms para agent-sync (444 files) | `time agent-sync graph audit removal <target>` | ✓ 223ms (binário pré-built) |
+| 3 | 9 classes funcionais com classificação correta | tests 4 camadas | ✓ 15/15 testes passando; 9 classes implementadas |
+| 4 | Schema introspection (libsql) extrai nomes de tabela | `SHOW TABLES` ou parse DDL inline | ✓ 5 tabelas detectadas via regex DDL |
 
 **Critérios NÃO exigidos**:
 - Não precisa cobrir 100% das classes cartographer

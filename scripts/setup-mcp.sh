@@ -4,7 +4,8 @@
 #   - docs     : MCP local offline sobre o cache do docs-fetch (~/.cache/agent-sync/docs)
 #   - memory   : memória compartilhada entre CLIs via libSQL local (~/.cache/agent-sync/memory.db)
 #   - sentry   : erros/performance do Sentry (opcional; defina SENTRY_MCP_URL)
-# Alvos: Claude Code, Codex, Antigravity (agy), OpenCode, Cursor (~/.cursor/mcp.json)
+# Alvos: Claude Code, Codex, Antigravity (agy), OpenCode, Cursor (~/.cursor/mcp.json),
+#        Cline (~/.cline/data/settings/cline_mcp_settings.json, via `cline mcp add`)
 #
 # Uso:
 #   bash scripts/setup-mcp.sh
@@ -70,6 +71,31 @@ with open(path, "w") as fh:
 PY
 }
 
+upsert_cline() {
+  # Cline v3: a CLI é dona do schema de ~/.cline/data/settings/cline_mcp_settings.json
+  # ({"mcpServers":{"<nome>":{"transport":{"type":"stdio","command":...,"args":[...]}}}}),
+  # então delegamos para `cline mcp add` em vez de editar o JSON à mão (A-80.2).
+  # Substitui a entrada anterior pelo mesmo nome (idempotente).
+  local name="$1"
+  shift
+  command -v cline >/dev/null 2>&1 || return 0
+  cline mcp remove "$name" >/dev/null 2>&1 || true
+  cline mcp add "$name" --yes -- "$@" >/dev/null 2>&1 || true
+}
+
+upsert_cline_http() {
+  # MCP remoto no Cline (transport streamableHttp). Header opcional
+  # (ex.: "Authorization: Bearer <token>").
+  local name="$1" url="$2" header="${3:-}"
+  command -v cline >/dev/null 2>&1 || return 0
+  cline mcp remove "$name" >/dev/null 2>&1 || true
+  if [ -n "$header" ]; then
+    cline mcp add "$name" --yes --transport http --header "$header" "$url" >/dev/null 2>&1 || true
+  else
+    cline mcp add "$name" --yes --transport http "$url" >/dev/null 2>&1 || true
+  fi
+}
+
 # ── Context7 ────────────────────────────────────────────────────────────────
 setup_context7() {
   local local_mode="${CONTEXT7_LOCAL:-0}"
@@ -92,6 +118,9 @@ setup_context7() {
     fi
     if [ -d "$HOME/.cursor" ] || command -v agent >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1; then
       upsert_cursor "$CONTEXT7_NAME" '{"command":"npx","args":["-y","@upstash/context7-mcp"]}'
+    fi
+    if command -v cline >/dev/null 2>&1; then
+      upsert_cline "$CONTEXT7_NAME" npx -y @upstash/context7-mcp
     fi
   else
     echo "→ Context7 em modo remoto ($CONTEXT7_URL)"
@@ -131,6 +160,13 @@ setup_context7() {
         upsert_cursor "$CONTEXT7_NAME" '{"url":"'"$CONTEXT7_URL"'"}'
       fi
     fi
+    if command -v cline >/dev/null 2>&1; then
+      if [ -n "${CONTEXT7_API_KEY:-}" ]; then
+        upsert_cline_http "$CONTEXT7_NAME" "$CONTEXT7_URL" "Authorization: Bearer ${CONTEXT7_API_KEY}"
+      else
+        upsert_cline_http "$CONTEXT7_NAME" "$CONTEXT7_URL"
+      fi
+    fi
   fi
   echo "✅ context7 configurado"
 }
@@ -160,6 +196,9 @@ setup_docs() {
   if [ -d "$HOME/.cursor" ] || command -v agent >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1; then
     upsert_cursor "$DOCS_NAME" '{"command":"'"$DOCS_BIN"'"}'
   fi
+  if command -v cline >/dev/null 2>&1; then
+    upsert_cline "$DOCS_NAME" "$DOCS_BIN"
+  fi
   echo "✅ docs configurado (offline)"
 }
 
@@ -187,6 +226,9 @@ setup_memory() {
   fi
   if [ -d "$HOME/.cursor" ] || command -v agent >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1; then
     upsert_cursor "$MEMORY_NAME" '{"command":"'"$MEMORY_BIN"'"}'
+  fi
+  if command -v cline >/dev/null 2>&1; then
+    upsert_cline "$MEMORY_NAME" "$MEMORY_BIN"
   fi
   echo "✅ memory configurado (compartilhado entre CLIs)"
 }
@@ -220,6 +262,9 @@ setup_code_graph() {
   if [ -d "$HOME/.cursor" ] || command -v agent >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1; then
     upsert_cursor "$name" '{"command":"'"$code_graph_bin"'","args":["--mcp"]}'
   fi
+  if command -v cline >/dev/null 2>&1; then
+    upsert_cline "$name" "$code_graph_bin" --mcp
+  fi
   echo "✅ code-graph configurado"
 }
 
@@ -249,6 +294,9 @@ setup_sentry() {
   fi
   if [ -d "$HOME/.cursor" ] || command -v agent >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1; then
     upsert_cursor "$name" '{"url":"'"$url"'"}'
+  fi
+  if command -v cline >/dev/null 2>&1; then
+    upsert_cline_http "$name" "$url"
   fi
   echo "✅ sentry configurado (OAuth no primeiro uso)"
 }
