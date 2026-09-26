@@ -17,6 +17,11 @@ package hooks
 // O wiramento é idempotente (escreve só quando o conteúdo muda) e remove
 // artefatos inertes de iterações anteriores (shims de evento do A-80.1-v1 e o
 // core copiado pelo A-79).
+//
+// A-84 (Pendência 4): como o nome do diretório deriva do baseDir, applies de
+// baseDirs diferentes criavam plugins paralelos (o CLI carrega todos, dobrando
+// hooks). Agora só o repo canônico é adotado e os órfãos são podados — ver
+// canonical_repo.go.
 
 import (
 	"crypto/sha256"
@@ -25,6 +30,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const clinePluginName = "agent-sync-hooks"
@@ -42,12 +48,38 @@ var clinePluginFiles = []string{"index.js", "package.json", "plugin.json"}
 
 // syncClineHooks instala (ou atualiza) o Cline Plugin. Para o Cline,
 // target.HooksSettingsPath aponta para ~/.cline/hooks (config dir do CLI).
+//
+// Dois cuidados que evitam hooks duplicados (ver canonical_repo.go):
+//   - o plugin só é instalado quando o baseDir é o repo canônico (ou quando o
+//     escape hatch AGENT_SYNC_ALLOW_BASEDIR=1 está ligado);
+//   - plugins agent-sync-hooks-* de outros baseDirs são podados, porque o CLI
+//     carrega todos eles.
 func syncClineHooks(baseDir string, target TargetCLI) error {
 	if target.HooksFormat != "cline" || target.HooksSettingsPath == "" {
 		return nil
 	}
-	srcDir := filepath.Join(baseDir, "cline-plugin")
-	installDir := clinePluginInstallDir(target.HooksSettingsPath, baseDir)
+	absBase, err := filepath.Abs(baseDir)
+	if err != nil {
+		return fmt.Errorf("plugin Cline: resolver baseDir %q: %w", baseDir, err)
+	}
+
+	adoption, err := adoptCanonicalBaseDir(absBase)
+	if err != nil {
+		return err
+	}
+	if !adoption.Adopted {
+		return fmt.Errorf("plugin Cline não instalado nem podado (%s)", adoption.Note)
+	}
+	if adoption.Note != "" {
+		prefix := "ℹ️ "
+		if adoption.Caveat {
+			prefix = "⚠️ "
+		}
+		fmt.Fprintf(os.Stderr, "%s [cline/cline-bridge] %s\n", prefix, adoption.Note)
+	}
+
+	srcDir := filepath.Join(absBase, "cline-plugin")
+	installDir := clinePluginInstallDir(target.HooksSettingsPath, absBase)
 	if err := os.MkdirAll(filepath.Join(installDir, "package"), 0o755); err != nil {
 		return err
 	}
@@ -62,7 +94,7 @@ func syncClineHooks(baseDir string, target TargetCLI) error {
 		}
 	}
 
-	configJSON, err := json.Marshal(map[string]string{"baseDir": baseDir, "bin": clinePluginBinPath()})
+	configJSON, err := json.Marshal(map[string]string{"baseDir": absBase, "bin": clinePluginBinPath()})
 	if err != nil {
 		return err
 	}
@@ -85,12 +117,75 @@ func syncClineHooks(baseDir string, target TargetCLI) error {
 		return err
 	}
 
+	// Poda só no caminho canônico: no escape hatch o usuário pediu para
+	// coexistir (ex.: testar um worktree), então não removemos o canônico.
+	if !allowNonCanonicalBaseDir() {
+		removed, err := pruneOrphanClinePluginDirs(target.HooksSettingsPath, installDir)
+		if err != nil {
+			return err
+		}
+		if len(removed) > 0 {
+			fmt.Fprintf(os.Stderr, "ℹ️  [cline/cline-bridge] plugins órfãos removidos (evita hooks duplicados): %s\n",
+				strings.Join(removed, ", "))
+		}
+	}
+
 	for _, legacy := range clineLegacyHookArtifacts {
 		if err := os.Remove(filepath.Join(target.HooksSettingsPath, legacy)); err != nil && !os.IsNotExist(err) {
 			return err
 		}
 	}
 	return nil
+}
+
+// pruneOrphanClinePluginDirs remove diretórios de plugin do agent-sync em
+// _installed/local que não sejam keep, devolvendo os nomes removidos. O CLI do
+// Cline carrega todos os diretórios de _installed/local (sem dedup por nome),
+// então um plugin remanescente de outro baseDir faria cada hook rodar 2×.
+// Só remove nomes que são inequivocamente nossos (nome exato ou nome-<hash12>).
+func pruneOrphanClinePluginDirs(hooksDir, keep string) ([]string, error) {
+	base := filepath.Join(filepath.Dir(hooksDir), "plugins", "_installed", "local")
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	keepClean := filepath.Clean(keep)
+	var removed []string
+	for _, entry := range entries {
+		if !entry.IsDir() || !isOwnClinePluginDirName(entry.Name()) {
+			continue
+		}
+		full := filepath.Join(base, entry.Name())
+		if filepath.Clean(full) == keepClean {
+			continue
+		}
+		if err := os.RemoveAll(full); err != nil {
+			return removed, fmt.Errorf("plugin Cline: remover órfão %s: %w", entry.Name(), err)
+		}
+		removed = append(removed, entry.Name())
+	}
+	return removed, nil
+}
+
+// isOwnClinePluginDirName reconhece o diretório deste plugin: exatamente
+// "agent-sync-hooks" ou "agent-sync-hooks-<12 hex>" (formato de clinePluginInstallDir).
+func isOwnClinePluginDirName(name string) bool {
+	if name == clinePluginName {
+		return true
+	}
+	suffix, ok := strings.CutPrefix(name, clinePluginName+"-")
+	if !ok || len(suffix) != 12 {
+		return false
+	}
+	for _, r := range suffix {
+		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+			return false
+		}
+	}
+	return true
 }
 
 // clinePluginBinPath resolve o caminho do binário agent-sync para o plugin

@@ -29,6 +29,7 @@ func repoBaseDir(t *testing.T) string {
 }
 
 func TestSyncClineHooksInstalaPlugin(t *testing.T) {
+	isolateConfigHome(t)
 	baseDir := repoBaseDir(t)
 	configDir := t.TempDir()
 	hooksDir := filepath.Join(configDir, "hooks")
@@ -101,6 +102,7 @@ func TestSyncClineHooksInstalaPlugin(t *testing.T) {
 }
 
 func TestSyncClineHooksIdempotente(t *testing.T) {
+	isolateConfigHome(t)
 	baseDir := repoBaseDir(t)
 	hooksDir := filepath.Join(t.TempDir(), "hooks")
 	target := fakeClineTarget(hooksDir)
@@ -126,6 +128,7 @@ func TestSyncClineHooksIdempotente(t *testing.T) {
 }
 
 func TestSyncClineHooksRemoveArtefatosLegados(t *testing.T) {
+	isolateConfigHome(t)
 	baseDir := repoBaseDir(t)
 	hooksDir := filepath.Join(t.TempDir(), "hooks")
 	if err := os.MkdirAll(hooksDir, 0o755); err != nil {
@@ -149,6 +152,7 @@ func TestSyncClineHooksRemoveArtefatosLegados(t *testing.T) {
 }
 
 func TestSyncClineHooksIgnoraOutrosAlvos(t *testing.T) {
+	isolateConfigHome(t)
 	configDir := t.TempDir()
 	target := TargetCLI{
 		AgentKind:         "codex",
