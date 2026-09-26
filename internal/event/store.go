@@ -149,18 +149,58 @@ func isUnavailable(err error) bool {
 		strings.Contains(s, "not found in $PATH")
 }
 
+// recordEventAttempts é o número de tentativas do record_event. O memory-mcp
+// pode falhar transitoriamente com `exit status 1` quando há escrita concorrente
+// no memory.db (dois hooks/spawns simultâneos); o retry curto resolve a corrida
+// sem exigir SQL externo nem lock no chamador.
+const recordEventAttempts = 3
+
+// recordEventBackoff é a espera entre tentativas (deixa a outra transação
+// terminar). Mantido baixo: hooks de PostToolUse/Stop têm orçamento de ms.
+const recordEventBackoff = 150 * time.Millisecond
+
 // CallRecordEvent faz o equivalente a memory-mcp tools/call record_event.
 // Retorna ErrEventStoreUnavailable quando o binário não está disponível.
+//
+// Falhas transitórias (exit status != 0 sem ser "binário ausente") são
+// re-tentadas até recordEventAttempts vezes com backoff; o timeout recebido é o
+// orçamento TOTAL (dividido entre as tentativas), então o retry não estoura a
+// latência esperada pelo chamador. Esgota as tentativas => erro explícito com o
+// número de tentativas, em vez de um `exit status 1` seco.
 func CallRecordEvent(args RecordEventArgs, timeout time.Duration) error {
 	params := map[string]any{
 		"name":      "record_event",
 		"arguments": args,
 	}
-	_, err := singleRPCCall("tools/call", params, timeout)
-	if isUnavailable(err) {
-		return ErrEventStoreUnavailable
+	return recordEventWithRetry(params, timeout)
+}
+
+// recordEventWithRetry executa o tools/call com retry limitado. `isUnavailable`
+// (binário ausente) nunca é re-tentado — só erros transitórios do store.
+func recordEventWithRetry(params map[string]any, timeout time.Duration) error {
+	perAttempt := timeout
+	if perAttempt > 0 && recordEventAttempts > 1 {
+		perAttempt = timeout / time.Duration(recordEventAttempts)
+		if perAttempt < 250*time.Millisecond {
+			perAttempt = 250 * time.Millisecond
+		}
 	}
-	return err
+
+	var lastErr error
+	for attempt := 1; attempt <= recordEventAttempts; attempt++ {
+		_, err := singleRPCCall("tools/call", params, perAttempt)
+		if err == nil {
+			return nil
+		}
+		if isUnavailable(err) {
+			return ErrEventStoreUnavailable
+		}
+		lastErr = err
+		if attempt < recordEventAttempts {
+			time.Sleep(recordEventBackoff)
+		}
+	}
+	return fmt.Errorf("event_store: record_event falhou apos %d tentativas: %w", recordEventAttempts, lastErr)
 }
 
 func callRecordEvent(args RecordEventArgs, timeout time.Duration) error {
