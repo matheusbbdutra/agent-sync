@@ -1,11 +1,13 @@
-# ADR — Wiramento completo de hooks + MCPs em Cline (A-80 rev. 2)
+# ADR — Wiramento completo de hooks + MCPs em Cline (A-80 rev. 3)
 
 - **Status**: Aceito
-- **Data**: 2026-09-25 (rev. 1) · 2026-09-26 (rev. 2, A-80.4: cobertura v2 + gaps)
+- **Data**: 2026-09-25 (rev. 1) · 2026-09-26 (rev. 2, A-80.4: cobertura v2 + gaps) ·
+  2026-09-26 (rev. 3, A-84: wiramento único — repo canônico + poda de órfãos)
 - **Decisor**: agente + usuário (ses_atual)
 - **Fonte**: `docs/investigations/cline-hooks-contract.md` (engenharia reversa do
-  binário `cline` 3.0.65 + 5 probes reais), A-79 (wiramento parcial), A-74 (MCP)
-- **Tags**: cline, hooks, mcp, plugin, wiramento, A-80
+  binário `cline` 3.0.65 + 5 probes reais), A-79 (wiramento parcial), A-74 (MCP),
+  A-84 (path injection / duplo-carregamento)
+- **Tags**: cline, hooks, mcp, plugin, wiramento, A-80, A-84
 
 ## Contexto (o que mudou desde a rev. 0)
 
@@ -74,6 +76,33 @@ O executor do bridge aceita `script` (arquivo em `<baseDir>/hooks`) **ou**
 `agent-sync` ao `PATH` dos hooks — o `PATH` do processo do Cline não inclui
 `~/.local/bin` de forma confiável, e `agent-task-record`/`ctx-handoff` dependem
 de resolver `agent-sync`/`ctx-window`.
+
+### Wiramento único: repo canônico + poda de órfãos (A-84)
+
+O diretório do plugin é `_installed/local/agent-sync-hooks-<sha256(baseDir)[:12]>`
+(`apply_cline.go`), então um `agent-sync -apply` rodado de outro `baseDir` (ex.:
+um git worktree) **não substitui** o plugin — cria um segundo. O CLI do Cline
+carrega **todos** os diretórios de `_installed/local` (binário v3.0.65: `u9()`
+empurra todo subdir; `i9()` monta um `Map` com **chave = path**, sem dedup por
+nome), então cada hook passaria a rodar 2× — `appendContext` duplicado, 2 linhas
+de telemetria por task, `summarize` em dobro. Pior: o plugin do worktree aponta
+para um `baseDir` que pode deixar de existir, e `cline-plugin/index.js` engole o
+erro do bridge (`catch → {}`), virando **no-op silencioso**.
+
+Regra adotada (A-84):
+
+- o **primeiro** apply registra o repo canônico em
+  `~/.config/agent-sync/config.json` (`"repo"`, mergulhado sem perder
+  `turso`/`summarizer`/`projects`, modo 0600 pois contém segredo);
+- apply de outro `baseDir` **avisa e não adota**: não cria o plugin novo nem poda
+  o existente (escape hatch: `AGENT_SYNC_ALLOW_BASEDIR=1`);
+- no caminho canônico, plugins nossos de outros baseDirs são **podados**
+  (`pruneOrphanClinePluginDirs`), e um canônico registrado que já não existe
+  (worktree removido) é **re-registrado** em vez de travar o apply.
+
+Decisão consciente: um diretório de plugin *fixo* (sem hash) também resolveria a
+acumulação, mas sequestraria o plugin global ao rodar o apply de um worktree —
+motivo pelo qual se optou por canônico explícito + poda.
 
 ### Gaps aceitos (não wiráveis no runtime de plugin)
 

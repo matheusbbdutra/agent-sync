@@ -7,9 +7,9 @@
 
 ## Estado do repositório
 
-- Branch: `main` (merge de `worktree-a73-audit-removal-go` em `7cac536`; A-81=`dad1688`, A-82=`6b3057d`+`5bc282e`, A-83=`67a2c36`, docs=`74e07f2`)
-- HEAD: A-83 + docs (pós-merge); `main` tem A-73 [done]..A-83. Branch/worktree `a73-audit-removal-go` **removido**; plugin Cline único apontando para o repo principal.
-- Working tree: limpo (só `.claude/` untracked). `make install`/`make apply` rodados: binários alinhados e wiramento sem warning (`[cline/agents]` deixou de aparecer com o A-83).
+- Branch: `main` (merge de `worktree-a73-audit-removal-go` em `7cac536`; A-81=`dad1688`, A-82=`6b3057d`+`5bc282e`, A-83=`67a2c36`, A-84=`a34a12c`, docs=`74e07f2`+`d4a04da`)
+- HEAD: A-84 + docs; `main` tem A-73 [done]..A-84. Branch/worktree `a73-audit-removal-go` **removido**; plugin Cline único (`agent-sync-hooks-7bda9b533174`) apontando para o repo principal.
+- Working tree: limpo (só `.claude/` untracked). `make install`/`make apply` rodados: binários alinhados, wiramento sem warning (`[cline/agents]` eliminado no A-83) e **um só plugin** (A-84, com `repo` canônico em `~/.config/agent-sync/config.json`).
 - Host wirado nesta sessão (Cline, 6ª CLI): plugin `~/.cline/plugins/_installed/local/agent-sync-hooks-df3a8b490db8/package`, `~/.cline/hooks` vazio (shims inertes removidos), `~/.cline/data/settings/cline_mcp_settings.json` com context7/docs/memory/code-graph, `~/.local/bin/agent-sync` atualizado (backup `/tmp/agent-sync.bak-*`).
 
 ## Sessão atual
@@ -349,6 +349,28 @@
   agente desconhecido" nem entrega diretório vazio); os agentes especialistas
   chegam ao Cline via **Skills** (54 sincronizadas). Guarda:
   `internal/target/target_test.go::TestClineNaoDeclaraAgentsDir`.
+### A-84 — wiramento único do plugin Cline (Pendência 4 fechada)
+
+- **Problema**: dir do plugin = `_installed/local/agent-sync-hooks-<sha256(baseDir)[:12]>`,
+  então apply de outro `baseDir` **não substitui** — cria um 2º plugin. O CLI do
+  Cline carrega **todos** os dirs de `_installed/local` (`u9()` empurra todo
+  subdir; `i9()` usa Map com **chave = path**, sem dedup por nome) → cada hook
+  rodaria 2× (appendContext duplicado, 2 linhas de telemetria/task, summarize em
+  dobro). E `cline-plugin/index.js` engole erro do bridge → plugin apontando para
+  `baseDir` morto vira **no-op silencioso**.
+- **Solução**: `internal/hooks/canonical_repo.go` +
+  `pruneOrphanClinePluginDirs` em `apply_cline.go` (detalhes na pendência 4).
+  Escape hatch `AGENT_SYNC_ALLOW_BASEDIR=1` mantém a coexistência deliberada (sem
+  podar) e avisa que hooks podem rodar 2×.
+- **Decisão de design**: "último apply manda" (opção a do handoff) **não** era o
+  comportamento real — o hash no nome sempre acumulou. Optou-se por canônico
+  explícito + poda, não por dir fixo (opção A), para permitir testar um worktree
+  sem sequestrar o plugin global.
+- **Hermeticidade**: testes isolam `XDG_CONFIG_HOME` (`isolateConfigHome`) — o
+  config real do usuário (com `turso.token`) **não** é tocado pela suíte;
+  confirmado porque o `make apply` real depois ainda disse "primeiro apply".
+
+
 
 
 
@@ -374,17 +396,19 @@
    seção "A-80.4" acima (gaps aceitos para `false-success-guard`/`precompact`).
 3. ~~**`make install`** completo~~ **[done 2026-09-26]** (todos os binários de
    `bin/` alinhados em `~/.local/bin`; smoke `TestSmokeClinePluginAdapter` verde).
-4. **Decidir sobre path injection** (PENDENTE, precisa do usuário). **Evidência
-   verificada (2026-09-26)**: o dir do plugin é `agent-sync-hooks-<hash12>` onde o
-   hash é `sha256(baseDir)` — então um apply de outro `baseDir` **NÃO substitui**,
-   cria um **segundo** plugin em `_installed/local/`, e o CLI varre todos
-   (`_installed/*`), o que faria o bridge rodar **2×** por hook. Observado na
-   higiene pós-merge: `agent-sync-hooks-7bda9b533174` (repo principal) +
-   `agent-sync-hooks-df3a8b490db8` (worktree, removido). Opções: (a) manter
-   "último apply manda" (não é o que o código faz hoje); (b) pinar o repo canônico
-   e só atualizar o bin; (c) [mínimo, compatível com a/b] o wirer remover dirs
-   `agent-sync-hooks-*` órfãos que não casam com o hash atual, evitando
-   acumulação/double-hook.
+4. ~~**Decidir sobre path injection**~~ **[done 2026-09-26 → A-84]** — decisão do
+   usuário: **opção D** = repo canônico + poda de órfãos. Implementado em
+   `internal/hooks/canonical_repo.go` + `apply_cline.go`:
+   - o 1º apply registra o canônico em `~/.config/agent-sync/config.json`
+     (`"repo"`, merge preservando `turso`/`summarizer`/`projects`, modo 0600);
+   - apply de outro `baseDir` **avisa e não adota** (nem cria nem poda),
+     escape hatch `AGENT_SYNC_ALLOW_BASEDIR=1`;
+   - no caminho canônico, plugins nossos de outros baseDirs são **podados**
+     (`pruneOrphanClinePluginDirs`), e canônico obsoleto se auto-cura.
+   Evidência real (`make apply`): órfão `agent-sync-hooks-deadbeef0000` removido
+   com nota ℹ️, config real ganhou `repo` sem perder campos, 2º apply silencioso
+   (idempotente). 13 testes em `canonical_repo_test.go` /
+   `apply_cline_prune_test.go`. Resumo técnico abaixo em "A-84".
 5. Higiene pós-merge: ~~rodar `make apply` do repo principal~~ + conferir
    `~/.codex/hooks.json` / `~/.claude/settings.json` apontam para paths válidos
    (o apply da sessão A-80 usou `baseDir` = worktree `a73-audit-removal-go`).
@@ -414,6 +438,8 @@ go vet ./... && go test ./... && (cd tools && go test ./...)
 go test ./internal/hooks/ -run 'Cline|PrependedPath' -v
 (cd tools && go test ./cmd/ctx-window/ -run Handoff -v)
 make install                                      # revalida os smokes do plugin Cline
+ls ~/.cline/plugins/_installed/local/              # A-84: deve listar UM só agent-sync-hooks-<hash>
+python3 -c "import json,os;print(json.load(open(os.path.expanduser('~/.config/agent-sync/config.json'))).get('repo'))"
 timeout 60 cline -t 120 "Liste os arquivos .md da raiz usando run_commands e responda so o total."
 ls /tmp/agent-sync-memory-nudge/ | tail -3         # counter conv_... novo = hooks rodaram
 ```
@@ -422,4 +448,4 @@ ls /tmp/agent-sync-memory-nudge/ | tail -3         # counter conv_... novo = hoo
 
 - `docs/ADR-cline-hooks-mcp-wiramento.md` (Aceito rev. 2, com cobertura v2 + gaps)
 - `docs/investigations/cline-hooks-contract.md` (contratos + 5 probes + gotchas)
-- `internal/hooks/cline_bridge.go`, `internal/hooks/apply_cline.go`, `cline-plugin/index.js`
+- `internal/hooks/cline_bridge.go`, `internal/hooks/apply_cline.go`, `internal/hooks/canonical_repo.go`, `cline-plugin/index.js`
