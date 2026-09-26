@@ -9,15 +9,10 @@ import (
 	"github.com/matheusdutra/agent-sync/internal/pathutil"
 )
 
-func init() {
-	// ensure copyFile is referenced (compile-time guard for stub)
-	_ = copyFile
-}
-
 // apply_bash_rm_guardian.go: wiramento cross-CLI do hook bash-rm-guardian
-// (A-74). Inicialmente só Antigravity (A-75) — replicar para cursor/claude/
-// opencode/codex em iterações futuras (A-76+) usando syncBashGuardianAntigravity
-// como modelo.
+// (A-74). Cobre antigravity (A-75), claude/codex/cursor (A-76), opencode
+// (A-77). Cline (A-79) migrou para o bridge de hooks por arquivo (A-80.1) —
+// ver internal/hooks/apply_cline.go.
 
 const bashRmGuardianHookName = "agent-sync-bash-rm-guardian"
 
@@ -25,6 +20,10 @@ const bashRmGuardianHookName = "agent-sync-bash-rm-guardian"
 // Despacha por AgentKind (não HooksFormat, porque claude/codex compartilham
 // formato mas se identificam por AgentKind). Cada CLI wirar em PreToolUse
 // para consistency — formato do output adapta-se ao contrato de cada CLI.
+//
+// Cline fica fora deste switch: ele não usa JSON de settings, e sim o bridge
+// de hooks por arquivo (internal/hooks/apply_cline.go, A-80.1), que já inclui
+// bash-rm-guardian na lista de PreToolUse.
 func syncBashRmGuardian(baseDir string, target TargetCLI) error {
 	switch target.AgentKind {
 	case "antigravity":
@@ -35,8 +34,6 @@ func syncBashRmGuardian(baseDir string, target TargetCLI) error {
 		return syncBashRmGuardianStandard(baseDir, target)
 	case "opencode":
 		return syncBashRmGuardianOpenCode(baseDir, target)
-	case "cline":
-		return syncBashRmGuardianCline(baseDir, target)
 	default:
 		return nil
 	}
@@ -52,47 +49,6 @@ func syncBashRmGuardianStandard(baseDir string, target TargetCLI) error {
 	}
 	return syncStandardHookAtEvent(baseDir, target, bashRmGuardianHookName,
 		"bash-rm-guardian.pretooluse.sh", "*", "PreToolUse", nil)
-}
-
-// syncBashRmGuardianCline wirar PreToolUse hook em ~/.cline/hooks/.
-// Cline v3 invoca scripts no diretório `~/.cline/hooks/PreToolUse`
-// (configurável via `--hooks-dir`); payload via stdin, response via stdout
-// JSON `{cancel:false, context:..., error:""}`.
-//
-// Limitação A-79: wiramento parcial — só bash-rm-guardian. Outras peças
-// do plano Cline (rules, skills, agents, MCP) ficam para A-79+.
-func syncBashRmGuardianCline(baseDir string, target TargetCLI) error {
-	if target.HooksSettingsPath == "" {
-		return nil
-	}
-	if err := os.MkdirAll(target.HooksSettingsPath, 0o755); err != nil {
-		return err
-	}
-	// Cline wrapper script
-	srcScript, err := pathutil.HookScriptPath(baseDir, "bash-rm-guardian.cline.sh")
-	if err != nil {
-		return err
-	}
-	if _, err := os.Stat(srcScript); err != nil {
-		return fmt.Errorf("script bash-rm-guardian.cline.sh não encontrado em %s: %w", srcScript, err)
-	}
-	dstScript := filepath.Join(target.HooksSettingsPath, "PreToolUse")
-	if err := copyFile(srcScript, dstScript); err != nil {
-		return err
-	}
-	if err := os.Chmod(dstScript, 0o755); err != nil {
-		return err
-	}
-	// Core script (invocado pelo wrapper via $SCRIPT_DIR/bash-rm-guardian.sh)
-	srcCore, err := pathutil.HookScriptPath(baseDir, "bash-rm-guardian.sh")
-	if err != nil {
-		return err
-	}
-	dstCore := filepath.Join(target.HooksSettingsPath, "bash-rm-guardian.sh")
-	if err := copyFile(srcCore, dstCore); err != nil {
-		return err
-	}
-	return os.Chmod(dstCore, 0o755)
 }
 
 // bashRmGuardianOpenCodePatterns lista os patterns bash que disparam o

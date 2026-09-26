@@ -95,7 +95,14 @@ var standardHooks = []hookSpec{
 	// injectSteps (Antigravity), agent_message (Cursor), permission.bash=ask
 	// (OpenCode) ou context (Cline v3). NÃO bloqueia (exceto OpenCode "ask").
 	// Wirar em claude + codex + antigravity + cursor + opencode + cline.
-	{name: "bash-rm-guardian", fn: syncBashRmGuardian, agentKinds: []string{"antigravity", "claude", "codex", "opencode", "cline"}, detail: settingsPathDetail},
+	{name: "bash-rm-guardian", fn: syncBashRmGuardian, agentKinds: []string{"antigravity", "claude", "codex", "opencode"}, detail: settingsPathDetail},
+	// Bridge de hooks Cline (A-80.1): Cline descobre hooks por ARQUIVO em
+	// ~/.cline/hooks/<EventName> (não usa JSON de settings), então o
+	// wiramento dele é um shim por evento que delega para
+	// `agent-sync hook cline --event=...` (internal/hooks/cline_bridge.go).
+	// Cobre os hooks que falam o payload Claude/Codex; os dependentes de
+	// transcript ficam para A-80.4.
+	{name: "cline-bridge", fn: syncClineHooks, agentKinds: []string{"cline"}, detail: clineHooksDetail},
 	{
 		name:       "bash-guardian",
 		fn:         syncBashGuardianOpenCode,

@@ -80,6 +80,13 @@ func syncHookCommandAtEvent(baseDir string, target TargetCLI, hookName, command,
 	if target.HooksSettingsPath == "" {
 		return nil
 	}
+	if target.HooksFormat == "cline" {
+		// Cline não usa JSON de settings para hooks: ele descobre arquivos
+		// <hooksDir>/<EventName>. Sem este early-return os hooks default
+		// tentam ler o diretório como JSON e o apply termina com warnings.
+		// O wiramento real do Cline é o bridge (syncClineHooks, A-80.1).
+		return nil
+	}
 	settings, err := readJSONObject(target.HooksSettingsPath)
 	if err != nil {
 		return err

@@ -1,0 +1,7 @@
+{
+  "name": "cline-plugin-agent-sync",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ponte de hooks agent-sync para o Cline (A-80)",
+  "main": "index.js"
+}

@@ -18,6 +18,12 @@ func settingsPathDetail(t TargetCLI) string {
 	if t.HooksSettingsPath == "" {
 		return ""
 	}
+	if t.HooksFormat == "cline" {
+		// Hooks default não são wirados via JSON no Cline (que usa arquivos
+		// <hooksDir>/<EventName>); quem wira lá é o cline-bridge. Sem isso o
+		// apply imprimiria "instalado em" para hooks que fizeram no-op.
+		return ""
+	}
 	return "instalado em: " + t.HooksSettingsPath
 }
 
