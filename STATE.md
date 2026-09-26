@@ -249,3 +249,23 @@
 - **B-1** [medium] [cancelado -> migrado para C-3] OpenCode porte v2 instalado; este blocker foi reabsorvido em C-3.
 - **B-2** [medium] [cancelado -> migrado para C-3] Token nudge contract, agora item estruturado da Trilha C.
 
+
+## Handoff — A-80 Cline (entregue na branch `worktree-a73-audit-removal-go`, 2026-09-25)
+
+> `main` está em `2b39374` (A-73 Proposto). O trabalho A-73 [done]..A-80 [done] vive no worktree
+> `.claude/worktrees/a73-audit-removal-go` (4 commits locais, não pushados). Detalhes completos
+> no `STATE.md` daquela branch e na memória durável: páginas `handoff/index` e
+> `handoff/A-80-cline-hooks-mcp` (`agent-sync memory read-page handoff/A-80-cline-hooks-mcp`).
+
+**Estado**: hooks agent-sync em Cline wiraram via **Cline Plugin** (não por arquivo — `~/.cline/hooks`
+é inerte no CLI v3.0.65; o A-79 era falso positivo) + 4 MCPs (`cline_mcp_settings.json`). Smoke real
+validado (`conv_...` counter + modelo citando o `appendContext`). ADR Aceito rev. 1.
+Gotcha: o módulo do plugin não pode se chamar `agent-sync` (não carrega) — usar `agent-sync-hooks`.
+
+**Pendências**: (1) merge/push da branch -> `main`; (2) A-80.4: hooks de transcript
+(ctx-window summarize/handoff, agent-task-record, false-success-guard) + PreCompact + telemetria em
+`agent_tasks.jsonl`; (3) `make install` completo (só o binário `agent-sync` foi atualizado);
+(4) revisar path injection do plugin (`-apply` de outro baseDir) ; (5) higiene pós-merge de
+`~/.codex/hooks.json` / `~/.claude/settings.json`; (6) A-81 candidato: `memory add` falha
+(`memory-mcp saiu com erro: exit status 1`) quando há escrita concorrente no `memory.db` —
+usar sempre a CLI e avaliar retry/erro explícito em `internal/event/store.go`.
