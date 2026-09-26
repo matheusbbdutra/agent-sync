@@ -1,118 +1,94 @@
-# ADR — Wiramento completo de hooks + MCPs em Cline (A-80)
+# ADR — Wiramento completo de hooks + MCPs em Cline (A-80 rev. 1)
 
-- **Status**: Proposto
-- **Data**: 2026-09-25
-- **Decisor**: agente + user (ses_atual)
-- **Contexto**: Após A-79 wirar `bash-rm-guardian` em Cline (6ª CLI), verificou-se que **wiramento está parcial**:
-  - 18 hooks wirados por default em outras CLIs **não estão wirados em Cline** (warnings no apply)
-  - 4 MCP servers wirados em OpenCode (`context7`, `docs`, `memory`, `code-graph`) **não estão wirados em Cline**
-- **Tags**: cline, hooks, mcp, wiramento, A-80
+- **Status**: Aceito
+- **Data**: 2026-09-25 (rev. 1)
+- **Decisor**: agente + usuário (ses_atual)
+- **Fonte**: `docs/investigations/cline-hooks-contract.md` (engenharia reversa do
+  binário `cline` 3.0.65 + 5 probes reais), A-79 (wiramento parcial), A-74 (MCP)
+- **Tags**: cline, hooks, mcp, plugin, wiramento, A-80
 
-## Contexto
+## Contexto (o que mudou desde a rev. 0)
 
-### Estado atual pós-A-79
+A rev. 0 propunha "18 hooks virados como arquivos em `~/.cline/hooks/<EventName>`".
+A investigação empírica derrubou essa premissa:
 
-`~/.cline/hooks/PreToolUse` (script bash-rm-guardian wirado) + `~/.cline/hooks/bash-rm-guardian.sh` (core).
-`agent-sync apply -target=cline` wirar:
-- ✅ rules (AGENTS.md)
-- ✅ skills (symlinks)
-- ❌ agents (tipo desconhecido)
-- ❌ outros 18 hooks (warnings: "HooksSettingsPath is a directory")
-- ❌ 4 MCP servers (`upsert_cline()` não existe em `scripts/setup-mcp.sh`)
+| Fato verificado | Evidência |
+|---|---|
+| `~/.cline/hooks` **não é executado** pelo CLI | loader de arquivos só é criado se houver config-extension com capability `hooks`; a lista de config-extensions do CLI é fixa em `["rules","skills","plugins"]` |
+| probe com `--hooks-dir` + `TaskStart`/`PreToolUse` que gravam arquivo | 0 execuções, com tool calls reais no turno |
+| plugin com `hooks.beforeTool/afterTool/beforeRun/afterRun` | todos os callbacks executaram |
+| MCP via `cline mcp add` | 4 servers gravados em `cline_mcp_settings.json` (schema `transport`), idempotente |
 
-### Causa dos warnings
+Consequência: o wiramento do A-79 (e o `TestWiradoRealClineHook` original)
+validava apenas a execução manual do script — **nunca houve integração real**.
 
-`internal/hooks/apply_table.go` registra 18 hooks wirando por default (sem `agentKinds` restrito):
-```go
-{name: "context-guard", fn: syncHooks, detail: settingsPathDetail},
-{name: "memory-nudge", fn: syncMemoryNudgeHook, detail: settingsPathDetail},
-{name: "agent-react", fn: syncAgentReactNudgeHook, detail: settingsPathDetail},
-{name: "secret-guard-pretooluse", fn: syncSecretGuardPreToolUseHook, ...},
-{name: "memory-observe", fn: syncMemoryObserveHook, detail: settingsPathDetail},
-{name: "bash-guardian", fn: syncBashGuardianClaude, agentKinds: ["claude"]},
-{name: "bash-guardian", fn: syncBashGuardianAntigravity, ...},
-// etc
-```
+## Decisão
 
-`syncHooks` e similares leem `target.HooksSettingsPath` como **arquivo JSON** (`os.ReadFile`) → falha quando é diretório (Cline).
+**Wirar via Cline Plugin (AgentPlugin)** — a rota suportada pelo CLI — mantendo
+o motor de tradução/execução em Go:
 
-### Causa dos MCPs não wirados
+1. **Engine Go** (`internal/hooks/cline_bridge.go`):
+   `agent-sync hook cline --event=<E> --base-dir=<repo>` lê o payload Cline no
+   stdin, normaliza para o contrato Claude/Codex (`session_id`, `tool_name`,
+   `tool_input` com `command` sintetizado de `commands[]`, `tool_response`,
+   `hook_event_name`), executa os scripts agent-sync mapeados para o evento,
+   mergeia contexto/cancel e responde no contrato Cline
+   (`{cancel, context, cancelReason}`). Aceita tanto nomes de arquivo
+   (`PreToolUse`) quanto nomes internos do runtime (`tool_call`).
+2. **Adapter JS** (`cline-plugin/index.js`, ~160L): plugin com
+   `manifest.capabilities=["hooks"]` que mapeia `beforeTool`/`afterTool`/
+   `beforeRun`/`afterRun` para o engine e devolve `{appendContext}` ou
+   `{skip, reason}` (bloqueio por-tool, melhor que o `cancel` do contrato de
+   arquivo, que aborta o run).
+3. **Wirer Go** (`internal/hooks/apply_cline.go`): instala/atualiza o plugin em
+   `~/.cline/plugins/_installed/local/agent-sync-hooks-<hash>/package/` +
+   agregador `package.json` (idempotente), grava `agent-sync-config.json` com
+   `baseDir` absoluto e caminho absoluto do binário, e remove shims inertes de
+   A-79/A-80.1-v1.
+4. **MCPs** (`scripts/setup-mcp.sh`): `upsert_cline()`/
+   `upsert_cline_http()` delegam para `cline mcp add --yes` (a CLI é dona do
+   schema) — cobre `context7`, `docs`, `memory`, `code-graph`.
 
-`scripts/setup-mcp.sh` tem:
-```bash
-upsert_claude()    # ~/.claude/settings.json (mcpServers)
-upsert_codex()     # ~/.codex/hooks.json
-upsert_antigravity()  # ~/.gemini/config/mcp_config.json
-upsert_opencode()  # ~/.config/opencode/opencode.json
-upsert_cursor()    # ~/.cursor/mcp_config.json
-# FALTA: upsert_cline()
-```
+### Cobertura v1
 
-Cline provavelmente usa `~/.cline/data/settings/cline_mcp_settings.json` ou path similar (a confirmar empiricamente).
+- `PreToolUse` (`tool_call`): bash-rm-guardian, context-guard, memory-nudge,
+  agent-react, principles-inject, secret-guard.
+- `PostToolUse` (`tool_result`): docs-cache, ctx-window-nudge, secret-guard,
+  memory-observe, token-nudge.
+- `TaskStart` (`agent_start`): memory-prune-session-start.
+- `TaskComplete` (`agent_end`): memory-consolidate.
 
-## Decisão proposta (A-80)
+### Fora do escopo (A-80.4 candidato)
 
-### A-80.1: Wirar 18 hooks restantes em Cline
+- hooks dependentes de transcript (`ctx-window` summarize, `ctx-handoff`,
+  `agent-task-record`, `false-success-guard`) e `precompact-snapshot`
+  (o Cline não expõe PreCompact no runtime de plugin);
+- telemetria Cline em `.agent-sync/agent_tasks.jsonl`.
 
-**Estratégia**: Detectar se `HooksSettingsPath` é diretório (Cline) ou arquivo (outras CLIs). Se diretório, wirar cada hook como **script individual** em `~/.cline/hooks/<HookName>.sh` que adapta o contrato:
-- Lê payload via stdin (formato Cline: `{tool, input, context}`)
-- Emite output no formato Cline: `{cancel, context, error}`
+## Critérios de aceite (verificação)
 
-**Mudanças**:
-1. `internal/hooks/hooks_apply.go`: `syncStandardHookAtEvent` aceita `isDirectory` baseado em `HooksFormat == "cline"`
-2. Cada hook atual (`hooks/<name>.sh`) ganha uma variante `<name>.cline.sh` que parseia payload Cline
-3. Wiramento copia script correto baseado em format
-4. Test smoke real com payload Cline para cada hook
-
-**Trade-off**: 18 scripts novos (~50L cada = 900L). Alternativa: 1 dispatcher único que detecta format e adapta. Vou propor 1 dispatcher para reduzir volume.
-
-**Esforço**: ~2-3h
-
-### A-80.2: Wirar MCP servers em Cline
-
-**Estratégia**: Adicionar `upsert_cline()` em `scripts/setup-mcp.sh`. Validar empiricamente o path exato do MCP config em Cline v3.
-
-**Mudanças**:
-1. Investigar `~/.cline/data/settings/cline_mcp_settings.json` (ou similar)
-2. Adicionar `upsert_cline()` que adiciona 4 entries: `context7` (remote URL), `docs` (local docs-mcp), `memory` (local memory-mcp), `code-graph` (local repo-map --mcp)
-3. Test idempotência
-
-**Esforço**: ~1-2h
-
-### A-80.3: Smoke real + ADR
-
-**Estratégia**: Validar end-to-end com Cline CLI real:
-1. Rodar `cline -p "delete tools/cmd/memory-mcp"` → validar que bash-rm-guardian dispara (já wirado em A-79)
-2. Rodar `cline -p "liste arquivos .go do repo"` → validar que MCP `code-graph` responde
-3. Atualizar este ADR para **Aceito**
-
-**Esforço**: ~30min
+| # | Critério | Resultado |
+|---|---|---|
+| 1 | Hooks disparam em sessão real do Cline | ✅ counter `conv_...` criado + modelo cita `appendContext` injetado (principles-inject) |
+| 2 | Wiramento idempotente (sem warnings de diretório-como-JSON) | ✅ `syncClineHooks` + early-return em `syncHookCommandAtEvent`; testes verdes |
+| 3 | 4 MCP servers wirados no schema do Cline | ✅ `cline_mcp_settings.json` com `context7`/`docs`/`memory`/`code-graph`, diff vazio em 2 execuções |
+| 4 | Sem regressão nas outras 5 CLIs | ✅ `go test ./...` (raiz + tools) + `go vet` verdes |
+| 5 | Falha de hook nunca derruba o run | ✅ bridge/adapter capturam erro por script e respondem no-op |
 
 ## Consequências
 
-**Positivas:**
-- Cline vira **6ª CLI equivalente** em funcionalidade às outras 5
-- Modelo LLM em Cline ganha memória observability, codebase awareness via MCP, agent-react nudge, etc.
-- Wiramento parcial do A-79 fica completo
+**Positivas**: Cline passa a ter hooks agent-sync reais (nudge de contexto,
+memória, principles, secret-guard, bash-rm-guardian) + os 4 MCPs; bloqueio
+por-tool disponível (`skip`) sem abortar o run; nada de Bun/Python no runtime.
 
-**Negativas:**
-- ~4-6h de trabalho
-- Cria acoplamento entre scripts hooks/ e formato Cline (precisa manter paridade)
-- Se Cline SDK mudar formato payload, scripts `.cline.sh` quebram
+**Negativas/limitações**: adapter JS é obrigatório (a API de plugin do Cline é
+JS); o nome do módulo precisa ser único (`agent-sync-hooks` — `agent-sync` não
+carrega, causa não isolada); hooks de transcript ficam sem cobertura v1;
+plugins do Cline são globais (não há escopo por projeto).
 
 ## Refs
 
-- A-73 [done]: foundation audit
-- A-74 [done]: MCP + scripts
-- A-75 [done]: wiramento OpenCode (modelo de referência)
-- A-76 [done]: wiramento claude/codex/cursor
-- A-77 [done]: wiramento OpenCode permission.bash
-- A-78 [done]: investigação consumo + mitigação
-- A-79 [done]: wiramento parcial Cline (só bash-rm-guardian)
-- `internal/hooks/apply_table.go`: hooks wirados por default
-- `scripts/setup-mcp.sh`: upsert_*() para outras CLIs
-- `docs/investigations/opencode-token-consumption.md`: contexto da migração para Cline
-
-## Próximo passo
-
-Aprovar A-80 e executar em 3 sub-tasks sequenciais. Cada sub-task tem smoke test próprio antes de prosseguir.
+- `docs/investigations/cline-hooks-contract.md` (contratos + evidências)
+- `internal/hooks/cline_bridge.go`, `internal/hooks/apply_cline.go`,
+  `cline-plugin/`, `scripts/setup-mcp.sh`
+- A-79 (falso positivo), A-74 (audit_removal/MCP), A-73 (foundation)
