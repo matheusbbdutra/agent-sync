@@ -178,14 +178,14 @@ func TestTranslateClaudeHookOutput(t *testing.T) {
 			wantReas:  "segredo E",
 		},
 		{
-			name:    "permissionDecision deny com deny-mode warn",
-			out:     `{"hookSpecificOutput":{"permissionDecision":"deny","permissionDecisionReason":"segredo F"}}`,
+			name:     "permissionDecision deny com deny-mode warn",
+			out:      `{"hookSpecificOutput":{"permissionDecision":"deny","permissionDecisionReason":"segredo F"}}`,
 			denyMode: "warn",
 			wantCtx:  "[blocked by hook] segredo F",
 		},
 		{
-			name:    "decision block com deny-mode warn",
-			out:     `{"decision":"block","reason":"bloqueio G"}`,
+			name:     "decision block com deny-mode warn",
+			out:      `{"decision":"block","reason":"bloqueio G"}`,
 			denyMode: "warn",
 			wantCtx:  "[blocked by hook] bloqueio G",
 		},
@@ -274,7 +274,6 @@ func TestRenderClineHookResponseVazio(t *testing.T) {
 		t.Errorf("esperava no-op, obteve %s", out)
 	}
 }
-
 
 // TestRunClineBridgeComScriptsFake valida o fluxo completo da ponte com
 // scripts fake que emulam o contrato Claude/Codex — inclui a captura do
@@ -440,4 +439,3 @@ func TestRunClineBridgeSemEvento(t *testing.T) {
 		t.Errorf("erro inesperado: %v", err)
 	}
 }
-
