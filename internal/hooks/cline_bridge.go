@@ -114,6 +114,7 @@ var clineHookSpecs = []clineHookSpec{
 	// TaskStart (proxy de SessionStart)
 	{event: "TaskStart", script: "memory-prune-session-start.sh", name: memoryPruneSessionStartHookName},
 	{event: "TaskStart", command: "ctx-window handoff cline", name: ctxHandoffHookName},
+	{event: "TaskStart", script: "cline-wiramento-smoke.sh", name: "cline-wiramento-smoke"},
 
 	// TaskComplete (proxy de Stop)
 	{event: "TaskComplete", script: "memory-consolidate.stop.sh", name: memoryConsolidateHookName},

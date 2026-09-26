@@ -7,8 +7,8 @@
 
 ## Estado do repositório
 
-- Branch: `main` (merge de `worktree-a73-audit-removal-go` em `7cac536`; A-81=`dad1688`, A-82=`6b3057d`+`5bc282e`, A-83=`67a2c36`, A-84=`a34a12c`, docs=`74e07f2`+`d4a04da`)
-- HEAD: A-84 + docs; `main` tem A-73 [done]..A-84. Branch/worktree `a73-audit-removal-go` **removido**; plugin Cline único (`agent-sync-hooks-7bda9b533174`) apontando para o repo principal.
+- Branch: `main` (merge de `worktree-a73-audit-removal-go` em `7cac536`; A-81=`dad1688`, A-82=`6b3057d`+`5bc282e`, A-83=`67a2c36`, A-84=`a34a12c`, A-85=pendente commit, docs=`74e07f2`+`d4a04da`)
+- HEAD: A-85 + docs; `main` tem A-73 [done]..A-85. Branch/worktree `a73-audit-removal-go` **removido**; plugin Cline único (`agent-sync-hooks-7bda9b533174`) apontando para o repo principal.
 - Working tree: limpo (só `.claude/` untracked). `make install`/`make apply` rodados: binários alinhados, wiramento sem warning (`[cline/agents]` eliminado no A-83) e **um só plugin** (A-84, com `repo` canônico em `~/.config/agent-sync/config.json`).
 - Host wirado nesta sessão (Cline, 6ª CLI): plugin `~/.cline/plugins/_installed/local/agent-sync-hooks-df3a8b490db8/package`, `~/.cline/hooks` vazio (shims inertes removidos), `~/.cline/data/settings/cline_mcp_settings.json` com context7/docs/memory/code-graph, `~/.local/bin/agent-sync` atualizado (backup `/tmp/agent-sync.bak-*`).
 
@@ -248,6 +248,10 @@
 - **A-78** [done] Investigação empírica do consumo OpenCode (1.4B tokens/semana) + mitigação aplicada — Entregue em 2026-09-25 (ses_atual). **Causa raiz descoberta**: `~/.local/share/opencode/tool-output/` (77MB) com outputs completos de `go test` etc. re-injetados em cada turno por default (`compaction.prune: false`). **Mitigação aplicada** em `~/.config/opencode/opencode.json`: `snapshot: false` + `compaction.prune: true`. Trade-off snapshot: rollback UI desabilitado. **Smoke Cline vs OpenCode** (mesmo provider minimax-coding-plan/MiniMax-M3): Cline ~12x mais eficiente (~17K tokens/tarefa vs ~200M/dia). Cline tem compaction `agentic` default + suporte a `--baseurl` para providers custom. **Comparação 4 CLIs** (OpenCode/Cline/Crush/Goose) consolidada em `docs/investigations/opencode-token-consumption.md`. **Decisão**: usar Cline por 1 semana (medir consumo real), se cair <300M/semana manter; senão tentar Crush. **Refs**: docs/investigations/opencode-token-consumption.md. Origem: ses_atual, 2026-09-25.
 - **A-79** [done] Wiramento bash-rm-guardian em Cline (6ª CLI) — Entregue em 2026-09-25 (ses_atual). **Sequência**: (1) `internal/target/target.go`: 5→6 targets (HooksSettingsPath = `~/.cline/hooks`, HooksFormat = "cline"); (2) `internal/hooks/apply_bash_rm_guardian.go`: `syncBashRmGuardianCline` copia script Cline + core para hooks dir; (3) `internal/hooks/apply_table.go`: `agentKinds` inclui cline; (4) `hooks/bash-rm-guardian.cline.sh`: adapter para contrato Cline v3 (`{cancel,context,error}` via stdout). **Wiramento real**: `~/.cline/hooks/PreToolUse` + `~/.cline/hooks/bash-rm-guardian.sh` wirados via `agent-sync -apply -target=cline`. **Smoke real**: rm -rf tools/cmd/memory-mcp → `context` warn com 37 docs-active + 3 docs-historical blockers. **Testes**: go test ./... 14/14 pacotes verde. 3 testes novos (TestSmokeClineEndToEnd, TestWiradoRealClineHook, TestGetTargetsForHome atualizado). **Limitação A-79**: outros hooks wirados por default (`context-guard`, `memory-nudge`, `agent-react`) ainda tratam HooksSettingsPath como arquivo (Cline usa diretório), gerando warnings. Fix: A-80+. **Refs**: A-73/A-74/A-75/A-76/A-77/A-78 [done]. Origem: ses_atual, 2026-09-25.
 - **A-80** [done] Wiramento de hooks + MCPs em Cline (6ª CLI) — Entregue em 2026-09-25 (ses_atual), em 2 iterações (rev. 0 arquivo -> rev. 1 plugin, após investigação empírica). **Achado crítico (muda o escopo da rev. 0)**: hooks por ARQUIVO em `~/.cline/hooks` são INERTES no CLI v3.0.65 — o loader só é criado se existir config-extension com capability `hooks`, e a lista de config-extensions do CLI é fixa em `[rules,skills,plugins]` (evidência: probe com `--hooks-dir` + `TaskStart`/`PreToolUse` gravando arquivo = 0 execuções). **Consequência**: o wiramento do A-79 (e seu `TestWiradoRealClineHook`) era FALSO POSITIVO — validava só a execução manual do script. **Rota suportada implementada**: Cline Plugin (AgentPlugin) com `capabilities:["hooks"]`. Artefatos: (1) engine Go `internal/hooks/cline_bridge.go` — subcommand novo `agent-sync hook cline --event=<E> --base-dir=<repo>` que normaliza payload Cline -> Claude/Codex (sintetiza `tool_input.command` a partir de `commands[]`), roda os scripts agent-sync do evento, mergeia contexto/cancel e responde `{cancel,context,cancelReason}`; aceita nomes de arquivo (`PreToolUse`) e nomes internos (`tool_call`); (2) adapter JS `cline-plugin/index.js` (~160L) que mapeia `beforeTool/afterTool/beforeRun/afterRun` para o engine e devolve `{appendContext}` ou `{skip,reason}` (bloqueio por-tool, sem abortar o run); (3) wirer Go `internal/hooks/apply_cline.go` — instala/atualiza o plugin em `~/.cline/plugins/_installed/local/agent-sync-hooks-<hash>/package/` + agregador `package.json`, grava `agent-sync-config.json` com baseDir e binário ABSOLUTOS, remove shims inertes de A-79/A-80.1-v1, e early-return em `syncHookCommandAtEvent` para eliminar os warnings "HooksSettingsPath is a directory"; (4) MCP: `upsert_cline()`/`upsert_cline_http()` em `scripts/setup-mcp.sh` delegando para `cline mcp add --yes` — 4 servers (context7/docs/memory/code-graph) no schema `transport` de `cline_mcp_settings.json`, idempotente. **Cobertura v1**: PreToolUse (bash-rm-guardian, context-guard, memory-nudge, agent-react, principles-inject, secret-guard), PostToolUse (docs-cache, ctx-window-nudge, secret-guard, memory-observe, token-nudge), TaskStart (memory-prune-session-start), TaskComplete (memory-consolidate). **Smoke real**: `cline -t 150 "Liste os arquivos .md..."` -> counter `/tmp/agent-sync-memory-nudge/conv_1790386423728_q0468tf.count` criado (id interno do Cline) + o raciocínio do modelo cita o `appendContext` injetado ("The hook context reminds principles"). **Gotchas**: nome do módulo `agent-sync` NÃO carrega no loader (workaround: `agent-sync-hooks`, causa não isolada); binário não está no PATH do Cline -> wirer grava caminho absoluto. **Fora do escopo (A-80.4 candidato)**: hooks dependentes de transcript (ctx-window summarize, ctx-handoff, agent-task-record, false-success-guard), `precompact-snapshot` (Cline não expõe PreCompact em plugin) e telemetria em `.agent-sync/agent_tasks.jsonl`. **Validação**: `go test ./...` (raiz + tools) + `go vet` verdes; 5 testes novos (bridge unit, apply/wirer, smoke e2e + adapter JS via node). **ADR**: `docs/ADR-cline-hooks-mcp-wiramento.md` (Aceito, rev. 1); investigação em `docs/investigations/cline-hooks-contract.md`. **Refs**: A-79 (falso positivo), A-74 (audit_removal/MCP), A-73 (foundation). Origem: ses_atual, 2026-09-25.
+- **A-85** [done] Smoke visível do wiramento Cline (TaskStart) — Entregue em 2026-09-26 (ses_atual). Hook `cline-wiramento-smoke.sh` wirado em TaskStart que escreve `/tmp/agent-sync-cline-wiramento/<sid>.log` (one-shot via flag `<sid>.seen`) + injeta tag `[agent-sync Cline wiramento]` no `additionalContext`. Validação 4 camadas (script isolado, bridge manual, Cline real, wiramento colateral do bash-rm-guardian). Resolver "wiramento invisível" (output silencioso de principles-inject one-shot + memory-nudge cadenciado). Ver `### A-85` no Handoff abaixo para detalhes. Origem: ses_atual, 2026-09-26. Refs: A-80/A-80.4/A-84.
+
+- **D-114** A-85 entregue: smoke visível do wiramento Cline (TaskStart) — Em 2026-09-26 (ses_atual), após o usuário reportar "inicei o Cline e não consta nenhum hook". Investigação empírica provou que os 4 hooks wirados (memory-nudge, ctx-window-nudge, principles-inject, react-nudge) **estavam operacionais** mas a saída era silenciosa: `principles-inject` é one-shot, `memory-nudge`/`ctx-window-nudge` só injetam contexto a cada N calls (`count % THRESHOLD == 0`). Sem feedback visível no turno, "wiramento quebrado" e "wiramento silencioso" eram indistinguíveis. Solução: hook `cline-wiramento-smoke.sh` wirado em TaskStart que escreve `/tmp/agent-sync-cline-wiramento/<sid>.log` com lista de hooks wirados + injeta `[agent-sync Cline wiramento]` no `additionalContext`. One-shot por sessão via flag `<sid>.seen`. Validação 4 camadas: (a) script isolado PASS, (b) bridge manual `agent-sync hook cline --event=TaskStart` retorna tag correta, (c) Cline real ecoa `SMOKE-A85-OK` + cria `conv_*.log` no host, (d) `bash-rm-guardian` (PreToolUse wirado em paralelo) **bloqueou** `rm -rf /tmp/agent-sync-cline-wiramento` com mensagem de refs ativas — prova colateral de que o wiramento paralelo está funcional. Como validar daqui pra frente: abrir Cline, ver tag `[agent-sync Cline wiramento]` na 1ª resposta do modelo. Origem: ses_atual, 2026-09-26. Ver A-85.
+
 - **D-113** Investigação do contrato de hooks/MCPs do Cline v3 — Em 2026-09-25 (ses_atual). Engenharia reversa do binário `cline` 3.0.65 (Bun bundle) + 5 probes reais. **Contratos descobertos**: (a) hooks por arquivo: `~/.cline/hooks/<EventName>[.<ext>]`, payload stdin, resposta stdout JSON `{cancel,cancelReason,context|contextModification,errorMessage,review,overrideInput}` (cancel => aborta o run); loader gateado por capability `hooks` — INERTE no CLI; (b) hooks de plugin (AgentPlugin): `hooks.beforeTool/afterTool/beforeRun/afterRun/onEvent`, retorno interno `{appendContext}`/`{skip,reason}`/`{input}`/`{policy}`/`{stop}`; (c) MCP: `~/.cline/data/settings/cline_mcp_settings.json` (`CLINE_MCP_SETTINGS_PATH`) com `{"mcpServers":{"<n>":{"transport":{"type":"stdio|streamableHttp",...}}}}`, escrita via `cline mcp add --yes`; (d) enum de eventos: TaskStart/TaskResume/TaskCancel/TaskComplete/TaskError/PreToolUse/PostToolUse/UserPromptSubmit/PreCompact(undefined)/SessionShutdown. **Gotcha de nome**: módulo exportado com `name:"agent-sync"` não é carregado; `agent-sync-hooks` funciona (causa não isolada). **Artefato**: `docs/investigations/cline-hooks-contract.md` (com a tabela de evidências dos 5 probes). Origem: ses_atual, 2026-09-25.
 - **D-112** A-78+A-79 entregues: Cline wirado + mitigação OpenCode aplicada — Em 2026-09-25 (ses_atual). Conclusão empírica: (a) vilão do consumo 1.4B tokens/semana = `tool-output/` persistente + `compaction.prune:false` default; mitigação via config aplicada; (b) Cline estruturalmente ~12x mais eficiente que OpenCode mesmo provider; wiramento bash-rm-guardian real validado em 6ª CLI. Origem: ses_atual, 2026-09-25.
 - **A-74** [done] Wiramento A-73: MCP tool + bash-rm-guardian (scripts prontos, cross-CLI fica follow-up) — Entregue em 2026-09-25 (ses_atual). **Sequência**: (1) `tools/cmd/repo-map/mcp.go`: tool `audit_removal` adicionada ao `tools/list` (4ª tool); schema `{target: required, schema_globs: optional csv}`; roteamento via `callTool()` switch case; reuso de `audit.BuildRemovalAudit` + `MarshalOrdered`; (2) `hooks/bash-rm-guardian.sh`: script core compartilhado, modo `analyze <cmd>` parse `rm -rf`/`rmdir`/`mv <dir>` via awk, chama `repo-map --audit-removal` com timeout 5s via `${AGENT_SYNC_REPO_MAP:-repo-map}`, extrai blockers via grep; (3) `hooks/bash-rm-guardian.antigravity.sh`: adapter PreToolUse, emite `{"decision":"allow"}` + `injectSteps` via jq quando blockers > 0; (4) `hooks/bash-rm-guardian.cursor.sh`: adapter beforeShellExecution, emite `{"permission":"allow"}` + `agent_message` quando blockers > 0; (5) smoke test `tools/internal/audit/smoke_test.go` via subprocess bash — 4 cenários (rm -rf em dir com refs, rm arquivo único, comando neutro, mv de dir) **4/4 PASS**; (6) TestMCPAuditRemoval valida tools/list com 4 tools e audit_removal com `target` em required. **Validação**: `go test ./...` 14/14 pacotes verde. **Decisão wiramento cross-CLI**: scripts prontos para wirar mas **FICA FOLLOW-UP A-75** — wirar via `apply_bash_rm_guardian.go` é trabalho não-trivial (replicar padrão `apply_bash_guardian.go` para 5 CLIs com nuances por plataforma) e arriscado (pode quebrar wiramento atual). **Por que não bloqueia**: decisão do usuário (não usar deny; injectSteps warn apenas). **Refs**: A-73 [done], D-99/D-107 (linha histórica). Origem: ses_atual, 2026-09-25. Ver D-108.
@@ -369,6 +373,59 @@
 - **Hermeticidade**: testes isolam `XDG_CONFIG_HOME` (`isolateConfigHome`) — o
   config real do usuário (com `turso.token`) **não** é tocado pela suíte;
   confirmado porque o `make apply` real depois ainda disse "primeiro apply".
+
+### A-85 — smoke visível do wiramento Cline (TaskStart)
+
+- **Motivação** (ses_atual, 2026-09-26): usuário abriu Cline, rodou 1 tool call
+  e reportou "não consta nenhum hook nele". Investigação empírica provou que o
+  wiramento estava **operacional** (4 hooks escrevendo em `/tmp/agent-sync-*/`),
+  mas a saída era **silenciosa** — `principles-inject` é one-shot e
+  `memory-nudge`/`ctx-window-nudge` só injetam contexto a cada N calls
+  (`count % THRESHOLD == 0`). Sem feedback visível no turno, era impossível
+  distinguir "wiramento quebrado" de "wiramento silencioso".
+- **Solução**: hook `cline-wiramento-smoke.sh` wirado em `TaskStart` que
+  (1) escreve `/tmp/agent-sync-cline-wiramento/<sid>.log` com timestamp +
+  lista completa de hooks wirados + paths de artefatos visíveis, e
+  (2) injeta `[agent-sync Cline wiramento] hooks wirados via plugin
+  (A-80/A-80.4/A-84): PreToolUse=6 PostToolUse=5 TaskStart=3 TaskComplete=3.
+  Artefatos visiveis em /tmp/agent-sync-*/. MCP=4 servers, skills=54, agents=0
+  (gap aceito). Smoke log: <path>` no `additionalContext` do TaskStart.
+  One-shot por sessão via flag `<sid>.seen` (subsequentes injetam só o resumo).
+- **Implementação**:
+  - `hooks/cline-wiramento-smoke.sh` (novo, 70 linhas): bash puro, padrão
+    `memory-prune-session-start.sh:1-88` (opt-out `AGENT_SYNC_WIRAMENTO_SMOKE=0`,
+    `STATE_DIR=${TMPDIR:-/tmp}/agent-sync-cline-wiramento`, dedup via `.seen`).
+  - `internal/hooks/cline_bridge.go:117` — adicionada spec
+    `{event: "TaskStart", script: "cline-wiramento-smoke.sh", name: "cline-wiramento-smoke"}`
+    após `memory-prune-session-start.sh` e `ctx-window handoff cline`.
+  - `make build && make install && agent-sync -apply -target=cline` (idempotente).
+- **Validação 4 camadas** (ses_atual, 2026-09-26):
+  1. **Script isolado**: `bash hooks/cline-wiramento-smoke.sh < payload` →
+     stdout JSON válido com tag `[agent-sync Cline wiramento]` + cria `.log` e
+     `.seen` em `/tmp/agent-sync-cline-wiramento/`. ✅
+  2. **Bridge manual**: `agent-sync hook cline --event=TaskStart` →
+     `{"cancel":false,"context":"[agent-sync Cline wiramento] hooks wirados..."}`
+     + `smoke-A85-bridge.log` com 18 linhas. ✅
+  3. **Cline real**: `cline --cwd ... "Responda SMOKE-A85-OK se vir a tag"` →
+     modelo ecoou `SMOKE-A85-OK` e citou literalmente o conteúdo do contexto
+     injetado (incluindo o path do log). Host criou
+     `conv_1790446909364_xvx5e8e.{log,seen}`. ✅
+  4. **Wiramento colateral validado**: `bash-rm-guardian` (PreToolUse wirado
+     em paralelo) **bloqueou** meu `rm -rf /tmp/agent-sync-cline-wiramento`
+     com mensagem `"tem refs ativas no repo. 3 active unknown-literal-hit"` —
+     prova empírica de que o PreToolUse do bash-rm-guardian está wirado e
+     protegendo refs do repo contra deleção acidental. ✅
+- **Como o usuário valida daqui pra frente**: abrir o Cline normalmente. Na
+  **primeira resposta** do modelo, esperar ver literalmente a tag
+  `[agent-sync Cline wiramento] hooks wirados via plugin...`. Se NÃO
+  aparecer, o wiramento realmente está quebrado (não é mais artefato
+  silencioso). Log persistente em `/tmp/agent-sync-cline-wiramento/<sid>.log`
+  para auditoria.
+- **Decisão de produto**: opt-in default ON; opt-out via
+  `AGENT_SYNC_WIRAMENTO_SMOKE=0`. Justificativa: custo zero (idempotente
+  one-shot), ganho de UX alto (elimina "wiramento invisível" como classe de
+  confusão). Refs: A-80/A-80.4/A-84 (cobre a totalidade do wiramento Cline).
+  Origem: ses_atual, 2026-09-26.
 
 
 
