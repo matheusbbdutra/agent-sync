@@ -63,7 +63,7 @@ Estabelecer `session-event.jsonl` como **log append-only** ao lado do `session-s
 Notas:
 
 - **`ref` tipado**: `D-N` para decisão, `A-N` para action, `B-N` para blocker, `Q-N` para open_question, `S-N` para state_render. Mesmo namespace do snapshot (cross-ref válido).
-- **`actor` enum fechado por CLI do agente-sync**: mais um CLI exige bump MAJOR + migration. Aceitável: é um enum pequeno e estável.
+- **`actor`: core fechado + escape hatch aditivo (revisão de 2026-09-26, A-82).** O campo aceita (1) os actors core — `user`, `tool`, `agent-sync` e as CLIs canônicas — ou (2) o valor namespaced `cli:<slug>` para qualquer origem nova. **Adicionar um CLI é ADITIVO (sem bump)**: basta incluir o slug na fonte única `tools/actorvocab`, que alimenta os 4 schemas, o `agentEnum` do memory-mcp e as help strings. MAJOR bump fica reservado para **remoção ou renomeação** de valor já aceito. Motivo da revisão: a lista estava duplicada em 6 lugares com 2 vocabulários divergentes (`claude`/`agy` vs `claude-code`/`antigravity`), e a 6ª CLI (Cline) ficou de fora de dois deles — quebrando telemetria (`agent_tasks`) e token-nudge (`token-budget-status`) em silêncio.
 - **`details` é `additionalProperties: true`**: única exceção ao princípio da ADR-001. Justificativa: cada kind pode carregar payload específico sem versionar schema a cada evolução. Consumers devem tolerar campos desconhecidos (forward-compatible).
 - **`session_id` opcional**: presente quando evento vem de hook/sessão; ausente para eventos gerados por `agent-sync state write` manual.
 
@@ -109,14 +109,14 @@ Implementação: scan linear do JSONL. Para logs <10MB é instantâneo. Se virar
 ### Negativas / trade-offs
 
 - **Crescimento ilimitado sem rotação.** Mitigado pela Decisão 4 (10MB + 1 rotação). Trade-off explícito: prefere simplicidade sobre retenção longa.
-- **Append-only + enum `actor`**: novo CLI exige MAJOR bump. Aceitável: enum pequeno, mudança rara.
+- **Append-only + `actor`**: o core é fechado, mas adicionar CLI é **aditivo** (escape hatch `cli:<slug>`); só remoção/renomeação exige MAJOR bump (ver Decisão 2, revisão de 2026-09-26).
 - **Race em writes concorrentes.** Mesmo tmpfile único por PID+nanoTimestamp da ADR-002 aplica aqui. Sem lockfile necessário.
 - **`details: additionalProperties: true` quebra princípio fechado.** Trade-off explícito: ganha flexibilidade para evolução por kind; mitiga via convention "consumers devem tolerar campos desconhecidos".
 - **Sem replay de transcript do LLM.** Event log captura decisões/ações, não toda a prosa entre elas. Para replay completo, transcript JSONL do harness continua sendo source of truth (sob outra ADR).
 
 ## Decisões revisadas
 
-(nenhuma — ADR em estado Proposto na primeira iteração.)
+- **2026-09-26 (A-82) — Decisão 2 (`actor`)**: substituído "novo CLI exige MAJOR bump + migration" por "core fechado + escape hatch `cli:<slug>`; adição é aditiva". Motivo empírico: a lista de CLIs estava duplicada em 6 lugares (4 schemas + `actorToAgent` + `agentEnum` do memory-mcp) com 2 vocabulários divergentes, e a 6ª CLI (Cline) ficou de fora de dois deles — `agent-task-record` morria em `jsonschema validation failed` (sem telemetria) e `budget nudge -actor cline` falhava (token-nudge inerte, `exit 0` silencioso). Fonte única agora é `tools/actorvocab`, com teste de paridade dos schemas em `tools/jsonschema/jsonschema_actorvocab_test.go`.
 
 ## Evidência / Implementação
 
@@ -145,7 +145,7 @@ Esta ADR é Proposta — sem código ainda. Quando aceita:
 
 1. **Não substitui o transcript do LLM.** Event log captura decisões/ações estruturadas; prosa livre entre elas continua no transcript JSONL do harness (sob controle de cada CLI).
 2. **Rotação descarta.** Quando rotaciona, o arquivo `.1` substitui o anterior. Sem histórico arqueológico. Mitigação futura: ADR de retenção com `.1`, `.2`, `.3` etc.
-3. **`actor` enum é fechado.** Novo CLI no agent-sync exige MAJOR bump do schema. Aceitável: agente-sync adiciona CLI raramente (último foi Antigravity, meses atrás).
+3. **`actor`: core fechado com escape hatch.** Actors core não podem ser removidos/renomeados sem MAJOR bump; origens novas entram por `cli:<slug>` (aditivo). Trade-off: o escape hatch é menos restritivo que um enum puro — mitigado por pattern ancorado (`^cli:[a-z][a-z0-9-]{0,31}$`) e por uma fonte única (`tools/actorvocab`) com teste de paridade dos schemas.
 4. **Sem proteção contra corrupção parcial.** Write parcial mid-event (e.g., disco cheio) deixa linha inválida. Mitigação: validação na leitura (pula linhas que falham `json.Valid` + log warning).
 5. **Schema `details` é `additionalProperties: true`.** Quebra o princípio "fechado por padrão" da ADR-001. Justificativa registrada na Decisão 2; revisar se aparecer abuso.
 

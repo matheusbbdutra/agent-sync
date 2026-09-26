@@ -321,6 +321,36 @@
   enum `actor` (afeta também `session-event.json` e `precompact-snapshot.json`).
 - Commits: `d495e1f` (test fix do smoke), `fc5e3b4` (bridge v2),
   `3eccfa1` (docs), + commit do fix de schema/telemetria.
+### A-82 / A-83 (concluído em 2026-09-26)
+
+- **A-82 — `actor` extensível sem quebrar (decisão do usuário: opção 1).**
+  Raiz: a lista de CLIs estava **duplicada em 6 lugares** (4 schemas JSON +
+  `actorToAgent` em `internal/event/store.go` + `agentEnum` em
+  `tools/cmd/memory-mcp/main.go`) com **2 vocabulários divergentes**
+  (`claude`/`agy` nos schemas; `claude-code`/`antigravity` no memory-mcp), e a
+  6ª CLI (Cline) ficou de fora de dois deles.
+  Implementação: fonte única `tools/actorvocab`; os campos `actor`/`cli` agora
+  são `anyOf: [enum core, pattern '^cli:[a-z][a-z0-9-]{0,31}$']` → **adicionar
+  CLI é aditivo** (sem MAJOR bump; revisão da ADR-003 Decisão 2); `agentEnum` do
+  memory-mcp derivado do registry; `actorToAgent` normaliza
+  `claude`→`claude-code`/`agy`→`antigravity` num só lugar; help strings
+  derivadas do registry.
+  Guardas: `tools/jsonschema/jsonschema_actorvocab_test.go` (paridade
+  schema↔registry + escape hatch), `tools/actorvocab/actorvocab_test.go`,
+  `internal/event/store_test.go::TestActorToAgentNormalizaVocabularioDoMCP`.
+  Validado: `budget nudge -actor cline` → `should_nudge`; `state snapshot -actor
+  cline` → ok; bare desconhecido → rejeitado; `cli:<slug>` → aceito.
+- **A-83 — agents custom no Cline: gap aceito (não entregar pela metade).**
+  Evidência: config-extensions do CLI aceita só `rules|skills|plugins`; sem
+  `cline agent`; sem loader de agents; 2 probes reais (`~/.cline/agents/<n>.md` e
+  `agents/` no root do plugin) **não** expuseram agentes ao modelo. Agents do
+  Cline são dinâmicos (`spawn_agent`, `team_member`/`teamRole`). Ação:
+  `target.Cline.AgentsDir` **zerado** (o apply não emite mais o warning "tipo de
+  agente desconhecido" nem entrega diretório vazio); os agentes especialistas
+  chegam ao Cline via **Skills** (54 sincronizadas). Guarda:
+  `internal/target/target_test.go::TestClineNaoDeclaraAgentsDir`.
+
+
 
 ### Achado que vale reler antes de mexer
 
@@ -366,15 +396,15 @@
    SQL externo (sqlite3/python) concorrente no `memory.db` — usar a CLI
    (`agent-sync memory ...`). Limitação conhecida: "sucesso sem persistir" (RPC
    ok) não é coberto pelo retry. Testes em `internal/event/store_test.go`.
-7. **Decidir MAJOR bump do enum `actor`** (PENDENTE, precisa do usuário): a 6ª
-   CLI não entrou nos enums `actor` de `session-event.json`,
-   `token-budget-status.json` e `precompact-snapshot.json` — por ADR-003
-   (Decisão 2), novo CLI no enum `actor` exige **MAJOR bump + migration**.
-   Consequência prática hoje: **`token-nudge` (wirado no Cline v1) é inerte** —
-   `budget nudge -actor cline` falha na validação e o script sai `exit 0` sem
-   injetar o nudge. Se aceito o bump, adicionar `cline` aos 3 enums + atualizar
-   produtores/consumidores; alternativa: manter o gap e documentar. Evidência e
-   impacto no ADR-cline-hooks-mcp-wiramento.md (rev. 2, "Gaps aceitos").
+7. ~~**Decidir MAJOR bump do enum `actor`**~~ **[done 2026-09-26 → A-82]** — decisão
+   do usuário: **core enum + escape hatch namespaced `cli:<slug>`**, que torna a
+   adição de CLI **aditiva** (sem MAJOR bump) e revisa a ADR-003 Decisão 2.
+   Implementado com fonte única em `tools/actorvocab` (alimenta os 4 schemas, o
+   `agentEnum` do memory-mcp e as help strings), teste de paridade dos schemas e
+   normalização do vocabulário do memory-mcp (`claude`→`claude-code`,
+   `agy`→`antigravity`). Consequência: **`token-nudge` no Cline deixou de ser
+   inerte** (`budget nudge -actor cline` validado). Gaps que sobraram: apenas
+   `false-success-guard` e `precompact-snapshot` (sem transcript/evento).
 
 ### Como revalidar rápido
 

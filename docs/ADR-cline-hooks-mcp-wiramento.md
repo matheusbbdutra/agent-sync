@@ -84,17 +84,29 @@ de resolver `agent-sync`/`ctx-window`.
 - **`precompact-snapshot`**: o runtime de plugin do Cline não expõe `PreCompact`
   (o loader de arquivos mapeia o evento para `undefined`) → mesmo gap aceito já
   registrado para o Cursor (`ADR-precompact-snapshot-cross-cli`, Decisão 4).
-- **`token-nudge` inerte no Cline (gap novo, requer decisão de MAJOR bump)**:
-  o script passa `-actor cline` para `agent-sync budget nudge`, e o schema
-  `token-budget-status.json` tem `actor` como enum fechado
-  (`claude,codex,opencode,cursor,agy,agent-sync`). A validação falha, o stdout
-  fica vazio e o script sai com `exit 0` (silent no-op) → **o nudge de contexto
-  nunca é injetado no Cline**. Corrigir exige adicionar `cline` ao enum `actor`,
-  e a ADR-003 (Decisão 2) determina **MAJOR bump + migration** para novo CLI no
-  enum `actor`. Mesma situação para `session-event.json` e
-  `precompact-snapshot.json` (hoje não quebram porque nenhum hook do Cline
-  escreve `actor=cline`, mas bloqueiam o wiramento futuro de
-  `precompact-snapshot`). Decisão pendente do usuário.
+- ✅ **`token-nudge` inerte no Cline — RESOLVIDO (A-82)**: o script passa
+  `-actor cline` para `agent-sync budget nudge`, e o enum `actor` de
+  `token-budget-status.json` não tinha `cline`, então a validação falhava, o
+  stdout ficava vazio e o script saía `exit 0` (no-op silencioso) — o nudge de
+  contexto nunca era injetado. Corrigido pela revisão da ADR-003 (Decisão 2):
+  o core enum ganhou `cline` e passou a aceitar o escape hatch `cli:<slug>`
+  (adição deixou de exigir MAJOR bump). Validado:
+  `agent-sync budget nudge -actor cline` retorna `should_nudge`.
+- 🔴 **Agents custom no Cline (A-83) — gap aceito**: o Cline CLI v3.0.65 **não
+  tem superfície de agents definidos pelo usuário**. Evidência: o validador de
+  config-extensions aceita somente `rules|skills|plugins` (rejeita `hooks`,
+  `workflows`, `agents`); não há `cline agent`; não há símbolos de loader de
+  agents; e dois probes reais (`~/.cline/agents/<n>.md` **e** `agents/` no root
+  do plugin, este último o campo `agents` do formato Agent Plugin) não
+  expuseram nenhum agente ao modelo ("there is no agent registry tool").
+  Os agentes do Cline são **dinâmicos**: `spawn_agent` (system prompt em
+  runtime) e `team_member` (spawn/shutdown com `agentId`/`rolePrompt`), com
+  `agentKind` derivado de `teamRole ∈ {lead, teammate}`. Por isso
+  `target.Cline.AgentsDir` é vazio (gerar arquivos ali seria falso positivo,
+  como o A-79) e os agentes especialistas do agent-sync chegam ao Cline pela
+  camada de **Skills** (54 em `~/.cline/skills`, incluindo `agent-delegate`,
+  `agent-learn`, `agent-react`). Se uma versão futura expuser agents, o probe
+  deste ADR é o protocolo de revalidação.
 - **`agent_tasks.json` (`cli`)**: enum também ficou sem `cline` e **quebrava a
   telemetria** (`budget write` rejeitava `cli=cline`); corrigido no A-80.4
   (aditivo, sem bump — o schema de `cli` não está coberto pela regra de MAJOR da
