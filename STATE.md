@@ -7,9 +7,9 @@
 
 ## Estado do repositório
 
-- Branch: `main` (merge de `worktree-a73-audit-removal-go` concluído em `7cac536`)
-- HEAD: `7cac536` (merge A-73 [done]..A-80 [done]: `audit_removal` Go + hooks Cline via plugin)
-- Working tree: limpo (só `.claude/` untracked). `main` agora tem A-73 [done]..A-80 [done]; o worktree/branch `a73-audit-removal-go` ficou obsoleto (remover/apagar após push para não manter dois `STATE.md` divergentes).
+- Branch: `main` (merge de `worktree-a73-audit-removal-go` em `7cac536`; A-81=`dad1688`, A-82=`6b3057d`+`5bc282e`, A-83=`67a2c36`, docs=`74e07f2`)
+- HEAD: A-83 + docs (pós-merge); `main` tem A-73 [done]..A-83. Branch/worktree `a73-audit-removal-go` **removido**; plugin Cline único apontando para o repo principal.
+- Working tree: limpo (só `.claude/` untracked). `make install`/`make apply` rodados: binários alinhados e wiramento sem warning (`[cline/agents]` deixou de aparecer com o A-83).
 - Host wirado nesta sessão (Cline, 6ª CLI): plugin `~/.cline/plugins/_installed/local/agent-sync-hooks-df3a8b490db8/package`, `~/.cline/hooks` vazio (shims inertes removidos), `~/.cline/data/settings/cline_mcp_settings.json` com context7/docs/memory/code-graph, `~/.local/bin/agent-sync` atualizado (backup `/tmp/agent-sync.bak-*`).
 
 ## Sessão atual
