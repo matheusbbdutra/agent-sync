@@ -129,10 +129,15 @@ secret-guard), `PostToolUse` (docs-cache, ctx-window-nudge, secret-guard,
 memory-observe, token-nudge), `TaskStart` (memory-prune-session-start) e
 `TaskComplete` (memory-consolidate).
 
-Fora do escopo v1 (A-80.4 candidato): hooks que dependem de transcript
-(`ctx-window` summarize, `ctx-handoff`, `agent-task-record`,
-`false-success-guard`) e `precompact-snapshot` (o Cline não expõe PreCompact no
-runtime de plugin).
+Cobertura v2 (A-80.4): `TaskStart` ganha `ctx-handoff`
+(`ctx-window handoff cline`, spec por `command`) e `TaskComplete` ganha
+`ctx-window-summarize-at-stop.sh` e `agent-task-record.stop.sh` (telemetria
+`cli=cline` em `.agent-sync/agent_tasks.jsonl`, com `tokens: null` — sem
+transcript). O executor aceita `script` ou `command` e prepende o dir do binário
+`agent-sync` ao `PATH` dos hooks.
+
+Gaps aceitos (runtime de plugin não os suporta): `false-success-guard` (exige
+`transcript_path`) e `precompact-snapshot` (sem `PreCompact`).
 
 ## 5. Refs
 

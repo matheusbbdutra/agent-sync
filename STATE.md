@@ -7,9 +7,9 @@
 
 ## Estado do repositório
 
-- Branch: `worktree-a73-audit-removal-go` (worktree em `.claude/worktrees/a73-audit-removal-go`)
-- HEAD: `afa0911` (style(test) A-80: gofmt em cline_bridge_test.go)
-- Working tree: limpo (só `.agent-sync/` untracked). `main` segue em `2b39374` (A-73 Proposto) — a branch tem A-73 done..A-80 rev.1 e ainda **não foi pushada/mergeada**.
+- Branch: `main` (merge de `worktree-a73-audit-removal-go` concluído em `7cac536`)
+- HEAD: `7cac536` (merge A-73 [done]..A-80 [done]: `audit_removal` Go + hooks Cline via plugin)
+- Working tree: limpo (só `.claude/` untracked). `main` agora tem A-73 [done]..A-80 [done]; o worktree/branch `a73-audit-removal-go` ficou obsoleto (remover/apagar após push para não manter dois `STATE.md` divergentes).
 - Host wirado nesta sessão (Cline, 6ª CLI): plugin `~/.cline/plugins/_installed/local/agent-sync-hooks-df3a8b490db8/package`, `~/.cline/hooks` vazio (shims inertes removidos), `~/.cline/data/settings/cline_mcp_settings.json` com context7/docs/memory/code-graph, `~/.local/bin/agent-sync` atualizado (backup `/tmp/agent-sync.bak-*`).
 
 ## Sessão atual
@@ -271,7 +271,12 @@
 - **B-2** [medium] [cancelado -> migrado para C-3] Token nudge contract, agora item estruturado da Trilha C.
 
 
-## Handoff — A-80 Cline (salvo em 2026-09-25 ~22:45, para a próxima sessão)
+## Handoff — A-80/A-80.4 Cline (atualizado em 2026-09-26)
+
+> **Merge concluído**: `worktree-a73-audit-removal-go` -> `main` em `7cac536`
+> (A-73 [done]..A-80 [done]); conflito só em `STATE.md`, resolvido pela versão
+> da branch. `make install` completo rodado (todos os binários de `bin/`
+> alinhados em `~/.local/bin`).
 
 > Memória durável (sobrevive a worktree/CLI): kinds `task_completed` (A-80),
 > `hypothesis_validated` (hooks de arquivo inertes), `open_question` (nome do módulo),
@@ -291,6 +296,22 @@
 - **Correção de registro**: o A-79 (`~/.cline/hooks/PreToolUse` + `TestWiradoRealClineHook`)
   era falso positivo — validava execução manual do script, sem passar pela CLI.
 
+### A-80.4 (concluído em 2026-09-26)
+
+- `clineHookSpec` ganhou campo `command` (linha shell via `bash -c`) além de
+  `script`; o executor prepende o dir do binário `agent-sync` ao `PATH` dos
+  hooks (gotcha: `~/.local/bin` não está no `PATH` do processo do Cline).
+- `TaskComplete`: + `ctx-window-summarize-at-stop.sh` e
+  `agent-task-record.stop.sh` (telemetria `cli=cline` em
+  `.agent-sync/agent_tasks.jsonl`, `tokens: null`/`model: unknown` por ausência
+  de transcript).
+- `TaskStart`: + `ctx-handoff` (`ctx-window handoff cline`); `ctx-window handoff`
+  agora aceita `cline` (`handoffCLIs` map).
+- **Gaps aceitos**: `false-success-guard` (só age com `transcript_path`) e
+  `precompact-snapshot` (runtime de plugin não expõe `PreCompact`) — mesma
+  classe do gap já aceito no Cursor. Ver ADR rev. 2.
+- Commits: `d495e1f` (test fix do smoke), `fc5e3b4` (bridge v2).
+
 ### Achado que vale reler antes de mexer
 
 - Hooks por ARQUIVO em `~/.cline/hooks` são inertes no CLI v3.0.65 (loader gateado por
@@ -307,36 +328,38 @@
 
 ### Pendências (ordem sugerida)
 
-1. **Merge/push** `worktree-a73-audit-removal-go` -> `main` (main ainda em `2b39374`).
-   Conflito esperado em `STATE.md` (hand-edited dos dois lados).
-2. **A-80.4** (nova): estender `clineHookSpecs` para hooks dependentes de transcript
-   (`ctx-window` summarize/handoff, `agent-task-record`, `false-success-guard`) e
-   avaliar `precompact-snapshot` (o runtime de plugin do Cline não expõe PreCompact) e
-   telemetria Cline em `.agent-sync/agent_tasks.jsonl`.
-3. **`make install`** completo (nesta sessão só `~/.local/bin/agent-sync` foi atualizado).
-4. Decidir sobre **path injection**: `agent-sync -apply` rodado de outro `baseDir`
-   reescreve o `agent-sync-config.json` do plugin apontando para aquele baseDir.
-5. Higiene pós-merge: conferir `~/.codex/hooks.json` / `~/.claude/settings.json`
-   (o apply desta sessão usou `baseDir` = worktree `a73-audit-removal-go`).
-6. **A-81 candidato** (novo): `memory add` é sensível a escrita concorrente no
-   `memory.db` (ver "Atencao de ferramenta" acima) — avaliar retry/erro explícito
+1. ~~**Merge/push** `worktree-a73-audit-removal-go` -> `main`~~ **[done 2026-09-26]**
+   (`7cac536`; conflito só em `STATE.md`).
+2. ~~**A-80.4** (nova): estender `clineHookSpecs`~~ **[done 2026-09-26]** — ver
+   seção "A-80.4" acima (gaps aceitos para `false-success-guard`/`precompact`).
+3. ~~**`make install`** completo~~ **[done 2026-09-26]** (todos os binários de
+   `bin/` alinhados em `~/.local/bin`; smoke `TestSmokeClinePluginAdapter` verde).
+4. **Decidir sobre path injection** (PENDENTE, precisa do usuário): `agent-sync
+   -apply` rodado de outro `baseDir` reescreve o `agent-sync-config.json` do
+   plugin apontando para aquele baseDir. Opções: (a) manter "último apply manda";
+   (b) pinar o repo canônico e só atualizar o bin.
+5. Higiene pós-merge: ~~rodar `make apply` do repo principal~~ + conferir
+   `~/.codex/hooks.json` / `~/.claude/settings.json` apontam para paths válidos
+   (o apply da sessão A-80 usou `baseDir` = worktree `a73-audit-removal-go`).
+6. **A-81 candidato**: `memory add` é sensível a escrita concorrente no
+   `memory.db` (ver "Atenção de ferramenta" acima) — avaliar retry/erro explícito
    em `event.CallRecordEvent` (`internal/event/store.go:154`) em vez de
    `exit status 1` seco, e documentar a regra "não usar SQL externo concorrente".
 
 ### Como revalidar rápido
 
 ```bash
-cd .claude/worktrees/a73-audit-removal-go
+cd /home/matheus_dutra/Projects/agent-sync        # main, pós-merge
 go vet ./... && go test ./... && (cd tools && go test ./...)
-go test ./internal/hooks/ -run Cline -v
-(cd tools && go test ./cmd/repo-map/ -run TestWiradoRealClineHook -v)
-AGENT_SYNC_HOME=$PWD ~/.local/bin/agent-sync -apply     # idempotente
+go test ./internal/hooks/ -run 'Cline|PrependedPath' -v
+(cd tools && go test ./cmd/ctx-window/ -run Handoff -v)
+make install                                      # revalida os smokes do plugin Cline
 timeout 60 cline -t 120 "Liste os arquivos .md da raiz usando run_commands e responda so o total."
-ls /tmp/agent-sync-memory-nudge/ | tail -3                # counter conv_... novo = hooks rodaram
+ls /tmp/agent-sync-memory-nudge/ | tail -3         # counter conv_... novo = hooks rodaram
 ```
 
 ### Ponteiros
 
-- `docs/ADR-cline-hooks-mcp-wiramento.md` (Aceito rev. 1, com critérios verificados)
+- `docs/ADR-cline-hooks-mcp-wiramento.md` (Aceito rev. 2, com cobertura v2 + gaps)
 - `docs/investigations/cline-hooks-contract.md` (contratos + 5 probes + gotchas)
 - `internal/hooks/cline_bridge.go`, `internal/hooks/apply_cline.go`, `cline-plugin/index.js`

@@ -1,7 +1,7 @@
-# ADR — Wiramento completo de hooks + MCPs em Cline (A-80 rev. 1)
+# ADR — Wiramento completo de hooks + MCPs em Cline (A-80 rev. 2)
 
 - **Status**: Aceito
-- **Data**: 2026-09-25 (rev. 1)
+- **Data**: 2026-09-25 (rev. 1) · 2026-09-26 (rev. 2, A-80.4: cobertura v2 + gaps)
 - **Decisor**: agente + usuário (ses_atual)
 - **Fonte**: `docs/investigations/cline-hooks-contract.md` (engenharia reversa do
   binário `cline` 3.0.65 + 5 probes reais), A-79 (wiramento parcial), A-74 (MCP)
@@ -49,7 +49,7 @@ o motor de tradução/execução em Go:
    `upsert_cline_http()` delegam para `cline mcp add --yes` (a CLI é dona do
    schema) — cobre `context7`, `docs`, `memory`, `code-graph`.
 
-### Cobertura v1
+### Cobertura v1 (A-80.1)
 
 - `PreToolUse` (`tool_call`): bash-rm-guardian, context-guard, memory-nudge,
   agent-react, principles-inject, secret-guard.
@@ -58,12 +58,36 @@ o motor de tradução/execução em Go:
 - `TaskStart` (`agent_start`): memory-prune-session-start.
 - `TaskComplete` (`agent_end`): memory-consolidate.
 
-### Fora do escopo (A-80.4 candidato)
+### Cobertura v2 (A-80.4)
 
-- hooks dependentes de transcript (`ctx-window` summarize, `ctx-handoff`,
-  `agent-task-record`, `false-success-guard`) e `precompact-snapshot`
-  (o Cline não expõe PreCompact no runtime de plugin);
-- telemetria Cline em `.agent-sync/agent_tasks.jsonl`.
+Hooks que o v1 deixou de fora por supostamente dependerem de transcript, mas
+que na prática toleram o payload normalizado:
+
+| Hook | Evento | Observação |
+|---|---|---|
+| `ctx-window-summarize-at-stop.sh` | `TaskComplete` | usa contador local + idade do `summary.md`; transcript é opcional no script |
+| `agent-task-record.stop.sh` | `TaskComplete` | `cli=cline` via `AGENT_SYNC_AGENT_KIND`; `model=unknown` e tokens nulos (sem transcript) — grava em `.agent-sync/agent_tasks.jsonl` |
+| `ctx-handoff` (`ctx-window handoff cline`) | `TaskStart` | spec por `command`; default do CLI emite `hookSpecificOutput.additionalContext` |
+
+O executor do bridge aceita `script` (arquivo em `<baseDir>/hooks`) **ou**
+`command` (linha shell via `bash -c`), e prepende o diretório do próprio binário
+`agent-sync` ao `PATH` dos hooks — o `PATH` do processo do Cline não inclui
+`~/.local/bin` de forma confiável, e `agent-task-record`/`ctx-handoff` dependem
+de resolver `agent-sync`/`ctx-window`.
+
+### Gaps aceitos (não wiráveis no runtime de plugin)
+
+- **`false-success-guard`** (`Stop`): só age com `transcript_path` no payload
+  (ver `tools/cmd/false-success-guard/hook.go`: sem transcript devolve `{}`).
+  O runtime de plugin do Cline não expõe transcript nem `last_assistant_message`
+  → wirar seria no-op. Mesma raiz do `tokens: null` do `agent-task-record`.
+- **`precompact-snapshot`**: o runtime de plugin do Cline não expõe `PreCompact`
+  (o loader de arquivos mapeia o evento para `undefined`) → mesmo gap aceito já
+  registrado para o Cursor (`ADR-precompact-snapshot-cross-cli`, Decisão 4).
+- **`false-success-guard`/tokens por transcript**: se uma versão futura do Cline
+  expuser transcript (ou habilitar capability `hooks` para config-extensions,
+  permitindo os hooks por arquivo), basta revogar o gap — o bridge já aceita os
+  nomes de arquivo (`PreToolUse`) e os de plugin (`tool_call`).
 
 ## Critérios de aceite (verificação)
 
@@ -83,8 +107,10 @@ por-tool disponível (`skip`) sem abortar o run; nada de Bun/Python no runtime.
 
 **Negativas/limitações**: adapter JS é obrigatório (a API de plugin do Cline é
 JS); o nome do módulo precisa ser único (`agent-sync-hooks` — `agent-sync` não
-carrega, causa não isolada); hooks de transcript ficam sem cobertura v1;
-plugins do Cline são globais (não há escopo por projeto).
+carrega, causa não isolada); 2 hooks ficam permanentemente sem cobertura no
+runtime de plugin (`false-success-guard`, `precompact-snapshot` — gaps aceitos
+acima); `agent-task-record` grava `tokens: null`/`model: unknown`; plugins do
+Cline são globais (não há escopo por projeto).
 
 ## Refs
 
