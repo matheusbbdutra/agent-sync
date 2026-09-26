@@ -148,12 +148,23 @@ const context = JSON.parse(process.argv[1]);
 const result = plugin.hooks.beforeTool(context);
 console.log(JSON.stringify(result || null));
 `, filepath.Join(pluginDir, "index.js"))
+
+	// repo-map fake: sem ele o bash-rm-guardian não produz contexto e o teste
+	// fica dependente de AGENT_SYNC_REPO_MAP no ambiente (ou de /tmp/repo-map-mcp).
+	fakeRepoMap := filepath.Join(t.TempDir(), "repo-map")
+	if err := os.WriteFile(fakeRepoMap, []byte(`#!/usr/bin/env bash
+printf '%s' '{"verdict":{"status":"needs-review","blockers":["2 active docs-active hit(s) remain"]}}'
+`), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AGENT_SYNC_REPO_MAP", fakeRepoMap)
+
 	cmd := exec.Command(nodeBin, "-e", harness, payloadJSON)
 	cmd.Dir = repoRoot
 	cmd.Env = append(os.Environ(),
 		"AGENT_SYNC_BIN="+agentSync,
 		"AGENT_SYNC_HOME="+repoRoot,
-		"AGENT_SYNC_REPO_MAP="+envOr("AGENT_SYNC_REPO_MAP", "/tmp/repo-map-mcp"),
+		"AGENT_SYNC_REPO_MAP="+envOr("AGENT_SYNC_REPO_MAP", fakeRepoMap),
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
