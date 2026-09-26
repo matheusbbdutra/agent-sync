@@ -62,18 +62,39 @@ const (
 	maxClineHookPayload = 4 << 20
 )
 
-// clineHookSpec descreve um script agent-sync executado em um evento Cline.
+// clineHookSpec descreve um hook agent-sync executado em um evento Cline.
+//
+// Um spec executa OU um `script` (arquivo em <baseDir>/hooks, rodado via
+// `bash <script>` com o payload no stdin) OU um `command` (linha shell rodada
+// via `bash -c`, usada pelos hooks que nas outras CLIs já são comandos diretos,
+// como `ctx-window handoff <cli>`). `script` tem precedência se ambos vierem.
 type clineHookSpec struct {
-	event  string
-	script string
-	name   string // nome canônico do hook agent-sync (usado só em log)
+	event   string
+	script  string
+	command string
+	name    string // nome canônico do hook agent-sync (usado só em log)
 }
 
-// clineHookSpecs é a tabela de hooks compatíveis com o payload normalizado.
-// Só entram hooks que leem `session_id` / `tool_name` / `tool_input` /
-// `tool_response` — os que dependem de transcript (ctx-window, ctx-handoff,
-// agent-task-record, false-success-guard) ficam fora da v1; ver
-// docs/ADR-cline-hooks-mcp-wiramento.md (A-80.4).
+// clineHookSpecs é a tabela de hooks executados pela ponte.
+//
+// v1 (A-80.1): hooks que só leem `session_id` / `tool_name` / `tool_input` /
+// `tool_response`.
+//
+// v2 (A-80.4): hooks que o texto do comentário de v1 dizia dependerem de
+// transcript, mas que na prática toleram o payload normalizado do Cline:
+//   - ctx-window summarize-at-stop: usa contador local + idade do summary.md
+//     (o transcript é opcional no script);
+//   - agent-task-record: `cli=cline` via env e `session_id`; `model` fica
+//     `unknown` e tokens ficam nulos (o Cline não expõe transcript) — a
+//     telemetria em `.agent-sync/agent_tasks.jsonl` ainda é gravada;
+//   - ctx-handoff: `ctx-window handoff cline` (o default do CLI já emite
+//     `hookSpecificOutput.additionalContext`).
+//
+// Continuam de fora (gaps aceitos, ver docs/ADR-cline-hooks-mcp-wiramento.md):
+//   - false-success-guard: só age com `transcript_path`, ausente no runtime de
+//     plugin do Cline (vira no-op `{}` se wirado);
+//   - precompact-snapshot: o runtime de plugin do Cline não expõe PreCompact
+//     (mesmo gap aceito registrado para o Cursor).
 var clineHookSpecs = []clineHookSpec{
 	// PreToolUse (equivalente direto do PreToolUse de Claude/Codex)
 	{event: "PreToolUse", script: "bash-rm-guardian.pretooluse.sh", name: bashRmGuardianHookName},
@@ -92,9 +113,12 @@ var clineHookSpecs = []clineHookSpec{
 
 	// TaskStart (proxy de SessionStart)
 	{event: "TaskStart", script: "memory-prune-session-start.sh", name: memoryPruneSessionStartHookName},
+	{event: "TaskStart", command: "ctx-window handoff cline", name: ctxHandoffHookName},
 
 	// TaskComplete (proxy de Stop)
 	{event: "TaskComplete", script: "memory-consolidate.stop.sh", name: memoryConsolidateHookName},
+	{event: "TaskComplete", script: "ctx-window-summarize-at-stop.sh", name: ctxWindowSummarizeStopHookName},
+	{event: "TaskComplete", script: "agent-task-record.stop.sh", name: agentTaskRecordHookName},
 }
 
 // clineBridgeEvents são os eventos Cline para os quais o wiramento cria shim
@@ -521,21 +545,24 @@ func renderClineHookResponse(res clineHookResult) []byte {
 	return data
 }
 
-// runClineHookScripts executa os scripts do evento com o payload normalizado,
-// coletando contexto/cancel. Falha de um script nunca interrompe os demais
-// nem o run: vira warning em stderr.
+// runClineHookScripts executa os hooks do evento (scripts e/ou comandos) com o
+// payload normalizado, coletando contexto/cancel. Falha de um hook nunca
+// interrompe os demais nem o run: vira warning em stderr.
 func runClineHookScripts(baseDir, event string, payload []byte, root, denyMode string, timeout time.Duration, stderr io.Writer) clineHookResult {
 	results := []clineHookResult{}
 	for _, spec := range clineHookSpecs {
 		if spec.event != normalizeClineEvent(event) {
 			continue
 		}
-		script := filepath.Join(baseDir, "hooks", spec.script)
-		if _, err := os.Stat(script); err != nil {
-			fmt.Fprintf(stderr, "cline-bridge: script ausente (%s), pulando %s\n", script, spec.name)
-			continue
+		script := ""
+		if spec.script != "" {
+			script = filepath.Join(baseDir, "hooks", spec.script)
+			if _, err := os.Stat(script); err != nil {
+				fmt.Fprintf(stderr, "cline-bridge: script ausente (%s), pulando %s\n", script, spec.name)
+				continue
+			}
 		}
-		out, err := runClineHookScript(script, payload, root, timeout)
+		out, err := runClineHookScript(script, spec.command, payload, root, timeout)
 		if err != nil {
 			results = append(results, clineHookResult{warnings: []string{fmt.Sprintf("%s: %v", spec.name, err)}})
 			fmt.Fprintf(stderr, "cline-bridge: %s falhou: %v\n", spec.name, err)
@@ -551,21 +578,28 @@ func runClineHookScripts(baseDir, event string, payload []byte, root, denyMode s
 	return mergeClineHookResults(results)
 }
 
-// runClineHookScript roda um script agent-sync com o payload no stdin.
-// O ambiente marca a CLI de origem (cline) e a raiz do projeto
-// (AGENT_SYNC_ROOT), usada por scripts como bash-rm-guardian.
-func runClineHookScript(script string, payload []byte, root string, timeout time.Duration) ([]byte, error) {
+// runClineHookScript roda um hook agent-sync com o payload no stdin. Quando
+// `command` vem preenchido roda `bash -c <command>`; senão roda o arquivo
+// `script` via `bash <script>`. O ambiente marca a CLI de origem (cline) e a
+// raiz do projeto (AGENT_SYNC_ROOT), usada por scripts como bash-rm-guardian.
+func runClineHookScript(script, command string, payload []byte, root string, timeout time.Duration) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "bash", script)
+	var argv []string
+	if strings.TrimSpace(command) != "" && strings.TrimSpace(script) == "" {
+		argv = []string{"-c", command}
+	} else {
+		argv = []string{script}
+	}
+	cmd := exec.CommandContext(ctx, "bash", argv...)
 	cmd.Stdin = bytes.NewReader(payload)
 	env := append([]string{}, os.Environ()...)
 	env = append(env, "AGENT_SYNC_AGENT_KIND=cline", "AGENT_SYNC_CLI=cline")
 	if strings.TrimSpace(root) != "" {
 		env = append(env, "AGENT_SYNC_ROOT="+root)
 	}
-	cmd.Env = env
+	cmd.Env = withPrependedPath(env, clineHookBinDir())
 
 	var stdout, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdout
@@ -583,6 +617,45 @@ func runClineHookScript(script string, payload []byte, root string, timeout time
 		return nil, fmt.Errorf("exit %v: %s", err, msg)
 	}
 	return stdout.Bytes(), nil
+}
+
+// clineHookBinDir devolve o diretório do próprio binário agent-sync (onde
+// ficam ctx-window/memory-mcp/etc.). O PATH do processo do Cline não inclui
+// ~/.local/bin de forma confiável (ver gotcha do ADR), e os hooks de
+// TaskStart/TaskComplete dependem de resolver `ctx-window` e `agent-sync`.
+func clineHookBinDir() string {
+	exe, err := os.Executable()
+	if err != nil || exe == "" {
+		return ""
+	}
+	dir := filepath.Dir(exe)
+	if dir == "" || dir == "." {
+		return ""
+	}
+	return dir
+}
+
+// withPrependedPath prepende `dir` ao PATH de `env` (substituindo a entrada
+// PATH existente) para que os hooks resolvam binários agent-sync mesmo quando
+// o PATH herdado do Cline não os inclui.
+func withPrependedPath(env []string, dir string) []string {
+	if strings.TrimSpace(dir) == "" {
+		return env
+	}
+	sep := string(os.PathListSeparator)
+	out := make([]string, 0, len(env)+1)
+	done := false
+	for _, kv := range env {
+		if strings.HasPrefix(kv, "PATH=") && !done {
+			done = true
+			kv = "PATH=" + dir + sep + strings.TrimPrefix(kv, "PATH=")
+		}
+		out = append(out, kv)
+	}
+	if !done {
+		out = append(out, "PATH="+dir+sep+os.Getenv("PATH"))
+	}
+	return out
 }
 
 // RunClineBridge implementa `agent-sync hook cline --event=<EventName>

@@ -82,12 +82,23 @@ func formatTurnsForHandoff(turns []Turn) string {
 	return b.String()
 }
 
+// handoffCLIs são as CLIs cujo handoff `ctx-window handoff <cli>` sabe emitir
+// no contrato nativo. `cline` usa o default (hookSpecificOutput.additionalContext),
+// o mesmo de Claude Code/Codex — o bridge do Cline traduz de volta (A-80.4).
+var handoffCLIs = map[string]bool{
+	"claude":      true,
+	"codex":       true,
+	"cursor":      true,
+	"antigravity": true,
+	"cline":       true,
+}
+
 func runHandoff(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if len(args) != 1 {
 		return fmt.Errorf("handoff requires <cli>")
 	}
 	cli := args[0]
-	if cli != "claude" && cli != "codex" && cli != "cursor" && cli != "antigravity" {
+	if !handoffCLIs[cli] {
 		return fmt.Errorf("unsupported handoff cli %q", cli)
 	}
 	input, err := io.ReadAll(io.LimitReader(stdin, 1<<20))

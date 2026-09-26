@@ -183,6 +183,41 @@ func TestHandoffDefensiveOnEmptyOrInvalidPayload(t *testing.T) {
 	}
 }
 
+func TestClineHandoffEmitsClaudeContract(t *testing.T) {
+	withTempCache(t)
+	project := t.TempDir()
+	if err := SaveProjectSummary(project, "cline decision"); err != nil {
+		t.Fatal(err)
+	}
+	var output, stderr bytes.Buffer
+	if err := runHandoff([]string{"cline"}, strings.NewReader(`{"cwd":"`+project+`"}`), &output, &stderr); err != nil {
+		t.Fatalf("runHandoff(cline): %v", err)
+	}
+	if !strings.Contains(output.String(), "cline decision") {
+		t.Fatalf("handoff cline sem o resumo do projeto: %s", output.String())
+	}
+	var result map[string]any
+	if err := json.Unmarshal(output.Bytes(), &result); err != nil {
+		t.Fatalf("output nao e JSON: %v\n%s", err, output.String())
+	}
+	hook, ok := result["hookSpecificOutput"].(map[string]any)
+	if !ok {
+		t.Fatalf("hookSpecificOutput ausente: %s", output.String())
+	}
+	if hook["hookEventName"] != "SessionStart" {
+		t.Fatalf("hookEventName=%v, esperado SessionStart", hook["hookEventName"])
+	}
+}
+
+func TestHandoffRejectsUnsupportedCLI(t *testing.T) {
+	withTempCache(t)
+	var output, stderr bytes.Buffer
+	err := runHandoff([]string{"copilot"}, strings.NewReader(`{}`), &output, &stderr)
+	if err == nil || !strings.Contains(err.Error(), "unsupported handoff cli") {
+		t.Fatalf("esperava erro de CLI nao suportada, obteve %v", err)
+	}
+}
+
 func TestOnToolCallLLMOnlyRecords(t *testing.T) {
 	withTempCache(t)
 	var output bytes.Buffer

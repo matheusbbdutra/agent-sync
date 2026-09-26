@@ -439,3 +439,157 @@ func TestRunClineBridgeSemEvento(t *testing.T) {
 		t.Errorf("erro inesperado: %v", err)
 	}
 }
+
+// TestClineHookSpecsCoberturaA804 garante que os hooks de TaskStart/TaskComplete
+// adicionados no A-80.4 seguem na tabela (regressao de cobertura).
+func TestClineHookSpecsCoberturaA804(t *testing.T) {
+	type want struct {
+		event  string
+		script string
+		cmd    string
+		name   string
+	}
+	cases := []want{
+		{event: "TaskComplete", script: "ctx-window-summarize-at-stop.sh", name: ctxWindowSummarizeStopHookName},
+		{event: "TaskComplete", script: "agent-task-record.stop.sh", name: agentTaskRecordHookName},
+		{event: "TaskStart", cmd: "ctx-window handoff cline", name: ctxHandoffHookName},
+	}
+	for _, tc := range cases {
+		found := false
+		for _, spec := range clineHookSpecs {
+			if spec.event == tc.event && spec.script == tc.script && spec.command == tc.cmd && spec.name == tc.name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("spec ausente: event=%s script=%q command=%q name=%s", tc.event, tc.script, tc.cmd, tc.name)
+		}
+	}
+}
+
+// TestRunClineBridgeTaskCompleteExecutaHooksDeTranscript valida que um payload
+// de agent_end (TaskComplete) dispara ctx-window summarize + agent-task-record,
+// que recebem o payload normalizado (hook_event_name=Stop, session_id) e o env
+// AGENT_SYNC_AGENT_KIND=cline (base da telemetria em agent_tasks.jsonl).
+func TestRunClineBridgeTaskCompleteExecutaHooksDeTranscript(t *testing.T) {
+	baseDir := t.TempDir()
+	sumPayload := filepath.Join(t.TempDir(), "summarize.json")
+	atrPayload := filepath.Join(t.TempDir(), "atr.json")
+	atrKind := filepath.Join(t.TempDir(), "atr.kind")
+	preRan := filepath.Join(t.TempDir(), "pre.ran")
+	t.Setenv("FAKE_SUM_PAYLOAD", sumPayload)
+	t.Setenv("FAKE_ATR_PAYLOAD", atrPayload)
+	t.Setenv("FAKE_ATR_KIND", atrKind)
+	t.Setenv("FAKE_PRE_RAN", preRan)
+
+	writeFakeHook(t, baseDir, "ctx-window-summarize-at-stop.sh", `#!/usr/bin/env bash
+cat > "$FAKE_SUM_PAYLOAD"
+printf '{"hookSpecificOutput":{"hookEventName":"Stop","additionalContext":"summarize rodou"}}'
+`)
+	writeFakeHook(t, baseDir, "agent-task-record.stop.sh", `#!/usr/bin/env bash
+cat > "$FAKE_ATR_PAYLOAD"
+printf '%s' "$AGENT_SYNC_AGENT_KIND" > "$FAKE_ATR_KIND"
+printf '{}'
+`)
+	// Script de PreToolUse no mesmo baseDir: NAO pode rodar em TaskComplete.
+	writeFakeHook(t, baseDir, "memory-nudge.pretooluse.sh", `#!/usr/bin/env bash
+touch "$FAKE_PRE_RAN"
+printf '{"hookSpecificOutput":{"additionalContext":"NUNCA"}}'
+`)
+
+	payload := `{"taskId":"ses-tc-1","workspaceRoots":["/tmp/proj"]}`
+	var stdout, stderr bytes.Buffer
+	if err := RunClineBridge(
+		[]string{"--event=agent_end", "--base-dir=" + baseDir},
+		strings.NewReader(payload), &stdout, &stderr); err != nil {
+		t.Fatalf("RunClineBridge: %v (stderr=%s)", err, stderr.String())
+	}
+
+	if _, err := os.Stat(preRan); err == nil {
+		t.Errorf("script de PreToolUse rodou em TaskComplete")
+	}
+	var resp clineHookResponse
+	if err := json.Unmarshal(stdout.Bytes(), &resp); err != nil {
+		t.Fatalf("stdout nao e JSON: %s", stdout.String())
+	}
+	if !strings.Contains(resp.Context, "summarize rodou") {
+		t.Errorf("contexto do ctx-window summarize ausente: %s", stdout.String())
+	}
+
+	for _, path := range []string{sumPayload, atrPayload} {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("hook nao capturou payload (%s): %v", path, err)
+		}
+		var got claudeHookPayload
+		if err := json.Unmarshal(data, &got); err != nil {
+			t.Fatalf("payload capturado invalido (%s): %v", path, err)
+		}
+		if got.HookEventName != "Stop" {
+			t.Errorf("%s: hook_event_name=%q, esperado Stop", filepath.Base(path), got.HookEventName)
+		}
+		if got.SessionID != "ses-tc-1" {
+			t.Errorf("%s: session_id=%q", filepath.Base(path), got.SessionID)
+		}
+	}
+	kind, err := os.ReadFile(atrKind)
+	if err != nil {
+		t.Fatalf("agent-task-record nao capturou o kind: %v", err)
+	}
+	if string(kind) != "cline" {
+		t.Errorf("AGENT_SYNC_AGENT_KIND=%q, esperado cline", kind)
+	}
+}
+
+// TestRunClineBridgeTaskStartExecutaCtxHandoffCommand valida o spec por
+// `command`: o TaskStart roda `ctx-window handoff cline`, resolvido pelo PATH
+// (o bridge prepende o dir do binário). Um ctx-window fake devolve o contrato
+// Claude que o bridge traduz para `context`.
+func TestRunClineBridgeTaskStartExecutaCtxHandoffCommand(t *testing.T) {
+	baseDir := t.TempDir()
+	fakeBin := t.TempDir()
+	fakeCtxWindow := filepath.Join(fakeBin, "ctx-window")
+	if err := os.WriteFile(fakeCtxWindow, []byte(`#!/usr/bin/env bash
+cat >/dev/null
+printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"handoff cline ok"}}'
+`), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	var stdout, stderr bytes.Buffer
+	if err := RunClineBridge(
+		[]string{"--event=agent_start", "--base-dir=" + baseDir},
+		strings.NewReader(`{"taskId":"ses-ts-1","workspaceRoots":["/tmp/proj"]}`), &stdout, &stderr); err != nil {
+		t.Fatalf("RunClineBridge: %v (stderr=%s)", err, stderr.String())
+	}
+	var resp clineHookResponse
+	if err := json.Unmarshal(stdout.Bytes(), &resp); err != nil {
+		t.Fatalf("stdout nao e JSON: %s (stderr=%s)", stdout.String(), stderr.String())
+	}
+	if !strings.Contains(resp.Context, "handoff cline ok") {
+		t.Errorf("contexto do ctx-handoff ausente: %s (stderr=%s)", stdout.String(), stderr.String())
+	}
+}
+
+func TestWithPrependedPath(t *testing.T) {
+	env := []string{"HOME=/home/x", "PATH=/usr/bin", "LANG=C"}
+	got := withPrependedPath(env, "/opt/bin")
+	joined := strings.Join(got, "\n")
+	if !strings.Contains(joined, "PATH=/opt/bin"+string(os.PathListSeparator)+"/usr/bin") {
+		t.Errorf("PATH nao prependido corretamente: %v", got)
+	}
+	if strings.Count(joined, "PATH=") != 1 {
+		t.Errorf("PATH duplicado: %v", got)
+	}
+
+	// dir vazio = env inalterado; env sem PATH ganha uma entrada.
+	if out := withPrependedPath(env, ""); len(out) != len(env) {
+		t.Errorf("dir vazio deveria manter o env: %v", out)
+	}
+	noPath := withPrependedPath([]string{"HOME=/home/x"}, "/opt/bin")
+	if !strings.Contains(strings.Join(noPath, "\n"), "PATH=/opt/bin") {
+		t.Errorf("env sem PATH deveria ganhar o diretorio: %v", noPath)
+	}
+}
