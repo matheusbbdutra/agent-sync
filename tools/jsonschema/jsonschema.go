@@ -8,9 +8,15 @@
 // leitura em disco.
 //
 // Decisao ADR-001: schemas sao "fechados por padrao" (additionalProperties:
-// false no nivel raiz e em tipos compostos). A unica excecao registrada e
-// 'details' em eventos da ADR-003, justificada pela evolucao de payloads
-// por kind.
+// false no nivel raiz e em tipos compostos). Duas excecoes registradas:
+//
+//   - 'details' em eventos da ADR-003, justificada pela evolucao de payloads
+//     por kind;
+//   - campos de vocabulario de CLI (`actor`/`cli`): enum dos actors core +
+//     escape hatch namespaced `cli:<slug>` (padrao ancorado). Adicionar um CLI
+//     passa a ser ADITIVO, sem MAJOR bump (revisao da ADR-003 Decisao 2, A-82).
+//     O conjunto core vem de tools/actorvocab e ha um teste de paridade em
+//     jsonschema_actorvocab_test.go.
 package jsonschema
 
 import (

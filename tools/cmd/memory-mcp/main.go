@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/matheusdutra/token-tools/actorvocab"
 	"github.com/matheusdutra/token-tools/internal/agentmemory"
 )
 
@@ -47,7 +48,10 @@ type rpcResponse struct {
 }
 
 func toolDefinitions() []map[string]any {
-	agentEnum := []string{"claude-code", "codex", "antigravity", "opencode", "cursor", "user", "tool", "agent-sync"}
+	// agentEnum vem do registry (tools/actorvocab) — a lista hardcoded aqui
+	// divergiu do resto do repo (`claude-code`/`antigravity` vs `claude`/`agy`) e
+	// ficou sem o Cline. Ver A-82.
+	agentEnum := actorvocab.MemoryAgents()
 	typeEnum := []string{"user", "feedback", "project", "reference", "event"}
 	return []map[string]any{
 		{

@@ -19,8 +19,11 @@
     },
     "actor": {
       "type": "string",
-      "enum": ["claude", "codex", "opencode", "cursor", "agy", "agent-sync"],
-      "description": "Origem da decisao. Mesmo enum do session-event.json."
+      "anyOf": [
+        { "enum": ["user", "tool", "agent-sync", "claude", "codex", "opencode", "cursor", "agy", "cline"] },
+        { "pattern": "^cli:[a-z][a-z0-9-]{0,31}$" }
+      ],
+      "description": "Origem da decisao. Mesmo conjunto de session-event.json (core + escape hatch 'cli:<slug>'; ver tools/actorvocab)."
     },
     "cli_version": {
       "type": "string",

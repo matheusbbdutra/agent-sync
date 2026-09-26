@@ -18,8 +18,11 @@
     },
     "actor": {
       "type": "string",
-      "enum": ["claude", "codex", "opencode", "cursor", "agy", "agent-sync"],
-      "description": "Origem do status. Mesmo enum do session-event.json."
+      "anyOf": [
+        { "enum": ["user", "tool", "agent-sync", "claude", "codex", "opencode", "cursor", "agy", "cline"] },
+        { "pattern": "^cli:[a-z][a-z0-9-]{0,31}$" }
+      ],
+      "description": "Origem do status. Mesmo conjunto de session-event.json (core + escape hatch 'cli:<slug>'; ver tools/actorvocab)."
     },
     "session_id": {
       "type": "string",

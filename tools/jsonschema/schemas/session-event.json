@@ -34,8 +34,11 @@
     },
     "actor": {
       "type": "string",
-      "enum": ["user", "claude", "codex", "opencode", "cursor", "agy", "tool", "agent-sync"],
-      "description": "Origem do evento. Enum fechado: novo CLI exige MAJOR bump do schema (registrado na Decisao 2 da ADR-003)."
+      "anyOf": [
+        { "enum": ["user", "tool", "agent-sync", "claude", "codex", "opencode", "cursor", "agy", "cline"] },
+        { "pattern": "^cli:[a-z][a-z0-9-]{0,31}$" }
+      ],
+      "description": "Origem do evento. Aceita os actors core (user/tool/agent-sync/CLIs) ou o escape hatch namespaced 'cli:<slug>' para origens novas — ADITIVO, sem MAJOR bump (revisao da Decisao 2 da ADR-003). Fonte unica: tools/actorvocab."
     },
     "session_id": {
       "type": "string",

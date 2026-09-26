@@ -35,6 +35,7 @@ import (
 
 	"github.com/matheusdutra/agent-sync/internal/pathutil"
 	"github.com/matheusdutra/agent-sync/internal/state"
+	"github.com/matheusdutra/token-tools/actorvocab"
 	"github.com/matheusdutra/token-tools/jsonschema"
 )
 
@@ -175,7 +176,7 @@ func newBudgetNudgeFlags(name string) *budgetNudgeFlags {
 	f := &budgetNudgeFlags{}
 	f.fs = flag.NewFlagSet(name, flag.ContinueOnError)
 	f.fs.StringVar(&f.root, "root", "", "Project root")
-	f.fs.StringVar(&f.actor, "actor", "agent-sync", "Origem (claude|codex|opencode|cursor|agy|agent-sync)")
+	f.fs.StringVar(&f.actor, "actor", "agent-sync", "Origem ("+actorvocab.UsageList()+"|cli:<slug>, default agent-sync)")
 	f.fs.StringVar(&f.sessionID, "session-id", "", "ID da sessao")
 	f.fs.StringVar(&f.model, "model", "", "Modelo ativo")
 	f.fs.StringVar(&f.transcript, "transcript", "", "Caminho do transcript (se aplicavel)")

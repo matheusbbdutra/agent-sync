@@ -36,12 +36,27 @@ func TestAppendAgentTaskCreatesFile(t *testing.T) {
 func TestAppendAgentTaskRejectsInvalidSchema(t *testing.T) {
 	dir := t.TempDir()
 	task := sampleTask("t-bad")
-	task.CLI = "invalido" // fora do enum
+	// "invalido" agora É um slug válido (CLI nova = aditivo, A-82); o que deve
+	// falhar é um slug malformado.
+	task.CLI = "Invalido CLI"
 	if err := AppendAgentTask(dir, task); err == nil {
 		t.Fatal("esperava erro de schema, recebi nil")
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".agent-sync", AgentTaskFileName)); !os.IsNotExist(err) {
 		t.Fatal("arquivo nao deveria ter sido criado apos falha de schema")
+	}
+}
+
+// TestAppendAgentTaskAceitaCLINovaPorSlug cobre a extensibilidade (A-82): uma
+// CLI nova entra como slug bem formado, sem tocar no schema.
+func TestAppendAgentTaskAceitaCLINovaPorSlug(t *testing.T) {
+	dir := t.TempDir()
+	for _, cli := range []string{"cline", "aider", "my-cli-2"} {
+		task := sampleTask("t-" + cli)
+		task.CLI = cli
+		if err := AppendAgentTask(dir, task); err != nil {
+			t.Errorf("cli=%q (slug válido) deveria ser aceita: %v", cli, err)
+		}
 	}
 }
 

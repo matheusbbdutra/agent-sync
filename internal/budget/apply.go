@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/matheusdutra/agent-sync/internal/pathutil"
+	"github.com/matheusdutra/token-tools/actorvocab"
 )
 
 func RunCommand(args []string) error {
@@ -45,14 +46,14 @@ func budgetUsage(w io.Writer) error {
 	fmt.Fprintf(w, "  nudge         Constroi status de tokens (token-budget-status.json); usado por hook postToolUse\n")
 	fmt.Fprintf(w, "\nFlags (read/stats):\n")
 	fmt.Fprintf(w, "  -last N       Apenas as ultimas N tasks (0 = todas)\n")
-	fmt.Fprintf(w, "  -cli C        Filtra por CLI (claude|codex|opencode|cursor|agy)\n")
+	fmt.Fprintf(w, "  -cli C        Filtra por CLI (%s)\n", actorvocab.UsageCLIList())
 	fmt.Fprintf(w, "  -status S     Filtra por status (started|completed|failed|cancelled)\n")
 	fmt.Fprintf(w, "  -since RFC    Apenas tasks com ts >= valor (RFC3339)\n")
 	fmt.Fprintf(w, "\nFlags (write):\n")
 	fmt.Fprintf(w, "  -root <path>  Project root (default: derivado do binario + AGENT_SYNC_HOME + cwd)\n")
 	fmt.Fprintf(w, "  -dry-run      Valida e imprime o payload, sem escrever\n")
 	fmt.Fprintf(w, "\nFlags (nudge):\n")
-	fmt.Fprintf(w, "  -actor <c>          Origem (claude|codex|opencode|cursor|agy|agent-sync)\n")
+	fmt.Fprintf(w, "  -actor <c>          Origem (%s|cli:<slug>, default agent-sync)\n", actorvocab.UsageList())
 	fmt.Fprintf(w, "  -session-id <s>     Sessao (default: derivado de session-state.json)\n")
 	fmt.Fprintf(w, "  -model <m>          Modelo ativo (ex.: claude-sonnet-4.5)\n")
 	fmt.Fprintf(w, "  -transcript <p>     Path para transcript JSONL (extracao automatica de tokens)\n")

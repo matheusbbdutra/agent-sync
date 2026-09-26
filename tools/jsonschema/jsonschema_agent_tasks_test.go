@@ -72,9 +72,23 @@ func TestValidateAgentTasksRejectsMissingRequired(t *testing.T) {
 
 func TestValidateAgentTasksRejectsInvalidCLI(t *testing.T) {
 	payload := validTaskPayload(t)
-	payload["cli"] = "gpt-cli"
+	// "gpt-cli" agora É válido (slug bem formado = CLI nova, aditivo); o que
+	// precisa continuar sendo rejeitado é um slug malformado.
+	payload["cli"] = "Gpt CLI"
 	if err := Validate("agent_tasks", payload); err == nil {
-		t.Fatal("CLI fora do enum deveria ser rejeitado")
+		t.Fatal("CLI com slug malformado deveria ser rejeitada")
+	}
+}
+
+// TestValidateAgentTasksAceitaCLINovaPorSlug cobre a extensibilidade (A-82):
+// uma CLI nova não exige editar o schema nem bump — basta um slug bem formado.
+func TestValidateAgentTasksAceitaCLINovaPorSlug(t *testing.T) {
+	for _, cli := range []string{"aider", "my-cli-2", "cli-x"} {
+		payload := validTaskPayload(t)
+		payload["cli"] = cli
+		if err := Validate("agent_tasks", payload); err != nil {
+			t.Errorf("cli=%q (slug novo) deveria ser aceita: %v", cli, err)
+		}
 	}
 }
 

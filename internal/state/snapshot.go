@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/matheusdutra/agent-sync/internal/pathutil"
+	"github.com/matheusdutra/token-tools/actorvocab"
 	"github.com/matheusdutra/token-tools/jsonschema"
 )
 
@@ -199,7 +200,7 @@ func EmitPrecompactSnapshotForCLI(snap PrecompactSnapshot, actor string) error {
 //
 // Flags:
 //   -root     project root
-//   -actor    claude|codex|opencode|cursor|agy|agent-sync (default agent-sync)
+//   -actor    actor core (ver tools/actorvocab) ou escape hatch cli:<slug> (default agent-sync)
 //   -kind     manual|auto|native (default auto)
 //   -cli      CLI version string (opcional)
 //   -trigger  texto livre descrevendo o motivo (opcional)
@@ -211,7 +212,7 @@ func runStateSnapshot(args []string) error {
 	cliVersion := ""
 	trigger := ""
 	toPath := ""
-	f.fs.StringVar(&actor, "actor", "agent-sync", "Origem (claude|codex|opencode|cursor|agy|agent-sync)")
+	f.fs.StringVar(&actor, "actor", "agent-sync", "Origem ("+actorvocab.UsageList()+"|cli:<slug>, default agent-sync)")
 	f.fs.StringVar(&kind, "kind", "auto", "Tipo de compactacao (manual|auto|native)")
 	f.fs.StringVar(&cliVersion, "cli", "", "Versao da CLI (string livre)")
 	f.fs.StringVar(&trigger, "trigger", "", "Motivo da compactacao")

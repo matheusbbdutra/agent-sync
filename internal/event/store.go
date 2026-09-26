@@ -17,6 +17,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/matheusdutra/token-tools/actorvocab"
 )
 
 // memoryMCPBin é o caminho do binário memory-mcp instalado por `make install`.
@@ -352,19 +354,13 @@ func mirrorEventToMemory(projectRoot string, e SessionEvent) {
 	}
 }
 
-// actorToAgent normaliza os actors do JSONL para o enum aceito pelo memory-mcp.
-// user/tool/agent-sync entram direto; claude/codex/opencode/cursor/agy mapeiam
-// para o enum do MCP; vazio vira agent-sync (default razoável).
+// actorToAgent normaliza os actors do JSONL para o vocabulário do memory-mcp.
+// A tabela de mapeamento vive em tools/actorvocab (fonte única): antes ela
+// estava duplicada e divergia — os actors `claude`/`agy` daqui não existem no
+// enum anunciado pelo MCP (`claude-code`/`antigravity`), então o valor gravado
+// não casava com os filtros documentados. Ver A-82.
 func actorToAgent(actor string) string {
-	switch actor {
-	case "user", "tool", "agent-sync", "claude", "codex", "opencode", "cursor", "agy":
-		return actor
-	}
-	if actor == "" {
-		return "agent-sync"
-	}
-	// Fora do enum aceito — fallback silencioso para agent-sync.
-	return "agent-sync"
+	return actorvocab.MemoryAgent(actor)
 }
 
 // buildNote serializa o SessionEvent num formato legível que cabe no campo
