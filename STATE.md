@@ -341,10 +341,14 @@
 5. Higiene pós-merge: ~~rodar `make apply` do repo principal~~ + conferir
    `~/.codex/hooks.json` / `~/.claude/settings.json` apontam para paths válidos
    (o apply da sessão A-80 usou `baseDir` = worktree `a73-audit-removal-go`).
-6. **A-81 candidato**: `memory add` é sensível a escrita concorrente no
-   `memory.db` (ver "Atenção de ferramenta" acima) — avaliar retry/erro explícito
-   em `event.CallRecordEvent` (`internal/event/store.go:154`) em vez de
-   `exit status 1` seco, e documentar a regra "não usar SQL externo concorrente".
+6. ~~**A-81**: `memory add` sensível a escrita concorrente no `memory.db`~~
+   **[done 2026-09-26]** — `event.recordEventWithRetry`
+   (`internal/event/store.go`) faz até 3 tentativas com backoff de 150ms em
+   falhas transitórias (orçamento total dividido; binário ausente não re-tenta) e
+   devolve erro explícito com o número de tentativas. Regra mantida: **não** usar
+   SQL externo (sqlite3/python) concorrente no `memory.db` — usar a CLI
+   (`agent-sync memory ...`). Limitação conhecida: "sucesso sem persistir" (RPC
+   ok) não é coberto pelo retry. Testes em `internal/event/store_test.go`.
 
 ### Como revalidar rápido
 
