@@ -334,10 +334,17 @@
    seção "A-80.4" acima (gaps aceitos para `false-success-guard`/`precompact`).
 3. ~~**`make install`** completo~~ **[done 2026-09-26]** (todos os binários de
    `bin/` alinhados em `~/.local/bin`; smoke `TestSmokeClinePluginAdapter` verde).
-4. **Decidir sobre path injection** (PENDENTE, precisa do usuário): `agent-sync
-   -apply` rodado de outro `baseDir` reescreve o `agent-sync-config.json` do
-   plugin apontando para aquele baseDir. Opções: (a) manter "último apply manda";
-   (b) pinar o repo canônico e só atualizar o bin.
+4. **Decidir sobre path injection** (PENDENTE, precisa do usuário). **Evidência
+   verificada (2026-09-26)**: o dir do plugin é `agent-sync-hooks-<hash12>` onde o
+   hash é `sha256(baseDir)` — então um apply de outro `baseDir` **NÃO substitui**,
+   cria um **segundo** plugin em `_installed/local/`, e o CLI varre todos
+   (`_installed/*`), o que faria o bridge rodar **2×** por hook. Observado na
+   higiene pós-merge: `agent-sync-hooks-7bda9b533174` (repo principal) +
+   `agent-sync-hooks-df3a8b490db8` (worktree, removido). Opções: (a) manter
+   "último apply manda" (não é o que o código faz hoje); (b) pinar o repo canônico
+   e só atualizar o bin; (c) [mínimo, compatível com a/b] o wirer remover dirs
+   `agent-sync-hooks-*` órfãos que não casam com o hash atual, evitando
+   acumulação/double-hook.
 5. Higiene pós-merge: ~~rodar `make apply` do repo principal~~ + conferir
    `~/.codex/hooks.json` / `~/.claude/settings.json` apontam para paths válidos
    (o apply da sessão A-80 usou `baseDir` = worktree `a73-audit-removal-go`).
