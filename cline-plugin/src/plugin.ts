@@ -1,6 +1,8 @@
-// plugin.ts — AgentPlugin entry point do Cline (A-90, passo 5+7).
+// plugin.ts — AgentPlugin entry point do Cline (A-90).
 //
 // Carrega os 15 hooks wirados e exporta o `AgentPlugin` no contrato `@cline/sdk`.
+// Dispatchers acumulam `appendContext` de hooks não-bloqueantes e respeitam
+// `skip`/`stop` de hooks bloqueantes — corrige codex-review P1 (PR #3).
 
 import type { AgentPlugin, HookContext, HookResult } from "../types.js";
 import * as principlesInject from "./hooks/principles-inject.js";
@@ -18,8 +20,11 @@ import * as tokenNudge from "./hooks/token-nudge.js";
 import * as memoryPrune from "./hooks/memory-prune-session-start.js";
 import * as memoryConsolidate from "./hooks/memory-consolidate-stop.js";
 import * as agentTaskRecord from "./hooks/agent-task-record-stop.js";
+import * as ctxWindowHandoff from "./hooks/ctx-window-handoff.js";
 
-// ===== PreToolUse =====
+// ===== Hook lists =====
+
+// PreToolUse: ordem importa — principles-inject é o ancorador do contexto.
 const preToolUseHooks = [
   principlesInject,
   memoryNudge,
@@ -29,7 +34,6 @@ const preToolUseHooks = [
   bashRmGuardian,
 ];
 
-// ===== PostToolUse =====
 const postToolUseHooks = [
   docsCache,
   ctxWindowNudge,
@@ -38,37 +42,70 @@ const postToolUseHooks = [
   secretGuard,
 ];
 
-// ===== beforeRun / afterRun =====
-const beforeRunHooks = [wiramentoSmoke, memoryPrune];
+const beforeRunHooks = [wiramentoSmoke, memoryPrune, ctxWindowHandoff];
 const afterRunHooks = [ctxWindowSummarize, memoryConsolidate, agentTaskRecord];
 
-async function dispatchBeforeTool(ctx: HookContext): Promise<HookResult | undefined> {
-  for (const hook of preToolUseHooks) {
-    const r = await hook.runPreToolUse(ctx);
-    if (r?.skip || r?.stop) return r;
+// ===== Dispatcher =====
+
+const CONTEXT_SEP = "\n\n---\n\n";
+
+/**
+ * Acumula `appendContext` de todos os hooks não-bloqueantes; respeita
+ * `skip`/`stop` (primeiro bloqueante vence).
+ */
+function mergeHookResults(
+  results: Array<HookResult | undefined | void>,
+): HookResult | undefined {
+  let block: HookResult | undefined;
+  const contexts: string[] = [];
+  for (const r of results) {
+    if (!r) continue;
+    if (r.skip || r.stop) {
+      block = r;
+      break;
+    }
+    if (r.appendContext) contexts.push(r.appendContext);
   }
-  return undefined;
+  if (block) return block;
+  if (contexts.length === 0) return undefined;
+  if (contexts.length === 1) return { appendContext: contexts[0] };
+  return { appendContext: contexts.join(CONTEXT_SEP) };
+}
+
+async function dispatchBeforeTool(ctx: HookContext): Promise<HookResult | undefined> {
+  const results: Array<HookResult | undefined | void> = [];
+  for (const hook of preToolUseHooks) {
+    results.push(await hook.runPreToolUse(ctx));
+  }
+  return mergeHookResults(results);
 }
 
 async function dispatchAfterTool(ctx: HookContext): Promise<HookResult | undefined> {
+  const results: Array<HookResult | undefined | void> = [];
   for (const hook of postToolUseHooks) {
-    const r = await hook.runPostToolUse?.(ctx);
-    if (r?.skip) return r;
+    const fn = hook.runPostToolUse;
+    if (!fn) continue;
+    results.push(await fn(ctx));
   }
-  return undefined;
+  return mergeHookResults(results);
 }
 
 async function dispatchBeforeRun(ctx: HookContext): Promise<HookResult | undefined> {
+  const results: Array<HookResult | undefined | void> = [];
   for (const hook of beforeRunHooks) {
-    const r = await hook.runBeforeRun?.(ctx);
-    if (r?.skip || r?.stop) return r;
+    const fn = hook.runBeforeRun;
+    if (!fn) continue;
+    results.push(await fn(ctx));
   }
-  return undefined;
+  return mergeHookResults(results);
 }
 
 async function dispatchAfterRun(ctx: HookContext): Promise<HookResult | undefined> {
+  // afterRun nunca devolve contexto (evento terminal). Apenas roda hooks.
   for (const hook of afterRunHooks) {
-    await hook.runAfterRun?.(ctx);
+    const fn = hook.runAfterRun;
+    if (!fn) continue;
+    await fn(ctx);
   }
   return undefined;
 }

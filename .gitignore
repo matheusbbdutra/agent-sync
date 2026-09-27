@@ -37,7 +37,5 @@ cline-plugin/package-lock.json
 
 # Runtime/locais (não versionar)
 .claude/
-.agent-sync/
 cline-plugin/.agent-sync/
-cline-plugin/dist/
 *.jsonl
