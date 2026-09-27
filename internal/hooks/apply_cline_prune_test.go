@@ -33,6 +33,12 @@ func writeFakeClinePluginSource(t *testing.T, repo string) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	// A partir de A-87 o plugin inclui `dist/index.js` e `dist/types.js`
+	// (artefatos de build do TS). Criamos a pasta dist/ e os arquivos para
+	// que `os.WriteFile` abaixo não falhe em "no such file or directory".
+	if err := os.MkdirAll(filepath.Join(dir, "dist"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	for _, name := range clinePluginFiles {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte("// fake\n"), 0o644); err != nil {
 			t.Fatal(err)

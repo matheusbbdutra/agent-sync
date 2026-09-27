@@ -507,3 +507,42 @@ ls /tmp/agent-sync-memory-nudge/ | tail -3         # counter conv_... novo = hoo
 - `docs/ADR-cline-hooks-mcp-wiramento.md` (Aceito rev. 2, com cobertura v2 + gaps)
 - `docs/investigations/cline-hooks-contract.md` (contratos + 5 probes + gotchas)
 - `internal/hooks/cline_bridge.go`, `internal/hooks/apply_cline.go`, `internal/hooks/canonical_repo.go`, `cline-plugin/index.js`
+### A-87 [done] — Plugin Cline em TypeScript (migração 1:1 do JS)
+
+- **Origem**: ses_atual (2026-09-27). Usuário identificou mistura
+  desnecessária de linguagens nos wiramentos cross-CLI: Cline JS
+  (`cline-plugin/index.js`), OpenCode TS (`hooks/*.v2.ts`), Claude Code +
+  Cursor + Antigravity + Codex em shell. Decisão verbal: **opção A** —
+  host define tipo, Go fica motor, plugin Cline migra JS→TS, shell vira
+  modo legacy explícito nos 4 hosts sem SDK TS.
+- **ADRs Aceitos** (movidos de `docs/adr-staging/` para `docs/`):
+  1. `docs/ADR-cline-plugin-ts-first.md` (A-87, Aceito) — migração 1:1
+     do `cline-plugin/index.js` para `index.ts`, build `tsc` →
+     `dist/index.js`, bridge Go intacto, tipagem via
+     `cline-plugin/types.ts` (cópia local, mesmo padrão dos `.v2.ts`
+     que copiam `PluginContext` de `@opencode/plugin`).
+  2. `docs/ADR-linguagem-hooks-por-host.md` (A-88, Aceito) — política
+     geral: Cline/OpenCode v2 → TS; Claude Code/Cursor/Antigravity/
+     Codex → shell thin adapter ≤30 LOC; motor Go nunca vira handler;
+     1 fonte de verdade por hook.
+- **Refs**: `ADR-cline-hooks-mcp-wiramento.md` (Aceito rev. 3),
+  `ADR-opencode-v2-ts-runtime.md` (Aceito, paralelo TS em OpenCode),
+  `ADR-trilha-c-cobertura-cross-cli.md` (regra 5×N que embasa a
+  política), `PADRAO-HOOKS-CLIS.md` (matriz de equivalência entre
+  CLIs), `cline-plugin/index.js:1-160` (origem da migração).
+- **Nota de numeração**: A-86 já existia (2026-09-26, chmod + parse
+  taskId em 3 hooks — linha 14 deste STATE). A-87 = presente migração;
+  A-88 = política geral; A-89 = ADR filha de tipos compartilhados.
+- **Próximos passos** (tasks no shared list):
+  1. ~~Sprint 0~~ [done]: revisão e promoção dos 2 ADRs.
+  2. Sprint 1 [in_progress, branch `feature/cline-plugin-ts-first`]:
+     portar `cline-plugin/index.js` → `index.ts`, build `tsc`, smoke
+     paridade 1:1 com bridge Go.
+  3. Sprint 2 (opcional): `hooks/_shared/types.ts` para tipos comuns
+     Cline+OpenCode (ADR filha A-89, não decidido).
+  4. Sprint 3: aplicar a política a 1 hook novo (piloto end-to-end
+     TS-first).
+  5. Sprint 4: declarar shell como "modo legacy" para hosts não-TS;
+     consolidar Edit/Write/MultiEdit/NotebookEdit no
+     `~/.claude/settings.json` num único entry com matcher amplo
+     (ADR filha separada).

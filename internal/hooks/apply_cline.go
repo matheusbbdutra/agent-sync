@@ -44,7 +44,18 @@ var clineLegacyHookArtifacts = []string{
 }
 
 // clinePluginFiles são os arquivos do plugin versionados no repo (fonte).
-var clinePluginFiles = []string{"index.js", "package.json", "plugin.json"}
+// A partir do A-87, o plugin é TypeScript: a fonte é index.ts (+ types.ts +
+// tsconfig.json + package.json + plugin.json) e o wiramento consome
+// `dist/index.js` produzido por `npx tsc -p cline-plugin/`.
+var clinePluginFiles = []string{
+	"index.ts",
+	"types.ts",
+	"tsconfig.json",
+	"package.json",
+	"plugin.json",
+	"dist/index.js",
+	"dist/types.js",
+}
 
 // syncClineHooks instala (ou atualiza) o Cline Plugin. Para o Cline,
 // target.HooksSettingsPath aponta para ~/.cline/hooks (config dir do CLI).
@@ -83,10 +94,23 @@ func syncClineHooks(baseDir string, target TargetCLI) error {
 	if err := os.MkdirAll(filepath.Join(installDir, "package"), 0o755); err != nil {
 		return err
 	}
+	// dist/ é artefato de build do TS (A-87) — criamos o diretório antes do
+	// loop para que o writeFileIfChanged de `dist/index.js`/`dist/types.js`
+	// não falhe em "no such file or directory".
+	if err := os.MkdirAll(filepath.Join(installDir, "package", "dist"), 0o755); err != nil {
+		return err
+	}
 
 	for _, name := range clinePluginFiles {
 		data, err := os.ReadFile(filepath.Join(srcDir, name))
 		if err != nil {
+			if os.IsNotExist(err) && strings.HasPrefix(name, "dist/") {
+				// dist/ é artefato de build (A-87). Em checkout fresh sem
+				// `npx tsc` ainda não existe — wiramos o resto do plugin e
+				// avisamos para o usuário rodar o build.
+				fmt.Fprintf(os.Stderr, "⚠️  [cline/cline-bridge] %s ausente — rode `npx tsc -p cline-plugin/` antes de usar o plugin\n", name)
+				continue
+			}
 			return fmt.Errorf("plugin Cline: ler %s: %w", name, err)
 		}
 		if err := writeFileIfChanged(filepath.Join(installDir, "package", name), data, 0o644); err != nil {
@@ -106,7 +130,7 @@ func syncClineHooks(baseDir string, target TargetCLI) error {
 		"name":    clinePluginName,
 		"private": true,
 		"cline": map[string]any{
-			"plugins": []map[string]any{{"paths": []string{"./package/index.js"}}},
+			"plugins": []map[string]any{{"paths": []string{"./package/dist/index.js"}}},
 		},
 	}, "", "  ")
 	if err != nil {

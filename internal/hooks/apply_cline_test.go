@@ -42,7 +42,7 @@ func TestSyncClineHooksInstalaPlugin(t *testing.T) {
 	if !strings.HasPrefix(installDir, configDir) {
 		t.Fatalf("plugin instalado fora do config dir: %s", installDir)
 	}
-	for _, name := range []string{"index.js", "package.json", "plugin.json", "agent-sync-config.json"} {
+	for _, name := range []string{"dist/index.js", "package.json", "plugin.json", "agent-sync-config.json"} {
 		if _, err := os.Stat(filepath.Join(installDir, "package", name)); err != nil {
 			t.Errorf("arquivo do plugin ausente (%s): %v", name, err)
 		}
@@ -66,7 +66,7 @@ func TestSyncClineHooksInstalaPlugin(t *testing.T) {
 	if len(aggregator.Cline.Plugins) != 1 || len(aggregator.Cline.Plugins[0].Paths) != 1 {
 		t.Fatalf("agregador sem paths: %s", data)
 	}
-	if got := aggregator.Cline.Plugins[0].Paths[0]; got != "./package/index.js" {
+	if got := aggregator.Cline.Plugins[0].Paths[0]; got != "./package/dist/index.js" {
 		t.Errorf("path do plugin = %q", got)
 	}
 
@@ -92,7 +92,7 @@ func TestSyncClineHooksInstalaPlugin(t *testing.T) {
 	}
 
 	// O plugin precisa declarar a capability "hooks" (senão o Cline não o usa).
-	js, err := os.ReadFile(filepath.Join(installDir, "package", "index.js"))
+	js, err := os.ReadFile(filepath.Join(installDir, "package", "dist", "index.js"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func TestSyncClineHooksIdempotente(t *testing.T) {
 	if err := syncClineHooks(baseDir, target); err != nil {
 		t.Fatal(err)
 	}
-	indexPath := filepath.Join(clinePluginInstallDir(hooksDir, baseDir), "package", "index.js")
+	indexPath := filepath.Join(clinePluginInstallDir(hooksDir, baseDir), "package", "dist", "index.js")
 	first, err := os.Stat(indexPath)
 	if err != nil {
 		t.Fatal(err)
