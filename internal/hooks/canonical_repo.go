@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
 
 	"github.com/matheusdutra/agent-sync/internal/pathutil"
 )
@@ -174,4 +175,17 @@ func adoptCanonicalBaseDir(baseDir string) (canonicalAdoption, error) {
 				canonical, baseDir, AllowBasedirEnv),
 		}, nil
 	}
+}
+
+// repoBaseDir resolve e devolve o caminho absoluto do diretório raiz do
+// repositório agent-sync (dois níveis acima de internal/hooks/). Helper
+// usado pelos testes para localizar fixtures e validar paths canônicos
+// sem depender de $PWD do chamador.
+func repoBaseDir(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatalf("repoBaseDir: %v", err)
+	}
+	return dir
 }

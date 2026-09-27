@@ -1,4 +1,4 @@
-.PHONY: help setup setup-go setup-opencode build install apply sync status vendor mcp mirror test lint fmt clean
+.PHONY: help setup setup-go setup-opencode build install cline-plugin-build cline-install apply sync status vendor mcp mirror test lint fmt clean
 
 .DEFAULT_GOAL := help
 
@@ -42,6 +42,13 @@ install: build ## Compila e instala os binários/scripts em ~/.local/bin
 	install -m 0755 scripts/delegate-run.sh ~/.local/bin/delegate-run
 	install -m 0755 scripts/agent-sync-session.sh ~/.local/bin/agent-sync-session
 	@echo "Binários instalados em ~/.local/bin com sucesso!"
+
+cline-plugin-build: ## Compila o plugin Cline TS (A-90) — cline-plugin/dist/
+	cd cline-plugin && npx tsc
+	@echo "Plugin Cline TS compilado: cline-plugin/dist/"
+
+cline-install: cline-plugin-build ## Wira o plugin Cline TS via scripts/install.ts (A-90)
+	cd cline-plugin && npx tsx scripts/install.ts "$(CURDIR)"
 
 apply: install ## Compila, instala e aplica agent-sync nas 5 CLIs (hooks + skills + regras)
 	# shell-validate é opt-in via env (AGENT_SYNC_PRETOOLUSE_VALIDATE=1).

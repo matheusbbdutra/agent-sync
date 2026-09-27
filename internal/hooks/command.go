@@ -19,24 +19,22 @@ func RunCommand(args []string) error {
 		return hookUsage(os.Stderr)
 	}
 	switch args[0] {
-	case "cline":
-		return RunClineBridge(args[1:], os.Stdin, os.Stdout, os.Stderr)
 	case "help", "-h", "--help":
 		return hookUsage(os.Stdout)
 	default:
-		return fmt.Errorf("hook: CLI desconhecida: %q (suportadas: cline)", args[0])
+		// A-90: o subcomando `hook cline` foi removido. O plugin Cline agora é
+		// TS autocontido (`cline-plugin/src/plugin.ts`) e chama os binários
+		// core via `execFile` direto quando precisa. Este comando fica como
+		// no-op explícito para detectar wiramentos legados remanescentes.
+		return fmt.Errorf("hook: CLI/subcomando desconhecido: %q (A-90: removido — wiramento migrou para plugin TS em cline-plugin/)", args[0])
 	}
 }
 
 func hookUsage(w io.Writer) error {
-	fmt.Fprintf(w, "Uso: agent-sync hook <cli> [flags]\n\n")
-	fmt.Fprintf(w, "Ponte de contrato de hooks em runtime (ver docs/investigations/cline-hooks-contract.md).\n\n")
-	fmt.Fprintf(w, "Subcommands:\n")
-	fmt.Fprintf(w, "  cline        Traduz payload Cline <-> scripts agent-sync (uso interno dos shims de ~/.cline/hooks)\n")
-	fmt.Fprintf(w, "\nFlags (cline):\n")
-	fmt.Fprintf(w, "  -event <E>      Evento Cline (PreToolUse, PostToolUse, TaskStart, TaskComplete) [obrigatorio]\n")
-	fmt.Fprintf(w, "  -base-dir <D>   Raiz do repo agent-sync (default: AGENT_SYNC_HOME ou cwd)\n")
-	fmt.Fprintf(w, "  -deny-mode <M>  stop (default, aborta o run) | warn (so injeta contexto)\n")
-	fmt.Fprintf(w, "  -timeout <D>    Timeout por script (default: 10s)\n")
+	fmt.Fprintf(w, "Uso: agent-sync hook <subcomando> [flags]\n\n")
+	fmt.Fprintf(w, "Estado atual (A-90): nenhum subcomando ativo.\n")
+	fmt.Fprintf(w, "O wiramento de hooks Cline migrou para o plugin TS autocontido em\n")
+	fmt.Fprintf(w, "  cline-plugin/src/plugin.ts (entry: cline-plugin/scripts/install.ts).\n")
+	fmt.Fprintf(w, "Hooks Cline chamam binários core Go via execFile direto quando necessário.\n")
 	return nil
 }

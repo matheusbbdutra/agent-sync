@@ -69,17 +69,19 @@ export interface HookResult {
 }
 
 /** Contrato AgentPlugin exportado pelo módulo. */
+// Hook callbacks podem ser async (A-90 — hooks wiram binários core via
+// bridge.ts e usam `void asyncFn()` para fail-open fire-and-forget).
 export interface AgentPlugin {
   name: string;
   manifest: AgentPluginManifest;
   hooks: {
-    beforeTool?: (ctx: HookContext) => HookResult | undefined | void;
-    afterTool?: (ctx: HookContext) => HookResult | undefined | void;
-    beforeRun?: (ctx: HookContext) => HookResult | undefined | void;
-    afterRun?: (ctx: HookContext) => HookResult | undefined | void;
-    beforeModel?: (ctx: HookContext) => HookResult | undefined | void;
-    afterModel?: (ctx: HookContext) => HookResult | undefined | void;
-    onEvent?: (ctx: HookContext) => HookResult | undefined | void;
+    beforeTool?: (ctx: HookContext) => HookResult | undefined | void | Promise<HookResult | undefined | void>;
+    afterTool?: (ctx: HookContext) => HookResult | undefined | void | Promise<HookResult | undefined | void>;
+    beforeRun?: (ctx: HookContext) => HookResult | undefined | void | Promise<HookResult | undefined | void>;
+    afterRun?: (ctx: HookContext) => HookResult | undefined | void | Promise<HookResult | undefined | void>;
+    beforeModel?: (ctx: HookContext) => HookResult | undefined | void | Promise<HookResult | undefined | void>;
+    afterModel?: (ctx: HookContext) => HookResult | undefined | void | Promise<HookResult | undefined | void>;
+    onEvent?: (ctx: HookContext) => HookResult | undefined | void | Promise<HookResult | undefined | void>;
   };
 }
 
