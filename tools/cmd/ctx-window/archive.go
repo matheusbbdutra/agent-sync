@@ -71,8 +71,8 @@ func archiveIndexPath(sessionID string) (string, error) {
 // a ArchiveEntry persistida. Best-effort: se já existir, devolve a entry
 // existente sem regravar.
 func ArchiveResult(sessionID, tool, content string) (*ArchiveEntry, error) {
-	if strings.TrimSpace(sessionID) == "" {
-		return nil, errors.New("ctx-window: session id vazio")
+	if strings.TrimSpace(sessionID) == "" || strings.ContainsAny(sessionID, "/\\\x00\r\n") {
+		return nil, errors.New("ctx-window: invalid session id")
 	}
 	if len(content) < archiveThreshold() {
 		return nil, nil // abaixo do threshold: nada a fazer
@@ -201,6 +201,39 @@ func MaybeArchive(content string) (preview, id string, archived bool) {
 		"\n\n[... archived: %d bytes total; id=%s; run `ctx-window expand <session> %s` to retrieve]",
 		len(content), id, id,
 	)
+	return preview, id, true
+}
+
+// autoArchiveEnabled devolve true se AGENT_SYNC_CTX_AUTO_ARCHIVE=1.
+// Opt-in: substituir tool_response por preview é mudança de contrato —
+// queremos que o usuário ative explicitamente.
+func autoArchiveEnabled() bool {
+	return strings.TrimSpace(os.Getenv("AGENT_SYNC_CTX_AUTO_ARCHIVE")) == "1"
+}
+
+// MaybeAutoArchive é o wiramento do hook PostToolUse: se a env opt-in
+// estiver ligada E o conteúdo passar do threshold, grava no disco
+// (ArchiveResult) e devolve o preview (para substituir o tool_response
+// que vai ao modelo). Caso contrário, devolve o conteúdo verbatim.
+//
+// Substitui o que o modelo vê (working memory) mas preserva o original
+// no archive/<id>.txt — modelo pode pedir de volta via `ctx-window expand`.
+func MaybeAutoArchive(sessionID, toolName, content string) (newContent, archiveID string, archived bool) {
+	if !autoArchiveEnabled() {
+		return content, "", false
+	}
+	if len(content) < archiveThreshold() {
+		return content, "", false
+	}
+	preview, id, ok := MaybeArchive(content)
+	if !ok {
+		return content, "", false
+	}
+	if _, err := ArchiveResult(sessionID, toolName, content); err != nil {
+		// falha no archive não bloqueia o fluxo — passa o conteúdo
+		// verbatim para preservar comportamento fail-open.
+		return content, "", false
+	}
 	return preview, id, true
 }
 
