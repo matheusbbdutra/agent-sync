@@ -71,7 +71,12 @@ if [ -n "$candidate" ]; then
   #   .secret.json, .secret.yaml
   #   .env.local, .env.production, .env.staging
   #   ~/.zshrc, ~/.bashrc, ~/.bash_profile, ~/.profile, ~/.zprofile, ~/.zshenv, ~/.bash_env
-  deny_pattern='(/\.env($|\.)|/\.envrc$|\.pem$|\.key$|\.p12$|\.pfx$|/id_rsa|/id_ed25519|/id_ecdsa|/id_dsa|/\.ssh($|/)|/\.aws($|/)|/\.gnupg($|/)|/\.config/gh($|/)|/\.docker($|/)|/\.kube($|/)|\.netrc|\.npmrc|\.pypirc|\.pgpass|/\.aws/credentials|/\.aws/config|/hosts\.yml|/config\.json|/kube/config|\.terraformrc|/\.zshrc$|/\.bashrc$|/\.bash_profile$|/\.profile$|/\.zprofile$|/\.zshenv$|/\.bash_env$|credentials\.json|credentials\.yaml|/secrets($|/)|\.secret\.json|\.secret\.yaml|/\.env\.local$|/\.env\.production$|/\.env\.staging$|zscaler($|/))'
+  # Nota: `/config\.json` foi removido em 2026-09-29 — sem constraint de
+  # diretorio, bloqueava legitimo como `~/.gemini/config/config.json`,
+  # `~/.config/<app>/config.json` etc. Secrets reais ja estao cobertos
+  # pelos patterns de diretorio acima (`/\.docker($|/)`, `/\.aws($|/)`,
+  # `/\.kube($|/)`).
+  deny_pattern='(/\.env($|\.)|/\.envrc$|\.pem$|\.key$|\.p12$|\.pfx$|/id_rsa|/id_ed25519|/id_ecdsa|/id_dsa|/\.ssh($|/)|/\.aws($|/)|/\.gnupg($|/)|/\.config/gh($|/)|/\.docker($|/)|/\.kube($|/)|\.netrc|\.npmrc|\.pypirc|\.pgpass|/\.aws/credentials|/\.aws/config|/hosts\.yml|/kube/config|\.terraformrc|/\.zshrc$|/\.bashrc$|/\.bash_profile$|/\.profile$|/\.zprofile$|/\.zshenv$|/\.bash_env$|credentials\.json|credentials\.yaml|/secrets($|/)|\.secret\.json|\.secret\.yaml|/\.env\.local$|/\.env\.production$|/\.env\.staging$|zscaler($|/))'
 
   if printf '%s' "$candidate" | grep -qiE "$deny_pattern"; then
     matched="$(printf '%s' "$candidate" | grep -oiE "$deny_pattern" | head -n1 || true)"
