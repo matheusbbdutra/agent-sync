@@ -18,7 +18,12 @@ if [ "$invocation_num" -gt 0 ] && [ "$((invocation_num % THRESHOLD))" -eq 0 ]; t
       "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"record_event\",\"arguments\":{\"agent\":\"antigravity\",\"kind\":\"guard_nudge\",\"note\":\"agent-react #$invocation_num (antigravity)\"}}}" \
       | memory-mcp -db "${AGENT_SYNC_MEMORY_DB:-${XDG_CACHE_HOME:-$HOME/.cache}/agent-sync/memory.db}" >/dev/null 2>&1 || true
   fi
-  printf '{"injectSteps":[{"ephemeralMessage":"[agent-sync] Hipotese ativa sem validacao? Nao conclua/implemente como fato. Valide com tool/leitura ou peca o passo concreto ao usuario. Skill: agent-react."}]}'
+  # PreInvocation do Antigravity NAO aceita injectSteps+ephemeralMessage:
+  # Gemini CLI interpreta como `tool call denied by pre-tool hook`
+  # (ver handoff.go comentario). Emite `{}` (allow, sem injecao) e
+  # loga o aviso no stderr.
+  printf '[agent-sync] Hipotese ativa sem validacao? Nao conclua/implemente como fato. Valide com tool/leitura ou peca o passo concreto ao usuario. Skill: agent-react.\n' >&2
+  printf '{}'
 else
   printf '{}'
 fi
