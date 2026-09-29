@@ -216,12 +216,16 @@ func TestRunAntigravityPreInvocationHook(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	out := stdout.String()
-	if !strings.Contains(out, "injectSteps") || !strings.Contains(out, "ephemeralMessage") || !strings.Contains(out, "12 invocações") {
-		t.Fatalf("unexpected antigravity preinvocation output: %s", out)
+	if out != "{}" {
+		t.Fatalf("antigravity preinvocation deve emitir {} (schema antigo bloqueia tool calls), got %s", out)
+	}
+	if !strings.Contains(stderr.String(), "12 invocações") {
+		t.Fatalf("antigravity preinvocation deve logar aviso em stderr, got %s", stderr.String())
 	}
 
 	// Segundo disparo deve ser silencioso ({})
 	stdout.Reset()
+	stderr.Reset()
 	err = runHook([]string{"antigravity", "preinvocation"}, strings.NewReader(payload), &stdout, &stderr)
 	if err != nil {
 		t.Fatal(err)

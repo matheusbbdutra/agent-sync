@@ -238,13 +238,23 @@ func runHandoff(args []string, stdin io.Reader, stdout, stderr io.Writer) error 
 		fmt.Fprint(stdout, "{}")
 		return nil
 	}
+	// Sumário exposto via `.agent-sync/summary.md` (lido pelo agente via
+	// tool Read) ou wirado em GEMINI.md via syncRules em ~/.gemini/.
+	// NUNCA emitir `injectSteps + ephemeralMessage` no PreInvocation:
+	// o Gemini CLI interpreta esse schema como "tool call denied by
+	// pre-tool hook" (verificado em runtime 2026-09-22, mesmo motivo
+	// que tornou `agent-react-nudge.antigravity.sh` no-op).
 	context := "Resumo anterior do projeto (confirme no código antes de agir):\n" + summary + formatTurnsForHandoff(turns)
 	var output any
 	switch cli {
 	case "cursor":
 		output = map[string]any{"additional_context": context}
 	case "antigravity":
-		output = map[string]any{"injectSteps": []any{map[string]string{"ephemeralMessage": context}}}
+		// Stderr apenas (auditoria local; nada no contrato PreInvocation
+		// do Gemini, que exige `{}` para nao bloquear tool calls).
+		fmt.Fprintf(stderr, "ctx-window: antigravity handoff carregado\n%s\n", context)
+		fmt.Fprint(stdout, "{}")
+		return nil
 	default:
 		output = map[string]any{"hookSpecificOutput": map[string]string{
 			"hookEventName": "SessionStart", "additionalContext": context,

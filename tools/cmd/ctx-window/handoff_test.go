@@ -96,12 +96,22 @@ func TestAntigravityHandoffUsesWorkspacePaths(t *testing.T) {
 	if err := runHandoff([]string{"antigravity"}, strings.NewReader(`{"workspacePaths":["`+project+`"]}`), &output, &stderr); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(output.String(), `"ephemeralMessage"`) || !strings.Contains(output.String(), "agy decision") {
-		t.Fatalf("antigravity handoff missing: %s", output.String())
+	// Antigravity PreInvocation NAO aceita `injectSteps + ephemeralMessage`:
+	// o Gemini CLI interpreta esse schema como "tool call denied by
+	// pre-tool hook" (ver handoff.go comentario). O summary fica
+	// disponivel em `.agent-sync/summary.md` (lido pelo agente via
+	// tool Read). Aqui validamos: (a) stdout vazio no contrato
+	// PreInvocation e (b) stderr com a auditoria local do payload.
+	if output.String() != "{}" {
+		t.Fatalf("antigravity handoff deve emitir {} no stdout, got %s", output.String())
+	}
+	if !strings.Contains(stderr.String(), "agy decision") {
+		t.Fatalf("antigravity handoff deve logar o summary em stderr, got %s", stderr.String())
 	}
 
 	// Invocação subsequente (invocationNum > 1) deve retornar "{}"
 	output.Reset()
+	stderr.Reset()
 	if err := runHandoff([]string{"antigravity"}, strings.NewReader(`{"workspacePaths":["`+project+`"],"invocationNum":2}`), &output, &stderr); err != nil {
 		t.Fatal(err)
 	}

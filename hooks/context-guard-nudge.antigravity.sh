@@ -18,7 +18,12 @@ if [ "$invocation_num" -gt 0 ] && [ "$((invocation_num % THRESHOLD))" -eq 0 ]; t
       "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"record_event\",\"arguments\":{\"agent\":\"antigravity\",\"kind\":\"guard_nudge\",\"note\":\"context-guard #$invocation_num (antigravity)\"}}}" \
       | memory-mcp -db "${AGENT_SYNC_MEMORY_DB:-${XDG_CACHE_HOME:-$HOME/.cache}/agent-sync/memory.db}" >/dev/null 2>&1 || true
   fi
-  printf '{"injectSteps":[{"ephemeralMessage":"[agent-sync] Carregue context-guard e atualize STATE.md."}]}'
+  # PreInvocation do Antigravity NAO aceita injectSteps+ephemeralMessage:
+  # Gemini CLI interpreta como `tool call denied by pre-tool hook`
+  # (ver handoff.go comentario). Emite `{}` (allow, sem injecao) e
+  # loga o aviso no stderr.
+  printf '[agent-sync] Carregue context-guard e atualize STATE.md.\n' >&2
+  printf '{}'
 else
   printf '{}'
 fi

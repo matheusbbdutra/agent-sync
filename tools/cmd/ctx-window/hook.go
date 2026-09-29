@@ -399,9 +399,11 @@ func runAntigravityPreInvocationHook(raw []byte, stdout, stderr io.Writer) error
 	_ = s.Save()
 
 	msg := fmt.Sprintf("[AVISO agent-sync] Limite de interações atingido (%d invocações). Considere executar `ctx-window summarize` e iniciar uma nova sessão.", p.InvocationNum)
-	return json.NewEncoder(stdout).Encode(map[string]any{
-		"injectSteps": []map[string]string{
-			{"ephemeralMessage": msg},
-		},
-	})
+	// PreInvocation do Antigravity nao aceita `injectSteps + ephemeralMessage`:
+	// Gemini CLI interpreta como `tool call denied by pre-tool hook`
+	// (verificado em runtime 2026-09-22, ver handoff.go). Emite `{}` e
+	// deixa o aviso no stderr para auditoria local.
+	fmt.Fprintf(stderr, "ctx-window: %s\n", msg)
+	fmt.Fprint(stdout, "{}")
+	return nil
 }
