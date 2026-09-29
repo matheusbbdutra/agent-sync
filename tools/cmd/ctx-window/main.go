@@ -117,6 +117,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runBashCompress(rest, os.Stdin, stdout, stderr)
 	case "benchmark":
 		return runBenchmark(rest, stdout, stderr)
+	case "gain":
+		return runGain(rest, stdout, stderr)
 	case "track-docs":
 		return trackdocs.Run(rest, stdout, stderr)
 	case "-help", "--help", "help":
@@ -162,12 +164,23 @@ func runCompact(args []string, stdout, stderr io.Writer) error {
 	summary := HeuristicExtract(s.Turns)
 	yaml := summary.ToYAML()
 	prevVersion := s.Version
+	beforeChars := s.EstimatedChars()
 	if err := s.AppendVersionedSummary(yaml); err != nil {
 		return err
 	}
 	if err := s.Save(); err != nil {
 		return err
 	}
+	afterChars := s.EstimatedChars()
+	_ = AppendGainEntry(s.ID, GainEntry{
+		Kind:        "heuristic_compact",
+		Version:     s.Version,
+		BeforeChars: beforeChars,
+		AfterChars:  afterChars,
+		SavedChars:  beforeChars - afterChars,
+		Note:        fmt.Sprintf("manual compact; %d decisions, %d hypotheses, %d artifacts",
+			len(summary.Decisoes), len(summary.Hipoteses), len(summary.Artefatos)),
+	})
 	fmt.Fprintf(stdout, "compacted: version %d (previous %d); %d decisions, %d hypotheses, %d artifacts\n",
 		s.Version, prevVersion, len(summary.Decisoes), len(summary.Hipoteses), len(summary.Artefatos))
 	return nil
@@ -264,6 +277,13 @@ func runOnToolCall(args []string, stdout, stderr io.Writer) error {
 		if err := s.Save(); err != nil {
 			return err
 		}
+		_ = AppendGainEntry(session, GainEntry{
+			Kind:        "auto_compact",
+			Version:     s.Version,
+			BeforeChars: estimated,
+			AfterChars:  s.EstimatedChars(),
+			SavedChars:  estimated - s.EstimatedChars(),
+		})
 		fmt.Fprintf(stdout, `{"auto_compacted":true,"version":%d,"previous":%d,"estimated_chars":%d,"turns":%d%s}`+"\n",
 			s.Version, prev, estimated, len(s.Turns), loopSuffix)
 		return nil
@@ -298,6 +318,27 @@ func runActivity(args []string, stdout, stderr io.Writer) error {
 	}
 	a := ClassifyActivity(s.Turns)
 	return a.Write(stdout, *asJSON)
+}
+
+func runGain(args []string, stdout, stderr io.Writer) error {
+	fs := flag.NewFlagSet("gain", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	asJSON := fs.Bool("json", false, "emit gain entries + totals as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New("gain requires <session>")
+	}
+	entries, err := LoadGainEntries(fs.Arg(0))
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		return WriteGainJSON(stdout, entries)
+	}
+	WriteGainMarkdown(stdout, entries)
+	return nil
 }
 
 func runBashCompress(args []string, stdin io.Reader, stdout, stderr io.Writer) error {

@@ -16,8 +16,16 @@ func TestBashBin(t *testing.T) {
 		{"cat foo.go", "cat", true},
 		{"/usr/bin/find . -name '*.go'", "find", true},
 		{"grep -r error", "grep", true},
-		{"npm install", "npm", false}, // não está na whitelist
-		{"git status", "git", false},
+		// v2 whitelist — dev tooling
+		{"npm install", "npm", true},
+		{"git status", "git", true},
+		{"go test ./...", "go", true},
+		{"pytest tests/", "pytest", true},
+		{"docker ps", "docker", true},
+		// fora da whitelist
+		{"kubectl get pods", "kubectl", true}, // na whitelist
+		{"curl https://example.com", "curl", false},
+		{"ssh user@host", "ssh", false},
 		{"", "", false},
 		{"   ", "", false},
 	}
@@ -40,10 +48,14 @@ func TestBashUnsafeReason(t *testing.T) {
 		{"cat foo.go && echo done", true}, // &&
 		{"echo $VAR", true},              // $ expansion
 		{"sudo apt install", true},        // sudo
-		{"npm install", true},             // npm
-		{"go test ./...", true},           // go
-		{"git status", true},              // git
 		{"curl https://example.com", true}, // curl
+		// v2: git/go/cargo/npm agora NA whitelist (não em unsafe)
+		{"git status", false},
+		{"npm install", false},
+		{"go test ./...", false},
+		{"cargo test", false},
+		// pip/pip3 ainda unsafe (state-changing install)
+		{"pip install foo", true},
 	}
 	for _, c := range cases {
 		reason := bashUnsafeReason(c.cmd)
@@ -56,12 +68,12 @@ func TestBashUnsafeReason(t *testing.T) {
 
 func TestCompressBashOutputPassesVerbatim(t *testing.T) {
 	// comandos não-seguros passam verbatim
-	res := CompressBashOutput("npm install", "lots of npm output\nline 2\nline 3")
+	res := CompressBashOutput("ssh user@host", "ssh output\n")
 	if res.Applied {
-		t.Errorf("npm should fail-open, but Applied=true: %+v", res)
+		t.Errorf("ssh should fail-open, but Applied=true: %+v", res)
 	}
-	if res.Output != "lots of npm output\nline 2\nline 3" {
-		t.Error("npm output should pass verbatim")
+	if res.Output != "ssh output\n" {
+		t.Error("ssh output should pass verbatim")
 	}
 }
 
@@ -169,13 +181,12 @@ func TestRunBashCompressSafeCmd(t *testing.T) {
 func TestRunBashCompressUnsafeCmd(t *testing.T) {
 	withTempCache(t)
 	var stdout, stderr bytes.Buffer
-	err := run([]string{"bash-compress", "--cmd", "npm install", "--content", "lots of output"}, &stdout, &stderr)
+	err := run([]string{"bash-compress", "--cmd", "ssh user@host", "--content", "ssh output"}, &stdout, &stderr)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(stdout.String(), `"applied":false`) {
 		// when --json, output is JSON; when plain, "applied:    false"
-		// Without --json flag, output is plain text
 		if !strings.Contains(stdout.String(), "applied:") {
 			t.Errorf("expected applied=false info, got %s", stdout.String())
 		}
