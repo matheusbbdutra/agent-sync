@@ -119,6 +119,15 @@ func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	}
 
 	hookArgs := []string{sessionID, "--cli", cli, "--tool", toolName, "--project", projectPath}
+	// Auto-archive opt-in: substitui tool_response grande por preview,
+	// preservando o original em archive/<id>.txt para `expand` futuro.
+	// archiveID fica implícito no archive/index.jsonl — não precisa passar
+	// para runOnToolCallLLM (que não tem flag para isso).
+	if content != "" {
+		if newContent, _, archived := MaybeAutoArchive(sessionID, toolName, content); archived {
+			content = newContent
+		}
+	}
 	if content != "" {
 		hookArgs = append(hookArgs, "--input", content)
 	}

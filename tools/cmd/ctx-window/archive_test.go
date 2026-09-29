@@ -269,3 +269,91 @@ func TestRunExpandMissingArgs(t *testing.T) {
 		t.Fatal("expected error when no --list/--search/<id> given")
 	}
 }
+
+func TestAutoArchiveEnabled(t *testing.T) {
+	t.Setenv("AGENT_SYNC_CTX_AUTO_ARCHIVE", "")
+	if autoArchiveEnabled() {
+		t.Error("default should be disabled (opt-in)")
+	}
+	t.Setenv("AGENT_SYNC_CTX_AUTO_ARCHIVE", "1")
+	if !autoArchiveEnabled() {
+		t.Error("env=1 should enable")
+	}
+}
+
+func TestMaybeAutoArchiveBelowThreshold(t *testing.T) {
+	withTempCache(t)
+	t.Setenv("AGENT_SYNC_CTX_AUTO_ARCHIVE", "1")
+	got, id, archived := MaybeAutoArchive("sess", "Read", "small content")
+	if archived {
+		t.Error("below threshold should not archive")
+	}
+	if got != "small content" {
+		t.Errorf("content should pass verbatim, got %q", got)
+	}
+	if id != "" {
+		t.Errorf("id should be empty when not archived, got %q", id)
+	}
+}
+
+func TestMaybeAutoArchiveOptOut(t *testing.T) {
+	withTempCache(t)
+	t.Setenv("AGENT_SYNC_CTX_AUTO_ARCHIVE", "") // default off
+	big := strings.Repeat("x", 10000)
+	got, id, archived := MaybeAutoArchive("sess", "Read", big)
+	if archived {
+		t.Error("opt-out should not archive even when content is large")
+	}
+	if got != big {
+		t.Error("content should pass verbatim in opt-out")
+	}
+	if id != "" {
+		t.Errorf("id should be empty, got %q", id)
+	}
+}
+
+func TestMaybeAutoArchiveAboveThreshold(t *testing.T) {
+	withTempCache(t)
+	t.Setenv("AGENT_SYNC_CTX_AUTO_ARCHIVE", "1")
+	big := strings.Repeat("y", 8000)
+	got, id, archived := MaybeAutoArchive("auto-sess", "Read", big)
+	if !archived {
+		t.Fatal("above threshold with opt-in should archive")
+	}
+	if id == "" {
+		t.Error("id should not be empty when archived")
+	}
+	if len(got) >= len(big) {
+		t.Errorf("preview should be shorter than original (%d vs %d)", len(got), len(big))
+	}
+	if !strings.Contains(got, "[... archived:") {
+		t.Errorf("preview should contain archive marker, got %q", got)
+	}
+	// verifica que arquivo foi mesmo gravado em archive/
+	idx, err := LoadArchiveIndex("auto-sess")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(idx) != 1 || idx[0].ID != id {
+		t.Errorf("archive index should have entry for id=%s, got %+v", id, idx)
+	}
+}
+
+func TestMaybeAutoArchiveFailOpen(t *testing.T) {
+	withTempCache(t)
+	t.Setenv("AGENT_SYNC_CTX_AUTO_ARCHIVE", "1")
+	// sessionID inválido (com path separator) — ArchiveResult deve falhar
+	// mas MaybeAutoArchive continua fail-open: passa conteúdo verbatim
+	// sem archivar (preserve o comportamento anterior do hook).
+	content := strings.Repeat("z", 8000)
+	got, id, archived := MaybeAutoArchive("bad/sess", "Read", content)
+	if archived {
+		t.Error("should fail-open (no archive) on invalid session id")
+	}
+	if got != content {
+		t.Errorf("fail-open should return content verbatim, got len=%d want len=%d", len(got), len(content))
+	}
+	if id != "" {
+		t.Errorf("id should be empty on fail-open, got %q", id)
+	}
+}

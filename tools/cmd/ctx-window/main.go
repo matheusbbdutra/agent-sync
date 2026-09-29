@@ -282,12 +282,6 @@ func runDoctor(stdout, stderr io.Writer) error {
 	return nil
 }
 
-func runBenchmark(args []string, stdout, stderr io.Writer) error {
-	fmt.Fprintln(stdout, "benchmark: not implemented yet (Phase 0 of the plan)")
-	fmt.Fprintln(stdout, "see skills/context-window-strategy/SKILL.md and docs/ADR-context-window-strategy.md")
-	return nil
-}
-
 func runActivity(args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("activity", flag.ContinueOnError)
 	fs.SetOutput(stderr)
