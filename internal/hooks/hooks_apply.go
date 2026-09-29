@@ -173,13 +173,15 @@ func adaptCodexProtectionHooks(entries []hookEntry, adapterPath string) []hookEn
 	return entries
 }
 
-// upsertHookEntry adiciona ou atualiza uma hookEntry pelo nome. Entradas
-// existentes com o mesmo hookName são removidas antes de inserir a nova,
-// garantindo idempotência.
+// upsertHookEntry adiciona ou atualiza uma hookEntry. Entradas existentes
+// com o mesmo hookName OU mesmo Command (scriptPath) sao removidas antes
+// de inserir a nova, garantindo idempotencia mesmo contra entradas
+// legadas que nao trazem o campo `name` no JSON (causa raiz da
+// duplicacao observada em ~/.gemini/config/hooks.json ate 2026-09-29).
 func upsertHookEntry(entries []hookEntry, scriptPath, hookName, matcher string, ifFilters []string) []hookEntry {
 	filtered := entries[:0:0]
 	for _, e := range entries {
-		if !hasNamedHook(e, hookName) {
+		if !matchesHook(e, hookName, scriptPath) {
 			filtered = append(filtered, e)
 		}
 	}
@@ -275,9 +277,26 @@ func encodeHookEntries(entries []hookEntry) []map[string]interface{} {
 // hasNamedHook verifica se uma hookEntry contém um hook com o nome dado.
 // Migrado de bashguardian.go em 2026-09-21 (Fase 8 refator: bash guardian
 // passou a chamar hooks_apply.go para compartilhar helper).
+//
+// Deprecated: use matchesHook para idempotencia robusta contra entradas
+// legadas sem campo `name`. Mantida para callers externos e para o caso
+// de testes que checam apenas nome.
 func hasNamedHook(e hookEntry, name string) bool {
+	return matchesHook(e, name, "")
+}
+
+// matchesHook verifica se uma hookEntry ja representa o hook que estamos
+// prestes a inserir. Cobre duas dimensoes:
+//   - Name: contrato novo (desde que upsertHookEntry passou a setar Name).
+//   - Command (scriptPath): cobre entradas legadas sem Name — o path do
+//     script e unico por hook wirado, entao dois wirings do mesmo hook
+//     produzem o mesmo path mesmo quando o Name nao foi gravado.
+func matchesHook(e hookEntry, name, command string) bool {
 	for _, h := range e.Hooks {
 		if h.Name == name {
+			return true
+		}
+		if command != "" && h.Command == command {
 			return true
 		}
 	}

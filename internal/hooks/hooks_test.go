@@ -793,6 +793,29 @@ func TestUpsertHookEntryReplacesPreviousEntriesWithSameName(t *testing.T) {
 	}
 }
 
+// TestUpsertHookEntryDedupsLegacyEntriesByCommand cobre a causa raiz da
+// duplicacao observada em ~/.gemini/config/hooks.json ate 2026-09-29:
+// entradas legadas sem campo `name` no JSON. O upsert precisa detectar
+// a entrada antiga pelo `Command` (scriptPath) para garantir idempotencia.
+func TestUpsertHookEntryDedupsLegacyEntriesByCommand(t *testing.T) {
+	existing := []hookEntry{
+		{Matcher: "run_command", Hooks: []hookCmd{{Type: "command", Command: "/path/to/script.sh", Timeout: 10}}},
+		{Matcher: "run_command", Hooks: []hookCmd{{Type: "command", Command: "/path/to/script.sh", Timeout: 10}}},
+		{Matcher: "*", Hooks: []hookCmd{{Name: "keep-me", Command: "other.sh"}}},
+	}
+	after := upsertHookEntry(existing, "/path/to/script.sh", "test-hook", "run_command", nil)
+	if len(after) != 2 {
+		t.Fatalf("esperado 2 entradas (1 preservada + 1 nova), obteve %d: %+v", len(after), after)
+	}
+	for _, e := range after {
+		for _, h := range e.Hooks {
+			if h.Command == "/path/to/script.sh" && h.Name != "test-hook" {
+				t.Errorf("entrada legada (sem name) do mesmo script nao foi removida: %+v", e)
+			}
+		}
+	}
+}
+
 func TestAgentStopScriptContract(t *testing.T) {
 	baseDir, ok := pathutil.FindBaseDir([]string{"."})
 	if !ok {
