@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/matheusdutra/token-tools/internal/agentmemory"
 )
 
 type sessionStartPayload struct {
@@ -93,6 +95,84 @@ var handoffCLIs = map[string]bool{
 	"cline":       true,
 }
 
+// coldResumeEnabled devolve true se AGENT_SYNC_CTX_COLD_RESUME=1
+// (opt-in: cold-resume cross-PC consome I/O e round-trips ao memory-mcp).
+func coldResumeEnabled() bool {
+	return strings.TrimSpace(os.Getenv("AGENT_SYNC_CTX_COLD_RESUME")) == "1"
+}
+
+// coldResumeProjectID devolve um ProjectID estável do path: o git toplevel.
+// Mesmo esquema que UpsertSummary usa para gravar (resumos viram memórias
+// com ProjectID = git toplevel). Vazio se path inválido.
+func coldResumeProjectID(projectPath string) string {
+	if projectPath == "" {
+		return ""
+	}
+	return FindProjectRoot(projectPath)
+}
+
+// coldResumeFromMemory reconstrói um YAML de summary a partir das memórias
+// type="project" do ProjectID que tenham Name prefix "ctx-" (gravadas pelo
+// UpsertSummary de uma sessão anterior). Fail-open: qualquer erro → "" sem
+// propagar (handoff deve sempre devolver algo útil ou vazio, nunca falhar).
+//
+// Inspirado no resume-lean do alexgreensh/token-optimizer: zero chamada LLM,
+// reconstrução token-free direto do SQLite (que tem sync Turso cross-PC).
+func coldResumeFromMemory(projectID string) (string, error) {
+	if projectID == "" {
+		return "", nil
+	}
+	dbPath, err := agentmemory.DefaultDBPath()
+	if err != nil {
+		return "", nil // silencioso: cold-resume é opt-in, melhor no
+	}
+	store, err := agentmemory.Open(dbPath)
+	if err != nil {
+		return "", nil
+	}
+	defer store.Close()
+	// busca ampla: type=project, ProjectID match, limite generoso
+	mems, err := store.List("", "project", 200, agentmemory.ScopeFilter{ProjectID: projectID})
+	if err != nil {
+		return "", nil
+	}
+	// agrupa por section (extraída do Name "ctx-<section>-<hash>")
+	bySection := make(map[string][]string, 6)
+	for _, m := range mems {
+		if !strings.HasPrefix(m.Name, "ctx-") {
+			continue
+		}
+		rest := strings.TrimPrefix(m.Name, "ctx-")
+		idx := strings.LastIndex(rest, "-")
+		if idx < 1 {
+			continue
+		}
+		section := rest[:idx]
+		if section == "" || m.Content == "" {
+			continue
+		}
+		bySection[section] = append(bySection[section], m.Content)
+	}
+	if len(bySection) == 0 {
+		return "", nil
+	}
+	// reconstrói YAML mínimo (mesma forma do ExtractedSummary.ToYAML())
+	var b strings.Builder
+	for _, section := range []string{"decisions", "active_hypotheses", "artifacts", "resolved_errors", "next_steps", "constraints"} {
+		items, ok := bySection[section]
+		if !ok || len(items) == 0 {
+			continue
+		}
+		fmt.Fprintf(&b, "%s:\n", section)
+		for _, it := range items {
+			// YAML-safe escape básico
+			escaped := strings.ReplaceAll(it, `"`, `\"`)
+			fmt.Fprintf(&b, "  - %q\n", escaped)
+		}
+	}
+	return b.String(), nil
+}
+
 func runHandoff(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if len(args) != 1 {
 		return fmt.Errorf("handoff requires <cli>")
@@ -141,6 +221,18 @@ func runHandoff(args []string, stdin io.Reader, stdout, stderr io.Writer) error 
 		fmt.Fprintf(stderr, "ctx-window: latest project handoff: %v\n", err)
 		fmt.Fprint(stdout, "{}")
 		return nil
+	}
+	// Cold-resume cross-PC: se nada local e env ligada, tenta memory-mcp.
+	// Fail-open silencioso; só loga em stderr.
+	if summary == "" && coldResumeEnabled() {
+		pid := coldResumeProjectID(projectPath)
+		cold, cerr := coldResumeFromMemory(pid)
+		if cerr != nil {
+			fmt.Fprintf(stderr, "ctx-window: cold-resume: %v\n", cerr)
+		}
+		if cold != "" {
+			summary = cold
+		}
 	}
 	if summary == "" {
 		fmt.Fprint(stdout, "{}")

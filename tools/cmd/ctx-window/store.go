@@ -85,6 +85,80 @@ func (s *Session) EstimatedChars() int {
 	return total
 }
 
+// LoopSignal agrega o resultado da detecção de loop: se a mesma tool/input
+// repetiu demais em uma janela curta, sinaliza ao hook para que este possa
+// exibir nudge ou cortar a working memory.
+type LoopSignal struct {
+	Detected bool   // true se algum conteúdo repetiu ≥ minRepeats vezes na janela
+	Count    int    // nº de ocorrências do conteúdo mais repetido dentro da janela
+	Sample   string // 1ª linha do conteúdo repetido (debug/human-readable)
+}
+
+// DetectLoop checa repetição excessiva nos últimos `window` turns.
+// Pura: não toca em disco; itera Turns in-memory. Default operacional:
+// window=10, minRepeats=3 (configuráveis via AGENT_SYNC_CTX_LOOP_WINDOW /
+// AGENT_SYNC_CTX_LOOP_MIN). Inspirado no `loop detection` do
+// alexgreensh/token-optimizer (read-time side: nunca bloqueia tool call).
+func DetectLoop(turns []Turn, window, minRepeats int) LoopSignal {
+	if minRepeats < 2 || window < minRepeats || len(turns) == 0 {
+		return LoopSignal{}
+	}
+	start := len(turns) - window
+	if start < 0 {
+		start = 0
+	}
+	counts := make(map[string]int, len(turns)-start)
+	samples := make(map[string]string, len(turns)-start)
+	for i := start; i < len(turns); i++ {
+		key := loopKey(turns[i].Content)
+		if key == "" {
+			continue
+		}
+		counts[key]++
+		if _, ok := samples[key]; !ok {
+			samples[key] = oneLine(turns[i].Content)
+		}
+	}
+	for key, c := range counts {
+		if c >= minRepeats {
+			return LoopSignal{Detected: true, Count: c, Sample: samples[key]}
+		}
+	}
+	return LoopSignal{}
+}
+
+// loopKey normaliza o conteúdo do turn para a chave de dedup: trunca em
+// 512 chars e colapsa whitespace, para que diferença trivial (newline extra,
+// trailing space) não esconda um loop real.
+func loopKey(content string) string {
+	s := strings.TrimSpace(content)
+	if len(s) > 512 {
+		s = s[:512]
+	}
+	s = strings.Join(strings.Fields(s), " ")
+	return s
+}
+
+func loopWindow() int {
+	if v := strings.TrimSpace(os.Getenv("AGENT_SYNC_CTX_LOOP_WINDOW")); v != "" {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
+			return n
+		}
+	}
+	return 10
+}
+
+func loopMinRepeats() int {
+	if v := strings.TrimSpace(os.Getenv("AGENT_SYNC_CTX_LOOP_MIN")); v != "" {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 1 {
+			return n
+		}
+	}
+	return 3
+}
+
 func compactAtThreshold() int {
 	if v := strings.TrimSpace(os.Getenv("AGENT_SYNC_CTX_COMPACT_AT")); v != "" {
 		var n int

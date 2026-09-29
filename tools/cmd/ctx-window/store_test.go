@@ -396,3 +396,110 @@ func TestCompactAtThresholdDefault(t *testing.T) {
 		t.Errorf("env threshold should be 500, got %d", got)
 	}
 }
+
+func TestDetectLoopDetects(t *testing.T) {
+	// 5 turns, 3 são "Read: foo.go" → detecta (count=3 ≥ minRepeats=3)
+	turns := []Turn{
+		{Content: "Read: foo.go"},
+		{Content: "Read: bar.go"},
+		{Content: "Read: foo.go"},
+		{Content: "Read: baz.go"},
+		{Content: "Read: foo.go"},
+	}
+	got := DetectLoop(turns, 10, 3)
+	if !got.Detected {
+		t.Errorf("expected loop detection, got %+v", got)
+	}
+	if got.Count != 3 {
+		t.Errorf("expected count=3, got %d", got.Count)
+	}
+}
+
+func TestDetectLoopBelowThreshold(t *testing.T) {
+	// 3 turns, 2 são "Read: foo.go" → não detecta (count=2 < minRepeats=3)
+	turns := []Turn{
+		{Content: "Read: foo.go"},
+		{Content: "Read: bar.go"},
+		{Content: "Read: foo.go"},
+	}
+	got := DetectLoop(turns, 10, 3)
+	if got.Detected {
+		t.Errorf("expected no loop with only 2 dups, got %+v", got)
+	}
+}
+
+func TestDetectLoopRespectsWindow(t *testing.T) {
+	// 5 turns, window=4 → só os últimos 4 contam; foo.go aparece só 1x na janela
+	turns := []Turn{
+		{Content: "Read: foo.go"},
+		{Content: "Read: foo.go"},
+		{Content: "Read: bar.go"},
+		{Content: "Read: baz.go"},
+		{Content: "Read: qux.go"},
+	}
+	got := DetectLoop(turns, 4, 3)
+	if got.Detected {
+		t.Errorf("window=4 should exclude the first 2 foo.go, got %+v", got)
+	}
+}
+
+func TestDetectLoopIgnoresWhitespace(t *testing.T) {
+	// Mesma tool com whitespace diferente deve ser tratada como repetição
+	turns := []Turn{
+		{Content: "Read: foo.go\n\n"},
+		{Content: "Read: foo.go"},
+		{Content: "  Read: foo.go  "},
+	}
+	got := DetectLoop(turns, 10, 3)
+	if !got.Detected {
+		t.Errorf("expected loop detection despite whitespace diffs, got %+v", got)
+	}
+}
+
+func TestDetectLoopEmptyTurns(t *testing.T) {
+	got := DetectLoop(nil, 10, 3)
+	if got.Detected {
+		t.Errorf("empty input should not detect loop, got %+v", got)
+	}
+}
+
+func TestLoopConfigFromEnv(t *testing.T) {
+	t.Setenv("AGENT_SYNC_CTX_LOOP_WINDOW", "")
+	t.Setenv("AGENT_SYNC_CTX_LOOP_MIN", "")
+	if w := loopWindow(); w != 10 {
+		t.Errorf("default loopWindow=10, got %d", w)
+	}
+	if m := loopMinRepeats(); m != 3 {
+		t.Errorf("default loopMinRepeats=3, got %d", m)
+	}
+	t.Setenv("AGENT_SYNC_CTX_LOOP_WINDOW", "5")
+	t.Setenv("AGENT_SYNC_CTX_LOOP_MIN", "2")
+	if w := loopWindow(); w != 5 {
+		t.Errorf("env loopWindow=5, got %d", w)
+	}
+	if m := loopMinRepeats(); m != 2 {
+		t.Errorf("env loopMinRepeats=2, got %d", m)
+	}
+}
+
+func TestRunOnToolCallIncludesLoopDetected(t *testing.T) {
+	withTempCache(t)
+	t.Setenv("AGENT_SYNC_CTX_LOOP_WINDOW", "10")
+	t.Setenv("AGENT_SYNC_CTX_LOOP_MIN", "3")
+	t.Setenv("AGENT_SYNC_CTX_COMPACT_AT", "10000") // evita auto-compact interferir
+	var stdout, stderr bytes.Buffer
+	// 3x mesmo tool+input → loop_detected deve virar true
+	for i := 0; i < 3; i++ {
+		stdout.Reset()
+		stderr.Reset()
+		if err := run([]string{"on-tool-call", "loop-session", "--tool", "Read", "--input", "foo.go"}, &stdout, &stderr); err != nil {
+			t.Fatalf("iteration %d failed: %v", i, err)
+		}
+	}
+	if !strings.Contains(stdout.String(), `"loop_detected":true`) {
+		t.Errorf("expected loop_detected=true after 3 identical tool calls, got %s", stdout.String())
+	}
+	if !strings.Contains(stdout.String(), `"loop_count":3`) {
+		t.Errorf("expected loop_count=3, got %s", stdout.String())
+	}
+}

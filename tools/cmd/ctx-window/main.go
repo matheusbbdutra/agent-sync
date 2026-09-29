@@ -24,6 +24,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/matheusdutra/token-tools/cmd/ctx-window/track-docs"
 )
@@ -50,6 +51,12 @@ Usage:
                                                 stdlib flag parser stops at the first positional argument)
   ctx-window handoff <cli>                   reads a SessionStart payload from stdin and returns the latest project summary
   ctx-window doctor                          detects available configuration
+  ctx-window quality [--json] <session>      computes 7-signal quality score (S/A/B/C/D/F) for the session
+  ctx-window skeleton [--json] [--force] <file>  builds a structural skeleton (imports + signatures) for .py/.ts/.js/.go files; cached by fingerprint
+  ctx-window archive [--tool <name>] [--content <text>] [--stdin] <session>  archive a tool result (≥ archiveDefaultAt bytes) to <session>/archive/
+  ctx-window expand [--list | --search <q> | <id>] <session>   list/search/retrieve archived tool results
+  ctx-window activity [--json] <session>      classify current activity mode (code/debug/review/infra/general) from last 10 tool calls
+  ctx-window bash-compress [--json] --cmd <command> [--content <text>] [--stdin]  compress safe-readonly bash output (whitelist: ls/cat/find/grep/...)
   ctx-window benchmark <dataset>             runs empirical battery (placeholder)
   ctx-window track-docs [--snapshot-dir DIR] scans Cursor + Antigravity docs/forum/issues
                                                for token-field reappearance (K reopen signal).
@@ -96,6 +103,18 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runSummarize(rest, stdout, stderr)
 	case "doctor":
 		return runDoctor(stdout, stderr)
+	case "quality":
+		return runQuality(rest, stdout, stderr)
+	case "skeleton":
+		return runSkeleton(rest, stdout, stderr)
+	case "archive":
+		return runArchive(rest, os.Stdin, stdout, stderr)
+	case "expand":
+		return runExpand(rest, stdout, stderr)
+	case "activity":
+		return runActivity(rest, stdout, stderr)
+	case "bash-compress":
+		return runBashCompress(rest, os.Stdin, stdout, stderr)
 	case "benchmark":
 		return runBenchmark(rest, stdout, stderr)
 	case "track-docs":
@@ -226,6 +245,12 @@ func runOnToolCall(args []string, stdout, stderr io.Writer) error {
 			return nil
 		}
 	}
+	// Detect loop in last K turns (fail-open: only annotates JSON, never blocks).
+	loop := DetectLoop(s.Turns, loopWindow(), loopMinRepeats())
+	loopSuffix := `,"loop_detected":false`
+	if loop.Detected {
+		loopSuffix = fmt.Sprintf(`,"loop_detected":true,"loop_count":%d`, loop.Count)
+	}
 	// Auto-compact if estimated size exceeds budget
 	estimated := s.EstimatedChars()
 	threshold := compactAtThreshold()
@@ -239,12 +264,12 @@ func runOnToolCall(args []string, stdout, stderr io.Writer) error {
 		if err := s.Save(); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, `{"auto_compacted":true,"version":%d,"previous":%d,"estimated_chars":%d,"turns":%d}`+"\n",
-			s.Version, prev, estimated, len(s.Turns))
+		fmt.Fprintf(stdout, `{"auto_compacted":true,"version":%d,"previous":%d,"estimated_chars":%d,"turns":%d%s}`+"\n",
+			s.Version, prev, estimated, len(s.Turns), loopSuffix)
 		return nil
 	}
-	fmt.Fprintf(stdout, `{"auto_compacted":false,"estimated_chars":%d,"turns":%d,"threshold":%d}`+"\n",
-		estimated, len(s.Turns), threshold)
+	fmt.Fprintf(stdout, `{"auto_compacted":false,"estimated_chars":%d,"turns":%d,"threshold":%d%s}`+"\n",
+		estimated, len(s.Turns), threshold, loopSuffix)
 	return nil
 }
 
@@ -261,6 +286,172 @@ func runBenchmark(args []string, stdout, stderr io.Writer) error {
 	fmt.Fprintln(stdout, "benchmark: not implemented yet (Phase 0 of the plan)")
 	fmt.Fprintln(stdout, "see skills/context-window-strategy/SKILL.md and docs/ADR-context-window-strategy.md")
 	return nil
+}
+
+func runActivity(args []string, stdout, stderr io.Writer) error {
+	fs := flag.NewFlagSet("activity", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	asJSON := fs.Bool("json", false, "emit Activity as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New("activity requires <session>")
+	}
+	s, err := Load(fs.Arg(0))
+	if err != nil {
+		return err
+	}
+	a := ClassifyActivity(s.Turns)
+	return a.Write(stdout, *asJSON)
+}
+
+func runBashCompress(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	fs := flag.NewFlagSet("bash-compress", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	asJSON := fs.Bool("json", false, "emit BashCompressResult as JSON")
+	cmd := fs.String("cmd", "", "bash command (required)")
+	content := fs.String("content", "", "command output to compress (or use --stdin)")
+	useStdin := fs.Bool("stdin", false, "read output from stdin")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*cmd) == "" {
+		return errors.New("--cmd is required")
+	}
+	body := *content
+	if *useStdin {
+		b, err := io.ReadAll(stdin)
+		if err != nil {
+			return fmt.Errorf("read stdin: %w", err)
+		}
+		body = string(b)
+	}
+	if body == "" {
+		return errors.New("--content (or --stdin) is required and cannot be empty")
+	}
+	res := CompressBashOutput(*cmd, body)
+	return res.Write(stdout, *asJSON)
+}
+
+func runQuality(args []string, stdout, stderr io.Writer) error {
+	fs := flag.NewFlagSet("quality", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	asJSON := fs.Bool("json", false, "emit QualityReport as JSON instead of human-readable text")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New("quality requires <session>")
+	}
+	s, err := Load(fs.Arg(0))
+	if err != nil {
+		return err
+	}
+	report := ComputeQuality(s)
+	return report.Write(stdout, *asJSON)
+}
+
+func runSkeleton(args []string, stdout, stderr io.Writer) error {
+	fs := flag.NewFlagSet("skeleton", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	asJSON := fs.Bool("json", false, "emit SkeletonResult as JSON instead of human-readable text")
+	force := fs.Bool("force", false, "bypass the fingerprint cache and regenerate")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New("skeleton requires <file>")
+	}
+	res, err := Skeletonize(fs.Arg(0), *force)
+	if err != nil {
+		return err
+	}
+	return res.Write(stdout, *asJSON)
+}
+
+func runArchive(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	fs := flag.NewFlagSet("archive", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	tool := fs.String("tool", "", "tool name (required)")
+	content := fs.String("content", "", "content to archive (or use --stdin)")
+	useStdin := fs.Bool("stdin", false, "read content from stdin")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New("archive requires <session> (flags must come before <session> — stdlib flag stops at first positional)")
+	}
+	if strings.TrimSpace(*tool) == "" {
+		return errors.New("--tool is required")
+	}
+	body := *content
+	if *useStdin {
+		b, err := io.ReadAll(stdin)
+		if err != nil {
+			return fmt.Errorf("read stdin: %w", err)
+		}
+		body = string(b)
+	}
+	if body == "" {
+		return errors.New("--content (or --stdin) is required and cannot be empty")
+	}
+	entry, err := ArchiveResult(fs.Arg(0), *tool, body)
+	if err != nil {
+		return err
+	}
+	if entry == nil {
+		fmt.Fprintf(stdout, `{"archived":false,"reason":"below_threshold","threshold":%d}`+"\n", archiveThreshold())
+		return nil
+	}
+	fmt.Fprintf(stdout, `{"archived":true,"id":%q,"tool":%q,"bytes":%d,"path":%q}`+"\n",
+		entry.ID, entry.Tool, entry.Bytes, entry.Path)
+	return nil
+}
+
+func runExpand(args []string, stdout, stderr io.Writer) error {
+	fs := flag.NewFlagSet("expand", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	list := fs.Bool("list", false, "list all archived entries for the session")
+	search := fs.String("search", "", "search archived entries by substring (case-insensitive)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return errors.New("expand requires <session>")
+	}
+	session := fs.Arg(0)
+	switch {
+	case *list:
+		entries, err := LoadArchiveIndex(session)
+		if err != nil {
+			return err
+		}
+		WriteArchiveList(stdout, entries, "")
+		return nil
+	case *search != "":
+		matches, err := SearchArchive(session, *search)
+		if err != nil {
+			return err
+		}
+		WriteArchiveList(stdout, matches, *search)
+		return nil
+	default:
+		if fs.NArg() < 2 {
+			return errors.New("expand requires --list, --search <q>, or <id> as second positional")
+		}
+		body, entry, err := ExpandByID(session, fs.Arg(1))
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "# %s (%d bytes, %s, archived %s)\n",
+			entry.ID, entry.Bytes, entry.Tool, entry.At.Format(time.RFC3339))
+		io.WriteString(stdout, body)
+		if !strings.HasSuffix(body, "\n") {
+			io.WriteString(stdout, "\n")
+		}
+		return nil
+	}
 }
 
 func main() {
