@@ -73,6 +73,29 @@ var (
 	namespacedRe = regexp.MustCompile(NamespacedPattern)
 )
 
+// aliases mapeia nomes históricos do vocabulário memory-mcp (`claude-code`,
+// `antigravity`) para o nome canônico de eventos. Bug achado no smoke de A-23
+// (2026-09-30, D-116): o wiramento Antigravity exporta
+// AGENT_SYNC_AGENT_KIND=antigravity (target.AgentKind, internal/target/
+// target.go:69 — valor também consumido por `ctx-window hook`, que usa
+// "antigravity"), e token-nudge.check.sh o repassa como `budget nudge -actor`.
+// O schema token-budget-status rejeitava em silêncio (hook exit 0 sem nudge).
+// O alias normaliza na fronteira do vocabulário — fonte única — sem exigir
+// edição nos N pontos de wiramento.
+var aliases = map[string]string{
+	"claude-code": "claude",
+	"antigravity": "agy",
+}
+
+// CanonicalActor mapeia aliases conhecidos para o nome canônico de eventos;
+// devolve v inalterado quando não há alias.
+func CanonicalActor(v string) string {
+	if c, ok := aliases[strings.TrimSpace(v)]; ok {
+		return c
+	}
+	return v
+}
+
 // CLIs devolve uma cópia da lista canônica de CLIs.
 func CLIs() []string {
 	out := make([]string, len(clis))
@@ -143,6 +166,7 @@ func SlugOf(v string) string {
 // valor — o schema é "fechado por padrão" fora do namespace (ADR-001).
 func NormalizeActor(v string) (string, bool) {
 	v = strings.TrimSpace(v)
+	v = CanonicalActor(v)
 	if v == "" {
 		return "agent-sync", true
 	}
@@ -157,6 +181,7 @@ func NormalizeActor(v string) (string, bool) {
 // aditivo, sem bump de schema).
 func NormalizeCLI(v string) (string, bool) {
 	v = strings.TrimSpace(v)
+	v = CanonicalActor(v)
 	if v == "" {
 		return "", false
 	}

@@ -64,7 +64,11 @@ func TestNormalizeActor(t *testing.T) {
 		{"cli:", "", false},
 		{"cli:1x", "", false},
 		{"cli:ACME", "", false},
-		{"claude-code", "", false},
+		// D-116 (2026-09-30): aliases do vocabulário memory-mcp agora são
+		// normalizados na fronteira (bug real: wiramento Antigravity exporta
+		// AGENT_SYNC_AGENT_KIND=antigravity e o schema rejeitava em silêncio).
+		{"claude-code", "claude", true},
+		{"antigravity", "agy", true},
 	}
 	for _, tc := range cases {
 		got, ok := NormalizeActor(tc.in)
@@ -84,6 +88,7 @@ func TestNormalizeCLI(t *testing.T) {
 		{"claude", "claude", true},
 		{"aider", "aider", true}, // CLI nova = slug, sem bump
 		{"my-cli-2", "my-cli-2", true},
+		{"antigravity", "agy", true}, // D-116: alias normalizado (antes passava como slug cru)
 		{"", "", false},
 		{"-bad", "", false},
 		{"Bad", "", false},
@@ -115,6 +120,30 @@ func TestMemoryAgent(t *testing.T) {
 		if got := MemoryAgent(in); got != want {
 			t.Errorf("MemoryAgent(%q) = %q, esperado %q", in, got, want)
 		}
+	}
+}
+
+func TestCanonicalActorAliases(t *testing.T) {
+	// D-116: wiramento Antigravity exporta AGENT_SYNC_AGENT_KIND=antigravity;
+	// o vocabulário de eventos usa "agy". Aliases devem normalizar na fronteira.
+	cases := map[string]string{
+		"antigravity":  "agy",
+		"claude-code":  "claude",
+		"agy":          "agy",
+		"claude":       "claude",
+		"cline":        "cline",
+		"desconhecido": "desconhecido",
+	}
+	for in, want := range cases {
+		if got := CanonicalActor(in); got != want {
+			t.Errorf("CanonicalActor(%q) = %q, esperado %q", in, got, want)
+		}
+	}
+	if got, ok := NormalizeActor("antigravity"); !ok || got != "agy" {
+		t.Errorf("NormalizeActor(antigravity) = (%q, %v), esperado (agy, true)", got, ok)
+	}
+	if got, ok := NormalizeCLI("antigravity"); !ok || got != "agy" {
+		t.Errorf("NormalizeCLI(antigravity) = (%q, %v), esperado (agy, true)", got, ok)
 	}
 }
 

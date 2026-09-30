@@ -34,6 +34,22 @@ func TestContextWindowLookup_DesconhecidoDefault200k(t *testing.T) {
 	}
 }
 
+func TestBuildTokenBudgetStatus_NormalizaActorAntigravity(t *testing.T) {
+	// D-116: wiramento Antigravity passa -actor antigravity; o schema exige o
+	// vocabulário de eventos ("agy"). Build deve normalizar, não falhar.
+	s, err := BuildTokenBudgetStatus("antigravity", "sess-agy", "",
+		900000, 5000, 0, "", 80, nil)
+	if err != nil {
+		t.Fatalf("BuildTokenBudgetStatus(actor=antigravity): %v", err)
+	}
+	if s.Actor != "agy" {
+		t.Errorf("Actor = %q, esperado agy (alias normalizado)", s.Actor)
+	}
+	if !s.ShouldNudge {
+		t.Errorf("905k tokens em janela 200k deveria dar nudge")
+	}
+}
+
 func TestBuildTokenBudgetStatus_HighUtilizationTriggersNudge(t *testing.T) {
 	s, err := BuildTokenBudgetStatus("claude", "sess-test", "claude-sonnet-4.5",
 		155000, 12000, 0, "", 80, nil)

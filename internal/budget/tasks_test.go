@@ -3,6 +3,7 @@ package budget
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -15,6 +16,27 @@ func sampleTask(taskID string) AgentTask {
 		CLI:           "claude",
 		Model:         "claude-sonnet-4.5",
 		Status:        "completed",
+	}
+}
+
+func TestAppendAgentTaskNormalizaAliasAntigravity(t *testing.T) {
+	// D-116: hooks Antigravity exportam AGENT_SYNC_AGENT_KIND=antigravity;
+	// o jsonl canônico deve registrar o vocabulário de eventos ("agy").
+	dir := t.TempDir()
+	task := sampleTask("t-agy-alias")
+	task.CLI = "antigravity"
+	if err := AppendAgentTask(dir, task); err != nil {
+		t.Fatalf("alias antigravity deveria ser aceito: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, ".agent-sync", AgentTaskFileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"cli":"agy"`) {
+		t.Errorf("esperava cli normalizado para agy, veio: %s", string(data))
+	}
+	if strings.Contains(string(data), `"cli":"antigravity"`) {
+		t.Errorf("alias nao deveria permanecer no jsonl: %s", string(data))
 	}
 }
 

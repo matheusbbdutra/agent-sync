@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/matheusdutra/agent-sync/internal/pathutil"
+	"github.com/matheusdutra/token-tools/actorvocab"
 	"github.com/matheusdutra/token-tools/jsonschema"
 )
 
@@ -51,6 +52,9 @@ func AppendAgentTask(projectRoot string, t AgentTask) error {
 	if t.TS.IsZero() {
 		t.TS = time.Now().UTC()
 	}
+	// D-116: normaliza aliases do vocabulário memory-mcp (antigravity→agy,
+	// claude-code→claude) antes da validação de schema.
+	t.CLI = actorvocab.CanonicalActor(t.CLI)
 	if err := jsonschema.Validate("agent_tasks", t); err != nil {
 		return fmt.Errorf("agent_task: schema invalido: %w", err)
 	}

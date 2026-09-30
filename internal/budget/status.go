@@ -91,6 +91,10 @@ func BuildTokenBudgetStatus(actor, sessionID, model string, tokensIn, tokensOut,
 	if actor == "" {
 		actor = "agent-sync"
 	}
+	// D-116: wiramento Antigravity exporta AGENT_SYNC_AGENT_KIND=antigravity
+	// (vocabulário memory-mcp); normaliza para o canônico de eventos ("agy")
+	// antes de montar/validar o payload contra o schema.
+	actor = actorvocab.CanonicalActor(actor)
 	if sessionID == "" {
 		sessionID = "unknown"
 	}
