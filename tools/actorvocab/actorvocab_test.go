@@ -106,6 +106,8 @@ func TestMemoryAgent(t *testing.T) {
 	cases := map[string]string{
 		"claude":           "claude-code",
 		"agy":              "antigravity",
+		"antigravity":      "antigravity", // D-119: alias memory já canônico não perde identidade
+		"claude-code":      "claude-code", // D-119: idem
 		"cline":            "cline",
 		"cli:claude":       "claude-code",
 		"cli:agy":          "antigravity",

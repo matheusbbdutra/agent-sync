@@ -199,6 +199,10 @@ func NormalizeCLI(v string) (string, bool) {
 //   - vazio ou bare desconhecido vira "agent-sync".
 func MemoryAgent(actor string) string {
 	actor = strings.TrimSpace(actor)
+	// D-119: aceita também o vocabulário de eventos como entrada (agy) e os
+	// aliases memory (antigravity/claude-code) — sem isso, MemoryAgent("antigravity")
+	// cairia no fallback e perderia identidade silenciosamente ("agent-sync").
+	actor = CanonicalActor(actor)
 	if slug := SlugOf(actor); slug != "" {
 		if name, ok := mcpNames[slug]; ok {
 			return name
