@@ -154,6 +154,7 @@ Binários Go instalados via `make install` em `~/.local/bin`:
 - `docs-fetch <url>` — baixa e cacheia documentações para busca offline.
 - `memory-mcp` — servidor MCP de memória contínua e pipeline de observação.
 - `repo-map` — análise de grafo de código, blast radius, chamadas reversas e servidor MCP `code-graph`.
+- `mr-collect-cli -provider <gitlab|github> -repo . -mr-iid <n>` — coleta metadados + diff de MR/PR via `glab`/`gh` (allowlist read-only hardcoded, com redaction de segredos); insumo para agentes de MR review (ver `docs/ADR-cli-vs-http-collect.md`).
 - `ctx-window summarize` — janelamento de contexto e resumo incremental.
 
 Cada binário possui `--help` detalhado.

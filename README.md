@@ -165,6 +165,7 @@ Binários Go wirados via `make install` em `~/.local/bin`:
 - `docs-fetch <url>` — baixa + cachea docs (offline após `make mirror`).
 - `memory-mcp` — servidor MCP de memória compartilhada (veja `docs/guides/memory-cross-cli.md`).
 - `repo-map` — bounded code graph, blast radius, reverse callers and `code-graph` MCP server.
+- `mr-collect-cli -provider <gitlab|github> -repo . -mr-iid <n>` — collects MR/PR metadata + diff via `glab`/`gh` (hardcoded read-only allowlist, secret redaction); input for MR-review agents (see `docs/ADR-cli-vs-http-collect.md`).
 - `ctx-window summarize` — janelamento de contexto (veja `docs/guides/context-window-details.md`).
 
 Cada binário tem `--help` próprio.
