@@ -171,7 +171,8 @@ Revisão: 2026-10-23 (1 mês) — se hook não estiver wirado, mover para Descar
 2. Criar variantes por CLI (Cursor/Antigravity/OpenCode têm formato próprio de injeção)
 3. Adicionar `syncAgentsMdGuard` em `cmd/agent-sync/hooks.go`
 4. Criar `docs/SMOKE-TEST-S.md` com 5 cenários acima
-5. Adicionar entradas D-N e A-N no `STATE.md` via `agent-sync state render`
+5. Adicionar entradas D-N e A-N no `STATE.md` **por edição manual** (o `state render` só
+   emite o que está no JSON e `> STATE.md` apagaria o histórico — ver STATE.md:1)
 
 ## Referências
 

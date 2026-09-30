@@ -105,6 +105,8 @@ go test ./cmd/agent-sync/... -count=1 -run CrossProcess -v
 # Migração do STATE.md (manual, no repo atual)
 go run ./cmd/agent-sync state migrate-from-md -root .
 go run ./cmd/agent-sync state render -root . > STATE.md
+   # ⚠️ DESTRUTIVO: o render emite so as 12 tasks do JSON; o STATE.md tem 107 entradas
+   # manuais em `## Tarefas`. O `>` apaga as 95 restantes. Ver STATE.md:1.
 
 # Validação do JSON
 go run ./cmd/agent-sync state validate -root .

@@ -120,6 +120,8 @@ scripts/collect-smoke-evidence.sh \
 1. Atualizar `docs/ADR-session-event-jsonl-append-only.md:3`: `Implementado` → **Aceito**
 2. Editar `.agent-sync/session-state.json`: A-11 → done, B-4 removido
 3. Re-render STATE.md: `go run ./cmd/agent-sync state render -root . > STATE.md`
+   # ⚠️ DESTRUTIVO: o render emite so as 12 tasks do JSON; o STATE.md tem 107 entradas
+   # manuais em `## Tarefas`. O `>` apaga as 95 restantes. Ver STATE.md:1.
 4. Commit:
    ```bash
    git add docs/ADR-session-event-jsonl-append-only.md STATE.md .agent-sync/session-state.json docs/smoke-evidence/

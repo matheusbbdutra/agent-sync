@@ -68,10 +68,29 @@ if [ -n "$transcript_path" ]; then
   args+=("-transcript" "$transcript_path")
 fi
 
-# Chama CLI e captura decisao.
-status_json="$("$BIN" budget nudge "${args[@]}" 2>/dev/null || true)"
+# Chama CLI e captura decisao. A-94: nao engole mais o erro — stderr e exit code
+# vao para hooks/errors.jsonl (convencao ja lida por `state briefing
+# errors_recent`). Era a causa raiz do silencio do bug D-116: um actor rejeitado
+# pelo schema morria aqui sem nenhum rastro. Best-effort: a nudge nunca bloqueia
+# o PostToolUse, mesmo se o log falhar.
+nudge_err="$(mktemp 2>/dev/null || printf '%s' /dev/null)"
+# Sem `|| true` aqui: precisamos do exit code real. O script usa `set -uo
+# pipefail` (sem -e), entao um exit != 0 nao aborta a execucao.
+status_json="$("$BIN" budget nudge "${args[@]}" 2>"$nudge_err")"
+nudge_rc=$?
 
-# Se vazio ou erro: silent no-op.
+if [ "$nudge_rc" -ne 0 ]; then
+  # stage=PostToolUse, code=budget_nudge_failed. Sem payload de ferramenta: so
+  # a mensagem de erro do binario, que ja vem redigida por observe-error.sh.
+  # Condicao so por exit code: o mktemp ja cria o arquivo vazio, entao
+  # testar `-s` aqui dispararia em todo no-op.
+  HOOK_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || printf '.')"
+  bash "$HOOK_SCRIPT_DIR/observe-error.sh" PostToolUse budget_nudge_failed \
+    "exit=$nudge_rc $(tr '\n\r' '  ' < "$nudge_err" | cut -c1-400)" 2>/dev/null || true
+fi
+rm -f "$nudge_err" 2>/dev/null || true
+
+# Sem decisao: silent no-op (agora com o erro ja registrado acima).
 if [ -z "$status_json" ]; then
   exit 0
 fi

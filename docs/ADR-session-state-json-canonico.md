@@ -13,7 +13,7 @@ Hoje o estado de trabalho entre sessões é mantido em `STATE.md` no working tre
 - **Manutenção é 100% do modelo (LLM) durante a sessão.** O conteúdo é escrito no fim de cada turno pelo agente, sem schema, sem validação.
 - **Compactação destrói semântica.** Quando o contexto estoura, o LLM reescreve o STATE a partir do que sobrou — pode omitir, resumir errado, ou duplicar.
 - **5 CLIs leem o STATE de forma diferente.** Hook `SessionStart` em Claude/Codex/Cursor/Antigravity só injeta contexto ad-hoc (não tem injeção de STATE estruturado); OpenCode tem `experimental.session.compacting` mas sem leitura de STATE.md próprio. Cada CLI reinterpreta o markdown à sua maneira.
-- **Não há git-friendly-by-design.** Drift entre sessões quando o usuário esquece de commitar; merge conflicts triviais em `## Próximos passos`.
+- **Não há git-friendly-by-design — e isso é intencional (revisado em D-119 follow-up, 2026-09-30).** A redação original via esse ponto como *risco* ("drift entre sessões quando o usuário esquece de commitar; merge conflicts triviais"). A decisão final inverteu o enquadramento: o `session-state.json` é estado de sessão **local**, e os merge conflicts triviais são a **evidência** de que ele não deve ser compartilhado (o schema exige `project.root`; o conteúdo é `session.id`/`started_at` por pessoa). O que é compartilhado é o `STATE.md`, que é conhecimento do projeto — por isso ele é versionado e editado à mão.
 
 O typesafe.ai manifesto prega que **decisões devem virar dados que outros componentes consomem sem reinterpretar**. STATE.md hoje é exatamente o oposto: prosa que cada CLI/agent reinterpreta.
 
@@ -28,21 +28,28 @@ Estabelecer **`session-state.json` como fonte canônica de verdade**, com `STATE
 Estrutura do arquivo:
 
 ```
-<project>/.agent-sync/session-state.json   # fonte de verdade (schema fechado, validado)
-<project>/STATE.md                          # view renderizada, regenerada a cada write
+<project>/.agent-sync/session-state.json   # estado de sessão LOCAL (schema fechado, validado, fora do git)
+<project>/STATE.md                          # conhecimento do projeto, versionado (editado à mão no estado atual)
 ```
 
 Direção da geração:
 
 ```
-LLM/CLI escreve → session-state.json → agent-sync state render → STATE.md (view)
+LLM/CLI escreve → session-state.json → agent-sync state render → stdout (NÃO é o STATE.md)
 ```
+
+⚠️ **Revisado em D-119 follow-up (2026-09-30)**: o diagrama original apresentava o
+`STATE.md` como "view renderizada, regenerada a cada write". Isso **não ocorre e não deve
+ocorrer** — o `session-state.json` é estado de sessão local (o schema exige `project.root`,
+path absoluto da máquina), então o render nunca tem o conteúdo completo e `> STATE.md`
+apagaria o histórico. O fluxo real de manutenção do `STATE.md` é `state write` no JSON
+**mais** edição manual do texto. Ver o aviso no topo do `STATE.md`.
 
 Quem nunca edita `STATE.md` à mão:
 
 - `STATE.md` passa a ter header `# AUTO-GENERATED — edite .agent-sync/session-state.json e rode 'agent-sync state render'`
-- Lint warning se `STATE.md` for editado à mão (git pre-commit hook comparando hash do MD vs hash do MD renderizado do JSON; mismatch = erro)
-- Editor pode ignorar o aviso, mas o `git commit` falha com mensagem clara
+- Lint warning se `STATE.md` for editado à mão (git pre-commit hook comparando hash do MD vs hash do MD renderizado do JSON; mismatch = erro) — **NÃO IMPLEMENTADO** (verificado em D-119 follow-up: `.git/hooks/` só tem samples, não há `.pre-commit-config.yaml`). E, com o `session-state.json` local (decisão acima), o hook não teria objeto: o JSON local nunca vai produzir o `STATE.md` completo. Substituído na prática pelo aviso no topo do `STATE.md`.
+- Editor pode ignorar o aviso, mas o `git commit` falha com mensagem clara — **NÃO IMPLEMENTADO**, mesma razão.
 
 ### Decisão 2 — Schema fechado com campos mínimos
 
@@ -154,7 +161,7 @@ Novos subcommands no `agent-sync`:
 |---|---|
 | `agent-sync state read` | Imprime `session-state.json` (texto ou `--json`) |
 | `agent-sync state write` | Valida + escreve `session-state.json` (atomic write via temp+rename) |
-| `agent-sync state render` | Lê JSON, escreve `STATE.md` (view). Idempotente. |
+| `agent-sync state render` | Lê JSON e **imprime a view em stdout** (NÃO escreve o arquivo). ⚠️ `> STATE.md` é **destrutivo** enquanto o JSON não contiver todo o histórico: o render emite só o que está no JSON (hoje 12 tasks) e o STATE.md em uso tem 107 entradas manuais em `## Tarefas` — o redirecionamento apaga as 95 restantes (D-119 follow-up). Para atualizar hoje: `state write` no JSON + edição manual do texto. |
 | `agent-sync state validate` | Valida JSON contra schema sem escrever nada |
 | `agent-sync state next-action` | Retorna apenas o `next_actions[].status == "pending"` mais antigo (machine-readable, ideal para `SessionStart`) |
 
@@ -169,7 +176,7 @@ Atomicidade — opção **lockless** com fallback opcional:
 - **Default (lockless)**: `state write` usa temp file + `rename(2)`. Para evitar colisão de tmpfile entre processos concorrentes, o tmp inclui PID + nanoTimestamp (`/session-state.json.tmp.<pid>.<nanoTimestamp>`). Cada writer tenta 3 retries com 10ms de backoff se o rename falhar por ENOTEMPTY/EEXIST transitório. Não há lockfile central.
 - **Por que lockless primeiro**: na prática, escritores concorrentes no mesmo projeto são raros. Cada CLI roda em seu próprio processo de agente; SessionStart de Claude e memory-nudge de Codex dificilmente disparam no mesmo milissegundo. Manual `agent-sync state write` + hook simultâneo é a única race realisticamente possível — e mesmo assim é serializável via atomic rename (último vence).
 - **Fallback opcional (lockfile)**: se observarmos em produção corrupção repetida (rename falhando, JSON truncado, etc.), adicionamos lockfile `flock(2)` com timeout 5s. Não vira caminho padrão — fica atrás de feature flag `AGENT_SYNC_SESSION_LOCK=1` e log explícito quando ativo.
-- **Pre-commit hook** compara hash do `STATE.md` contra hash do MD regenerado a partir do JSON. Mismatch = falha (impede edição manual divergente).
+- **Pre-commit hook** compara hash do `STATE.md` contra hash do MD regenerado a partir do JSON. Mismatch = falha (impede edição manual divergente). — **NÃO IMPLEMENTADO**; inviável sob a decisão de escopo local (o JSON local não regenera o MD). Aviso no topo do `STATE.md` cobre a necessidade.
 
 ### Decisão 4 — Migração: STATE.md atual vira snapshot inicial
 
@@ -198,7 +205,7 @@ Não há lock-in: o JSON é editável à mão (com cuidado), e o MD é regenerá
 
 - **Trabalha manual inicial para projetos existentes.** Cada repo que já tem STATE.md precisa rodar `state migrate-from-md` uma vez. Aceitável: comando idempotente.
 - **Heurística de migração é best-effort.** Pode perder nuances do markdown original (ênfase, links contextuais). Mitigação: warning explícito por campo não-extraído; usuário revisa.
-- **Dois arquivos para commit.** `STATE.md` + `.agent-sync/session-state.json`. Mitigação: mesmo `git add` cobre os dois; pre-commit hook valida que MD é render válido do JSON.
+- **Sessão é estado LOCAL, não compartilhado (revisado em D-119 follow-up, 2026-09-30).** A redação original desta linha dizia "dois arquivos para commit" com mitigação de `git add` conjunto — o que é **incorreto**: o schema exige `project.root` (path absoluto da máquina, `tools/jsonschema/schemas/session-state.json` → `required: ['name','root']`), e o conteúdo é estado de uma sessão individual (16 IDs `ses_*`, `session.started_at`, `git.head`). Versioná-lo faria todo clone carregar o path do autor e acumularia `session.id` conflitantes em dados sem valor de equipe. **Decisão**: `.agent-sync/session-state.json` é local e fica fora do git; o conhecimento compartilhado é o `STATE.md` versionado. Ver `.gitignore` (ignorado por `.agent-sync/.gitignore`) e o aviso no topo do `STATE.md`.
 - **Adiciona 3 subcommands ao CLI.** Escopo de teste cresce. Mitigação: PoC cobre read/write/render apenas; subcommands são wiring fino sobre funções já testadas.
 - **Lockfile pode dar deadlock** se hook travar. **Decisão revisada nesta revisão**: lockfile **não é caminho padrão**. Vai atrás de feature flag `AGENT_SYNC_SESSION_LOCK=1` e só é ativado se observarmos corrupção repetida em produção. Default é lockless com tmpfile único por writer.
 
