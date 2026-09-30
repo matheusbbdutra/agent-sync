@@ -9,9 +9,9 @@ import (
 
 func TestSplitTurn(t *testing.T) {
 	cases := []struct {
-		input     string
-		wantTool  string
-		wantRest  string
+		input    string
+		wantTool string
+		wantRest string
 	}{
 		{"Read: foo.go", "Read", "foo.go"},
 		{"Bash: kubectl get pods", "Bash", "kubectl get pods"},

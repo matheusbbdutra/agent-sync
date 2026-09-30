@@ -241,7 +241,7 @@ func TestRunHookResetsOnPlainStringUserContent(t *testing.T) {
 		`{"message":{"role":"user","content":"agora tenta de novo"}}`,
 		`{"message":{"role":"assistant","content":[{"type":"tool_use","id":"tu2","name":"Bash","input":{}}]}}`,
 		`{"message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu2","is_error":false,"content":"exit code 0"}]}}`,
-		`{"message":{"role":"assistant","content":[{"type":"text","text":"feito com sucesso, `+"`go test`"+` passou"}]}}`,
+		`{"message":{"role":"assistant","content":[{"type":"text","text":"feito com sucesso, ` + "`go test`" + ` passou"}]}}`,
 	}
 	path := writeTranscript(t, lines)
 	payload, _ := json.Marshal(stopPayload{SessionID: "s1", TranscriptPath: path})

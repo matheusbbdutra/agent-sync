@@ -117,12 +117,12 @@ func newReadPageFlags(name string) *readPageFlags {
 }
 
 type readPageResult struct {
-	Path       string            `json:"path"`
-	Scope      string            `json:"scope,omitempty"`
-	ExpiresAt  string            `json:"expires_at,omitempty"`
-	Body       string            `json:"body"`
+	Path        string            `json:"path"`
+	Scope       string            `json:"scope,omitempty"`
+	ExpiresAt   string            `json:"expires_at,omitempty"`
+	Body        string            `json:"body"`
 	Frontmatter map[string]string `json:"frontmatter,omitempty"`
-	TS         string            `json:"ts"`
+	TS          string            `json:"ts"`
 }
 
 func runMemoryReadPage(args []string) error {
@@ -393,7 +393,7 @@ func deletePageInJSONL(jsonlPath, path string, dryRun bool) (removed, kept int, 
 	defer in.Close()
 
 	type pair struct {
-		line string
+		line    string
 		matched bool
 	}
 	var entries []pair

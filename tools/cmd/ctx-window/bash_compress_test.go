@@ -44,10 +44,10 @@ func TestBashUnsafeReason(t *testing.T) {
 	}{
 		{"ls -la", false},
 		{"cat foo.go", false},
-		{"ls | grep foo", true},          // pipe
-		{"cat foo.go && echo done", true}, // &&
-		{"echo $VAR", true},              // $ expansion
-		{"sudo apt install", true},        // sudo
+		{"ls | grep foo", true},            // pipe
+		{"cat foo.go && echo done", true},  // &&
+		{"echo $VAR", true},                // $ expansion
+		{"sudo apt install", true},         // sudo
 		{"curl https://example.com", true}, // curl
 		// v2: git/go/cargo/npm agora NA whitelist (não em unsafe)
 		{"git status", false},

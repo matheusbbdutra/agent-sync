@@ -11,7 +11,6 @@ import (
 	"testing"
 )
 
-
 func TestMergeCursorHooksJSONIdempotent(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "hooks.json")

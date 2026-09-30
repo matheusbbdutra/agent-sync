@@ -7,10 +7,10 @@
 // Decisao:
 //   - allow    -> nenhum bloqueio estrutural; compactacao prossegue.
 //   - advise_only -> ha open_questions em aberto; compactacao prossegue mas
-//                   o aviso e registrado no session-event.
+//     o aviso e registrado no session-event.
 //   - block    -> ha blocker (B-N) ativo ha >7 dias sem movimento ou
-//                   acao pendente (A-N) de blocker critico; compacta e
-//                   CANCELADA pelo harness.
+//     acao pendente (A-N) de blocker critico; compacta e
+//     CANCELADA pelo harness.
 //
 // Schema versionado: tools/jsonschema/schemas/precompact-snapshot.json.
 // Regra "fechado por padrao" (ADR-001) respeitada; unica excecao em
@@ -66,9 +66,9 @@ type PrecompactInner struct {
 //
 // Regra de decisao (consolidada e revisavel):
 //   - block:        len(Blockers)>0 && (todos com UpdatedAt < now-7d)
-//                            -> ha blocker parado ha >7 dias; compacta NUNCA.
+//     -> ha blocker parado ha >7 dias; compacta NUNCA.
 //   - advise_only:  len(OpenQuestions)>0
-//                            -> ha duvida em aberto; deixa compactar com aviso.
+//     -> ha duvida em aberto; deixa compactar com aviso.
 //   - allow:        caso contrario.
 //
 // A regra NAO bloqueia por A-N pendente: A-N e trabalho em fila, nao
@@ -153,7 +153,7 @@ func decide(s SessionState, now time.Time) (decision, reason string) {
 // EmitPrecompactSnapshotForCLI monta e imprime o snapshot em stdout no
 // formato que cada harness espera:
 //   - claude, agy: stdout puro (hook le via exit code + stderr; o JSON fica
-//                 em stdout se hook pedir; tratamos igual a codex).
+//     em stdout se hook pedir; tratamos igual a codex).
 //   - codex: JSON com `{"continue": <bool>, ...}` parseado pelo harness.
 //   - opencode: handled pelo plugin v2, nao por este subcommand.
 //
@@ -199,12 +199,13 @@ func EmitPrecompactSnapshotForCLI(snap PrecompactSnapshot, actor string) error {
 // dentro do grupo state; ver ADR-precompact-snapshot Decisao 3).
 //
 // Flags:
-//   -root     project root
-//   -actor    actor core (ver tools/actorvocab) ou escape hatch cli:<slug> (default agent-sync)
-//   -kind     manual|auto|native (default auto)
-//   -cli      CLI version string (opcional)
-//   -trigger  texto livre descrevendo o motivo (opcional)
-//   -to       se setado, escreve no arquivo em vez de stdout
+//
+//	-root     project root
+//	-actor    actor core (ver tools/actorvocab) ou escape hatch cli:<slug> (default agent-sync)
+//	-kind     manual|auto|native (default auto)
+//	-cli      CLI version string (opcional)
+//	-trigger  texto livre descrevendo o motivo (opcional)
+//	-to       se setado, escreve no arquivo em vez de stdout
 func runStateSnapshot(args []string) error {
 	f := newStateFlags("agent-sync state snapshot")
 	actor := ""

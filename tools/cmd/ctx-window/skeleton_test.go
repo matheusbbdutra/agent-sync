@@ -152,10 +152,10 @@ func TestIsConstDecl(t *testing.T) {
 		{"MAX_RETRIES = 3", true},
 		{"DEFAULT_TIMEOUT = 30", true},
 		{"FOO_BAR = 1 + 2", true},
-		{"x = 1", false},         // lowercase
-		{"_PRIVATE = 1", true},   // _ é char válido; Python aceita como privado por convenção
-		{"123 = 1", false},        // começa com dígito — não é identificador válido
-		{"name = 'foo'", false},  // lowercase
+		{"x = 1", false},        // lowercase
+		{"_PRIVATE = 1", true},  // _ é char válido; Python aceita como privado por convenção
+		{"123 = 1", false},      // começa com dígito — não é identificador válido
+		{"name = 'foo'", false}, // lowercase
 		{"", false},
 		{"no_equals", false},
 	}

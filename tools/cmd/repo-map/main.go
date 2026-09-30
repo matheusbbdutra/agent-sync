@@ -24,16 +24,16 @@ import (
 )
 
 type config struct {
-	mode        string
-	update      bool
-	quiet       bool
-	root        string
-	cacheDir    string
-	focus       string
-	brief       string
-	mcp         bool
-	depth       int
-	summary     bool
+	mode          string
+	update        bool
+	quiet         bool
+	root          string
+	cacheDir      string
+	focus         string
+	brief         string
+	mcp           bool
+	depth         int
+	summary       bool
 	maxTokens     int
 	showVersion   bool
 	telemetryFile string
@@ -280,4 +280,3 @@ func autoDetectSchemaFiles(root string) []string {
 	})
 	return out
 }
-

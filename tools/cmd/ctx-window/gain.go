@@ -98,12 +98,12 @@ func LoadGainEntries(sessionID string) ([]GainEntry, error) {
 
 // GainTotals agrega stats de uma lista de entries.
 type GainTotals struct {
-	Events       int
-	TotalChars   int
-	TotalTokens  int
-	ByKind       map[string]int
-	FirstAt      time.Time
-	LastAt       time.Time
+	Events      int
+	TotalChars  int
+	TotalTokens int
+	ByKind      map[string]int
+	FirstAt     time.Time
+	LastAt      time.Time
 }
 
 func aggregateGain(entries []GainEntry) GainTotals {

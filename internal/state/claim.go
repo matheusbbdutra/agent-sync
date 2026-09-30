@@ -4,7 +4,7 @@
 // Origem: ai-memory memory_handoff_begin/list/accept/cancel (akitaonrails).
 // Lockless (D-2): campos claimed_by (string CLI kind) + claimed_at (RFC3339)
 // gravados direto em .agent-sync/session-state.json. Sem cross-process lockfile.
-// Backward compatible: tasks legadas tem claimed_by='' (read ignora reivindicacoes
+// Backward compatible: tasks legadas tem claimed_by=” (read ignora reivindicacoes
 // ha mais de AGENT_SYNC_HANDOFF_TIMEOUT, default 1h).
 //
 // Cliente identifica o dono via flag -by <cli-kind> (default = host do binario).

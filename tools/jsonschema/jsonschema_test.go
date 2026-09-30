@@ -44,7 +44,7 @@ func validPayload(t *testing.T) map[string]any {
 				"started_at": "2026-09-19T10:30:00Z",
 			},
 		},
-		"issues":        []any{},
+		"issues": []any{},
 		"open_questions": []any{
 			"smoke real atras de cada commit?",
 		},

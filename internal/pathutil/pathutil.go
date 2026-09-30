@@ -106,5 +106,3 @@ func ResolveStateRoot(override string) (string, error) {
 	cwd, _ := os.Getwd()
 	return ResolveBaseDir(exePath, cwd, os.Getenv("AGENT_SYNC_HOME"))
 }
-
-

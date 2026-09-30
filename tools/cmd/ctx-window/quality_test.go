@@ -181,9 +181,9 @@ func TestSignalAgentEfficiency(t *testing.T) {
 }
 
 func TestCountDecisionsInSummary(t *testing.T) {
-	cases := []struct{
+	cases := []struct {
 		name, input string
-		want int
+		want        int
 	}{
 		{"empty", "", 0},
 		{"no decisions", "active_hypotheses:\n  - x\n", 0},

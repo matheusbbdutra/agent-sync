@@ -812,7 +812,6 @@ func truncateBriefPacket(p *BriefPacket, maxTokens int) []byte {
 	return data
 }
 
-
 func dedup(in []string) []string {
 	if len(in) == 0 {
 		return nil
@@ -981,7 +980,7 @@ func Brief(cache *Cache, targetPath string, maxTokens int) string {
 
 	importers := reverseImporters(cache, targetPath)
 	blastRadius, impactCount := calculateBlastRadius(cache, targetPath, importers, entry.Tables)
-	
+
 	// Identifica arquivos de testes associados
 	base := strings.TrimSuffix(filepath.Base(targetPath), filepath.Ext(targetPath))
 	var tests []string

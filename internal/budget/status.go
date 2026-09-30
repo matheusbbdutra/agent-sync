@@ -66,20 +66,20 @@ func ContextWindowLookup(model string) int {
 
 // TokenBudgetStatus e o payload canonico do schema token-budget-status.json.
 type TokenBudgetStatus struct {
-	SchemaVersion string                 `json:"schema_version"`
-	TS            time.Time              `json:"ts"`
-	Actor         string                 `json:"actor"`
-	SessionID     string                 `json:"session_id"`
-	Model         string                 `json:"model,omitempty"`
-	TokensIn      int                    `json:"tokens_in,omitempty"`
-	TokensOut     int                    `json:"tokens_out,omitempty"`
-	TokensTotal   int                    `json:"tokens_total"`
-	ContextWindow int                    `json:"context_window,omitempty"`
-	UtilizationPct int                   `json:"utilization_pct"`
-	ThresholdPct  int                    `json:"threshold_pct"`
-	ShouldNudge   bool                   `json:"should_nudge"`
-	Trigger       string                 `json:"trigger"`
-	Details       map[string]interface{} `json:"details,omitempty"`
+	SchemaVersion  string                 `json:"schema_version"`
+	TS             time.Time              `json:"ts"`
+	Actor          string                 `json:"actor"`
+	SessionID      string                 `json:"session_id"`
+	Model          string                 `json:"model,omitempty"`
+	TokensIn       int                    `json:"tokens_in,omitempty"`
+	TokensOut      int                    `json:"tokens_out,omitempty"`
+	TokensTotal    int                    `json:"tokens_total"`
+	ContextWindow  int                    `json:"context_window,omitempty"`
+	UtilizationPct int                    `json:"utilization_pct"`
+	ThresholdPct   int                    `json:"threshold_pct"`
+	ShouldNudge    bool                   `json:"should_nudge"`
+	Trigger        string                 `json:"trigger"`
+	Details        map[string]interface{} `json:"details,omitempty"`
 }
 
 // BuildTokenBudgetStatus monta o status a partir das informacoes disponiveis.

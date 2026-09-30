@@ -239,7 +239,7 @@ type PrunePreviewEntry struct {
 // cairiam no prune. Read-only — não deleta nada. Mesma regra de
 // PruneScratch para accessed_at vs updated_at (legados).
 type PrunePreview struct {
-	Total   int                `json:"total"`
+	Total   int                 `json:"total"`
 	Entries []PrunePreviewEntry `json:"entries"`
 }
 

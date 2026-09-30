@@ -135,7 +135,6 @@ func syncBashGuardianAntigravity(baseDir string, target TargetCLI) error {
 	return nil
 }
 
-
 // --- OpenCode: merge que preserva a ordem de permission.bash -------------
 
 const openCodeConfigFile = "opencode.json"

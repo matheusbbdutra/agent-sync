@@ -49,7 +49,8 @@ var (
 
 // extractFrontmatter faz parse simples do frontmatter YAML entre --- ... ---.
 // Retorna map chave→valor + ok. NAO eh parser YAML completo: so entende
-//  `chave: valor` por linha. Compromise com A-56/A-61 (ver command.go:278-281).
+//
+//	`chave: valor` por linha. Compromise com A-56/A-61 (ver command.go:278-281).
 func extractFrontmatter(body string) (map[string]string, bool) {
 	if !strings.HasPrefix(body, "---\n") {
 		return nil, false

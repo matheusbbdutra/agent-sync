@@ -12,14 +12,14 @@ import (
 
 // GraphTelemetryEntry modela cada linha do log append-only JSONL de telemetria.
 type GraphTelemetryEntry struct {
-	TS                string `json:"ts"`
-	SessionID         string `json:"session_id"`
-	CLI               string `json:"cli"`
-	ToolName          string `json:"tool_name"`
-	ArgsPathOrSymbol  string `json:"args_path_or_symbol"`
-	DurationMs        int64  `json:"duration_ms"`
-	OutputBytes       int    `json:"output_bytes"`
-	CacheHit          bool   `json:"cache_hit"`
+	TS               string `json:"ts"`
+	SessionID        string `json:"session_id"`
+	CLI              string `json:"cli"`
+	ToolName         string `json:"tool_name"`
+	ArgsPathOrSymbol string `json:"args_path_or_symbol"`
+	DurationMs       int64  `json:"duration_ms"`
+	OutputBytes      int    `json:"output_bytes"`
+	CacheHit         bool   `json:"cache_hit"`
 }
 
 var telemetryMu sync.Mutex

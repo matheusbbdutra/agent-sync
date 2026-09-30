@@ -1,8 +1,8 @@
 package hooks
 
 import (
-	"path/filepath"
 	"encoding/json"
+	"path/filepath"
 	"strings"
 )
 
@@ -12,7 +12,6 @@ import (
 // gerenciados. decodeCursorHookEntries/encodeCursorHookEntries sao o
 // equivalente Cursor de decodeHookEntries/encodeHookEntries. Migrado
 // de cursor.go em 2026-09-21 (Fase 7).
-
 
 func mergeCursorHooksJSON(path string) error {
 	root, err := readJSONObject(path)

@@ -429,4 +429,3 @@ func TestBriefPacketWithNewFields(t *testing.T) {
 		t.Errorf("esperava env API_KEY no Brief: %s", out)
 	}
 }
-

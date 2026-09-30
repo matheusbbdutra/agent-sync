@@ -16,6 +16,7 @@ import (
 //   - Claude Code + Codex: PreToolUse direto, matcher "*".
 //   - Antigravity + Cursor: NAO wirar nesta entrega (matriz 5xN).
 //   - OpenCode: plugin TS paralelo em entrega subsequente (A-N+).
+//
 // Dedup por sessionID via $TMPDIR/agent-sync-principles-injected/<sid>.flag.
 func syncPrinciplesInjectHook(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" {

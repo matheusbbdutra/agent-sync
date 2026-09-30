@@ -178,7 +178,7 @@ func runCompact(args []string, stdout, stderr io.Writer) error {
 		BeforeChars: beforeChars,
 		AfterChars:  afterChars,
 		SavedChars:  beforeChars - afterChars,
-		Note:        fmt.Sprintf("manual compact; %d decisions, %d hypotheses, %d artifacts",
+		Note: fmt.Sprintf("manual compact; %d decisions, %d hypotheses, %d artifacts",
 			len(summary.Decisoes), len(summary.Hipoteses), len(summary.Artefatos)),
 	})
 	fmt.Fprintf(stdout, "compacted: version %d (previous %d); %d decisions, %d hypotheses, %d artifacts\n",

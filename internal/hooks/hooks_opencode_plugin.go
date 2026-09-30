@@ -152,4 +152,3 @@ func syncOpenCodeMemoryPipelinePlugin(baseDir string, target TargetCLI) error {
 func syncOpenCodeMemoryPruneSessionStartPlugin(baseDir string, target TargetCLI) error {
 	return syncOpenCodePluginVersioned(baseDir, target, "memory-prune-session-start", "memory-prune-session-start.ts", false)
 }
-

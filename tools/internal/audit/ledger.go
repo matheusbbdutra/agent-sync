@@ -15,43 +15,43 @@ const LedgerSchemaVersion = "agent-sync.audit-ledger.v1"
 
 // Evidence é um único hit textual classificado.
 type Evidence struct {
-	Path        string        `json:"path"`
-	LineStart   int           `json:"line_start"`
-	LineEnd     int           `json:"line_end"`
-	Match       string        `json:"match"`
+	Path         string        `json:"path"`
+	LineStart    int           `json:"line_start"`
+	LineEnd      int           `json:"line_end"`
+	Match        string        `json:"match"`
 	EvidenceKind EvidenceClass `json:"evidence_kind"`
 }
 
 // EvidenceClassEntry agrega os hits de uma classe + metadados.
 type EvidenceClassEntry struct {
-	Class      EvidenceClass `json:"class"`
-	Status     string        `json:"status"` // "not-found" | "found" | "unknown"
-	Summary    string        `json:"summary"`
-	Active     []Evidence    `json:"active"`
-	Count      int           `json:"count"`
-	Omitted    int           `json:"omitted,omitempty"`
+	Class   EvidenceClass `json:"class"`
+	Status  string        `json:"status"` // "not-found" | "found" | "unknown"
+	Summary string        `json:"summary"`
+	Active  []Evidence    `json:"active"`
+	Count   int           `json:"count"`
+	Omitted int           `json:"omitted,omitempty"`
 }
 
 // Ledger é a estrutura serializada em JSON.
 type Ledger struct {
-	SchemaVersion  string                       `json:"schema_version"`
-	Kind           string                       `json:"kind"` // "removal"
-	ID             string                       `json:"id"`
-	Target         AuditTarget                  `json:"target"`
-	CreatedAt      string                       `json:"created_at"`
-	UpdatedAt      string                       `json:"updated_at"`
-	Snapshot       Snapshot                     `json:"snapshot"`
-	Verdict        Verdict                      `json:"verdict"`
-	Classes        []EvidenceClassEntry         `json:"classes"`
-	SQLTables      []string                     `json:"sql_tables,omitempty"`
-	ByFile         map[string]int               `json:"by_file"`
-	TotalHits      int                          `json:"total_hits"`
+	SchemaVersion string               `json:"schema_version"`
+	Kind          string               `json:"kind"` // "removal"
+	ID            string               `json:"id"`
+	Target        AuditTarget          `json:"target"`
+	CreatedAt     string               `json:"created_at"`
+	UpdatedAt     string               `json:"updated_at"`
+	Snapshot      Snapshot             `json:"snapshot"`
+	Verdict       Verdict              `json:"verdict"`
+	Classes       []EvidenceClassEntry `json:"classes"`
+	SQLTables     []string             `json:"sql_tables,omitempty"`
+	ByFile        map[string]int       `json:"by_file"`
+	TotalHits     int                  `json:"total_hits"`
 }
 
 type Snapshot struct {
-	Root        string `json:"root"`
-	FilesScanned int   `json:"files_scanned"`
-	GeneratedAt string `json:"generated_at"`
+	Root         string `json:"root"`
+	FilesScanned int    `json:"files_scanned"`
+	GeneratedAt  string `json:"generated_at"`
 }
 
 type Verdict struct {
@@ -61,12 +61,12 @@ type Verdict struct {
 
 // BuildRemovalAuditOptions agrupa opções para BuildRemovalAudit.
 type BuildRemovalAuditOptions struct {
-	Root       string
-	Paths      []string                 // se vazio, Walk(Root) é chamado
-	Target     string                   // obrigatório
-	SQLTables  []string                 // opcional; se vazio, faz parse DDL inline
-	SchemaGlobs []string                // caminhos para ExtractTablesFromFiles
-	Now        time.Time                // injetável para testes
+	Root        string
+	Paths       []string  // se vazio, Walk(Root) é chamado
+	Target      string    // obrigatório
+	SQLTables   []string  // opcional; se vazio, faz parse DDL inline
+	SchemaGlobs []string  // caminhos para ExtractTablesFromFiles
+	Now         time.Time // injetável para testes
 }
 
 // BuildRemovalAudit é o orquestrador: walk → grep → classify → aggregate.
@@ -136,10 +136,10 @@ func classifyHits(hits []FileHit, target AuditTarget, sqlTables []string) []Evid
 	for _, h := range hits {
 		cls := ClassifyHit(h, target, sqlTables)
 		bucket[cls] = append(bucket[cls], Evidence{
-			Path:        h.Path,
-			LineStart:   h.Line,
-			LineEnd:     h.Line,
-			Match:       h.Match,
+			Path:         h.Path,
+			LineStart:    h.Line,
+			LineEnd:      h.Line,
+			Match:        h.Match,
 			EvidenceKind: cls,
 		})
 	}
@@ -226,18 +226,18 @@ func (l *Ledger) MarshalOrdered() ([]byte, error) {
 		Matchers []string `json:"matchers"`
 	}
 	wrapper := struct {
-		SchemaVersion string             `json:"schema_version"`
-		Kind          string             `json:"kind"`
-		ID            string             `json:"id"`
-		Target        auditTargetJSON    `json:"target"`
-		CreatedAt     string             `json:"created_at"`
-		UpdatedAt     string             `json:"updated_at"`
-		Snapshot      Snapshot           `json:"snapshot"`
-		Verdict       Verdict            `json:"verdict"`
+		SchemaVersion string               `json:"schema_version"`
+		Kind          string               `json:"kind"`
+		ID            string               `json:"id"`
+		Target        auditTargetJSON      `json:"target"`
+		CreatedAt     string               `json:"created_at"`
+		UpdatedAt     string               `json:"updated_at"`
+		Snapshot      Snapshot             `json:"snapshot"`
+		Verdict       Verdict              `json:"verdict"`
 		Classes       []EvidenceClassEntry `json:"classes"`
-		SQLTables     []string           `json:"sql_tables,omitempty"`
-		ByFile        []orderedMap       `json:"by_file"`
-		TotalHits     int                `json:"total_hits"`
+		SQLTables     []string             `json:"sql_tables,omitempty"`
+		ByFile        []orderedMap         `json:"by_file"`
+		TotalHits     int                  `json:"total_hits"`
 	}{
 		SchemaVersion: l.SchemaVersion,
 		Kind:          l.Kind,

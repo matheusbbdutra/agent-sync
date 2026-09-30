@@ -90,10 +90,10 @@ func TestWriteSessionStateEmiteEventosParaItemsNovos(t *testing.T) {
 		t.Errorf("esperava 2 state_render events, veio %d", stateRenders)
 	}
 	// Total events = soma do 1o write (estado inicial vazio -> sampleState) +
-// 2o write (sampleState + 2 decisions + 1 open_question novas):
-//   1o write: 1 state_render + 1 decision (D-1) + 1 open_question (Q-1) = 3
-//   2o write: 1 state_render + 2 decisions (D-99, D-100) + 1 open_question (Q-2) = 4
-// Decision events total: 1+2 = 3. OpenQuestion events total: 1+1 = 2.
+	// 2o write (sampleState + 2 decisions + 1 open_question novas):
+	//   1o write: 1 state_render + 1 decision (D-1) + 1 open_question (Q-1) = 3
+	//   2o write: 1 state_render + 2 decisions (D-99, D-100) + 1 open_question (Q-2) = 4
+	// Decision events total: 1+2 = 3. OpenQuestion events total: 1+1 = 2.
 	if decisionCount != 3 {
 		t.Errorf("esperava 3 decision events (D-1, D-99, D-100), veio %d", decisionCount)
 	}

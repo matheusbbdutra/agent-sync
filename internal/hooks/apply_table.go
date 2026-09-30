@@ -7,7 +7,6 @@ package hooks
 // por ter merge proprio em hooks.json. Migrado de main.go em 2026-09-21
 // (Fase 6).
 
-
 var standardHooks = []hookSpec{
 	// Hooks suportados em Claude Code, Codex e Antigravity (os early-returns
 	// internos de cada sync*Hook silenciam o que não se aplica).

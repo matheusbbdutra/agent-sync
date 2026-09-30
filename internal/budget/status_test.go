@@ -12,12 +12,12 @@ import (
 
 func TestContextWindowLookup_ModelosConhecidos(t *testing.T) {
 	cases := map[string]int{
-		"claude-sonnet-4.5":   200000,
-		"claude-opus-4.6":     200000,
-		"claude-haiku-4.5":    200000,
-		"gpt-5":               400000,
-		"gpt-5-codex":         400000,
-		"gemini-2.5-pro":      1000000,
+		"claude-sonnet-4.5": 200000,
+		"claude-opus-4.6":   200000,
+		"claude-haiku-4.5":  200000,
+		"gpt-5":             400000,
+		"gpt-5-codex":       400000,
+		"gemini-2.5-pro":    1000000,
 	}
 	for model, want := range cases {
 		got := ContextWindowLookup(model)

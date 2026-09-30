@@ -25,11 +25,11 @@ type QualitySignal struct {
 // Faixas: S ≥ 90, A ≥ 80, B ≥ 70, C ≥ 55, D ≥ 40, F < 40.
 // Pesos default: 25/15/15/15/10/10/10 = 100.
 type QualityReport struct {
-	SessionID  string         `json:"session_id"`
+	SessionID  string          `json:"session_id"`
 	Signals    []QualitySignal `json:"signals"`
-	Score      int            `json:"score"` // 0-100
-	Grade      string         `json:"grade"` // S/A/B/C/D/F
-	ComputedAt time.Time      `json:"computed_at"`
+	Score      int             `json:"score"` // 0-100
+	Grade      string          `json:"grade"` // S/A/B/C/D/F
+	ComputedAt time.Time       `json:"computed_at"`
 }
 
 const (

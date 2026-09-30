@@ -53,13 +53,13 @@ var bashUnsafePatterns = []string{
 
 // BashCompressResult agrega o que CompressBashOutput fez.
 type BashCompressResult struct {
-	Cmd        string `json:"cmd"`
-	OrigBytes  int    `json:"orig_bytes"`
-	OutBytes   int    `json:"out_bytes"`
-	ReductionPct int  `json:"reduction_pct"`
-	Applied    bool   `json:"applied"` // false = passou verbatim (whitelist ou unsafe)
-	Reason     string `json:"reason"`  // human-readable
-	Output     string `json:"output"`
+	Cmd          string `json:"cmd"`
+	OrigBytes    int    `json:"orig_bytes"`
+	OutBytes     int    `json:"out_bytes"`
+	ReductionPct int    `json:"reduction_pct"`
+	Applied      bool   `json:"applied"` // false = passou verbatim (whitelist ou unsafe)
+	Reason       string `json:"reason"`  // human-readable
+	Output       string `json:"output"`
 }
 
 const (

@@ -26,16 +26,16 @@ type GraphTelemetryEntry struct {
 
 // GraphStatsResult representa as métricas agregadas de telemetria do code-graph.
 type GraphStatsResult struct {
-	TotalInvocations  int            `json:"total_invocations"`
-	ByTool            map[string]int `json:"by_tool"`
-	ByCLI             map[string]int `json:"by_cli"`
-	TopFiles          []FileCount    `json:"top_files"`
-	DurationP50Ms     int64          `json:"duration_p50_ms"`
-	DurationP95Ms     int64          `json:"duration_p95_ms"`
-	CacheHitPct       float64        `json:"cache_hit_pct"`
-	UniqueSessions    int            `json:"unique_sessions"`
-	ZeroInvocations   int            `json:"sessions_zero_invocations,omitempty"`
-	GhostWiringWarn   bool           `json:"ghost_wiring_warning"`
+	TotalInvocations int            `json:"total_invocations"`
+	ByTool           map[string]int `json:"by_tool"`
+	ByCLI            map[string]int `json:"by_cli"`
+	TopFiles         []FileCount    `json:"top_files"`
+	DurationP50Ms    int64          `json:"duration_p50_ms"`
+	DurationP95Ms    int64          `json:"duration_p95_ms"`
+	CacheHitPct      float64        `json:"cache_hit_pct"`
+	UniqueSessions   int            `json:"unique_sessions"`
+	ZeroInvocations  int            `json:"sessions_zero_invocations,omitempty"`
+	GhostWiringWarn  bool           `json:"ghost_wiring_warning"`
 }
 
 // FileCount associa caminho de arquivo com contagem de consultas.

@@ -110,6 +110,7 @@ func TestCallRecordEventBinarioAusenteNaoRetenta(t *testing.T) {
 		t.Errorf("binario ausente nao deveria spawnar/retrys (contador criado)")
 	}
 }
+
 // TestActorToAgentNormalizaVocabularioDoMCP guarda contra a divergência que
 // motivou o A-82: os schemas usam `claude`/`agy`, o memory-mcp anuncia
 // `claude-code`/`antigravity`; antes o valor era passado verbatim e não casava
@@ -135,4 +136,3 @@ func TestActorToAgentNormalizaVocabularioDoMCP(t *testing.T) {
 		}
 	}
 }
-

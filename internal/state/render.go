@@ -393,10 +393,10 @@ type briefingNextAction struct {
 }
 
 type briefingOutput struct {
-	EventsRecent  []event.SessionEvent  `json:"events_recent"`
-	NextAction    *briefingNextAction   `json:"next_action"`
-	TasksPending  []briefingTask        `json:"tasks_pending"`
-	ErrorsRecent  []hookErrorEvent      `json:"errors_recent"`
+	EventsRecent []event.SessionEvent `json:"events_recent"`
+	NextAction   *briefingNextAction  `json:"next_action"`
+	TasksPending []briefingTask       `json:"tasks_pending"`
+	ErrorsRecent []hookErrorEvent     `json:"errors_recent"`
 }
 
 const briefingLimit = 10

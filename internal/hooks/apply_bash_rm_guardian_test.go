@@ -48,10 +48,10 @@ func TestSyncBashRmGuardianAntigravity(t *testing.T) {
 	}
 
 	tgt := target.TargetCLI{
-		AgentKind:          "antigravity",
-		HooksSettingsPath:  hooksJSON,
-		HooksEvent:         "PreToolUse",
-		HooksFormat:        "antigravity",
+		AgentKind:         "antigravity",
+		HooksSettingsPath: hooksJSON,
+		HooksEvent:        "PreToolUse",
+		HooksFormat:       "antigravity",
 	}
 
 	// Wirar
