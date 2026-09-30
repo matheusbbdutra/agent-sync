@@ -152,6 +152,47 @@ func TestMemoryReadPage(t *testing.T) {
 	if !strings.Contains(textOf(res), "obrigatório") {
 		t.Errorf("esperava msg de obrigatorio, obteve: %s", textOf(res))
 	}
+
+	// Cenario 4 (A-92): with_frontmatter=true prepende bloco YAML reconstruído;
+	// default (false) permanece sem frontmatter (backward-compat).
+	res = callTool(store, "memory_read_page", mustJSON(t, map[string]any{"path": pageName, "with_frontmatter": true}))
+	if isErr(res) {
+		t.Fatalf("read com with_frontmatter falhou: %v", res)
+	}
+	txt = textOf(res)
+	for _, want := range []string{
+		"----\n---\n", // frontmatter vem logo após o separador do shim
+		`path: "` + pageName + `"`,
+		`type: "reference"`,
+		`description: "` + pageDesc + `"`,
+		`agent: "opencode"`,
+		"scratch: true",
+		"---\n" + pageBody,
+	} {
+		if !strings.Contains(txt, want) {
+			t.Errorf("with_frontmatter: output sem %q. Obtido:\n%s", want, txt)
+		}
+	}
+	res = callTool(store, "memory_read_page", mustJSON(t, map[string]any{"path": pageName}))
+	if strings.Contains(textOf(res), "---\npath: ") {
+		t.Errorf("default nao deveria ter frontmatter, obteve:\n%s", textOf(res))
+	}
+
+	// Cenario 5 (A-92): description multi-linha usa block scalar "|".
+	mlName := "adr/A92-multiline"
+	if err := store.Upsert(agentmemory.Memory{
+		Agent: "cline", SessionID: sessionID, Type: "project",
+		Name: mlName, Description: "linha1\nlinha2", Content: "corpo", Scratch: true,
+	}); err != nil {
+		t.Fatalf("setup multiline: %v", err)
+	}
+	res = callTool(store, "memory_read_page", mustJSON(t, map[string]any{"path": mlName, "with_frontmatter": true}))
+	if isErr(res) {
+		t.Fatalf("read multiline falhou: %v", res)
+	}
+	if !strings.Contains(textOf(res), "description: |\n  linha1\n  linha2\n") {
+		t.Errorf("esperava block scalar |, obteve:\n%s", textOf(res))
+	}
 }
 
 // TestMemoryReadSession cobre A-57 (S-0.2, ses_f2b646cd, 2026-09-24):
@@ -178,7 +219,7 @@ func TestMemoryReadSession(t *testing.T) {
 		t.Helper()
 		if err := store.Upsert(agentmemory.Memory{
 			Agent: "opencode", SessionID: sessID, Type: "event",
-			Name: fmt.Sprintf("%s-20260924T180000Z-%s", kind, tag),
+			Name:        fmt.Sprintf("%s-20260924T180000Z-%s", kind, tag),
 			Description: content, Content: content, Scratch: true,
 		}); err != nil {
 			t.Fatalf("setup %s/%s: %v", kind, tag, err)
@@ -400,12 +441,12 @@ func TestConsolidateEmptyBuffer(t *testing.T) {
 // unidades contaveis por YAGNI.
 func TestRequireEvidence(t *testing.T) {
 	cases := []struct {
-		name           string
-		content        string
-		evidence       string
-		wantMissing    bool
-		wantValue      int
-		wantUnit       string
+		name        string
+		content     string
+		evidence    string
+		wantMissing bool
+		wantValue   int
+		wantUnit    string
 	}{
 		{
 			name:        "cardinal + commits dispara sem evidence",

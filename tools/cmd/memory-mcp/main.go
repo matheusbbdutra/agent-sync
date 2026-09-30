@@ -216,12 +216,13 @@ func toolDefinitions() []map[string]any {
 		},
 		{
 			"name":        "memory_read_page",
-			"description": "Lê uma memória por path (slug), com semântica de 'página': devolve path + description + content separados. Shim fino sobre get_memory — Origem: ai-memory memory_read_page (akitaonrails). Sem parsing de frontmatter YAML (camada A-56-rabbit se necessário).",
+			"description": "Lê uma memória por path (slug), com semântica de 'página': devolve path + description + content separados. Com with_frontmatter=true, o body vem precedido de bloco YAML frontmatter reconstruído (paridade round-trip com `agent-sync memory write-page` — A-92, compromisso F1 de A-59; emissão manual, sem dep yaml.v3). Shim fino sobre get_memory — Origem: ai-memory memory_read_page (akitaonrails).",
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"path":       map[string]any{"type": "string", "description": "Path/slug da página (ex.: 'docs/adr/ADR-001'). Vira o campo 'name' da memória após normalização."},
-					"project_id": map[string]any{"type": "string", "description": "ID do projeto (opcional; default = escopo atual)"},
+					"path":             map[string]any{"type": "string", "description": "Path/slug da página (ex.: 'docs/adr/ADR-001'). Vira o campo 'name' da memória após normalização."},
+					"project_id":       map[string]any{"type": "string", "description": "ID do projeto (opcional; default = escopo atual)"},
+					"with_frontmatter": map[string]any{"type": "boolean", "description": "Se true, prepende bloco YAML frontmatter reconstruído (path/type/description/agent/updated_at/scratch) ao conteúdo — formato round-trip com write-page (A-92). Default false."},
 				},
 				"required": []string{"path"},
 			},
@@ -255,10 +256,12 @@ func formatMemories(items []agentmemory.Memory) string {
 }
 
 // formatMemoryPage é o shim de A-56 para memory_read_page: devolve slug +
-// description + content em formato legível, sem parser de frontmatter.
+// description + content em formato legível. Com withFM=true (A-92), o body
+// vem precedido de bloco YAML frontmatter reconstruído — paridade round-trip
+// com `agent-sync memory write-page` (body markdown com frontmatter no topo).
 // Imprime o slug (name normalizado) e nao o path literal — consistencia com
 // A-60 (memory_delete_page) que ja normaliza antes de delegar.
-func formatMemoryPage(slug string, m *agentmemory.Memory) string {
+func formatMemoryPage(slug string, m *agentmemory.Memory, withFM bool) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "page: %s\n", slug)
 	fmt.Fprintf(&b, "type: %s\n", m.Type)
@@ -266,8 +269,46 @@ func formatMemoryPage(slug string, m *agentmemory.Memory) string {
 	fmt.Fprintf(&b, "agent: %s\n", m.Agent)
 	fmt.Fprintf(&b, "updated_at: %s\n", m.UpdatedAt.Format(time.RFC3339))
 	fmt.Fprintf(&b, "scratch: %v\n", m.Scratch)
-	fmt.Fprintf(&b, "----\n%s\n", m.Content)
+	fm := ""
+	if withFM {
+		fm = memoryFrontmatter(slug, m)
+	}
+	fmt.Fprintf(&b, "----\n%s%s\n", fm, m.Content)
 	return strings.TrimRight(b.String(), "\n")
+}
+
+// memoryFrontmatter reconstrói o bloco YAML de topo (A-92 — compromisso F1
+// de A-59). Emissão manual minimal, sem dep yaml.v3: valores de 1 linha vão
+// entre aspas (escapando \ e "); valores multi-linha usam block scalar "|".
+func memoryFrontmatter(slug string, m *agentmemory.Memory) string {
+	fields := [][2]string{
+		{"path", slug},
+		{"type", m.Type},
+		{"description", m.Description},
+		{"agent", m.Agent},
+		{"updated_at", m.UpdatedAt.Format(time.RFC3339)},
+		{"scratch", fmt.Sprintf("%v", m.Scratch)},
+	}
+	var b strings.Builder
+	b.WriteString("---\n")
+	for _, f := range fields {
+		k, v := f[0], f[1]
+		if k == "scratch" {
+			b.WriteString(k + ": " + v + "\n")
+			continue
+		}
+		if strings.Contains(v, "\n") {
+			b.WriteString(k + ": |\n")
+			for _, line := range strings.Split(v, "\n") {
+				b.WriteString("  " + line + "\n")
+			}
+			continue
+		}
+		q := strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(v)
+		b.WriteString(k + `: "` + q + "\"\n")
+	}
+	b.WriteString("---\n")
+	return b.String()
 }
 
 // runSearchMemory e o nucleo compartilhado por 'search_memory' (tool
@@ -623,7 +664,7 @@ func callTool(store *agentmemory.Store, name string, args json.RawMessage) map[s
 			Agent: in.Agent, SessionID: in.SessionID, Type: "event",
 			Name: evName, Description: desc, Content: in.Note,
 			Scratch: scratchFlag,
-			PC: origin.PC, ProjectPath: origin.ProjectPath, ProjectID: origin.ProjectID,
+			PC:      origin.PC, ProjectPath: origin.ProjectPath, ProjectID: origin.ProjectID,
 		})
 		if err != nil {
 			return errorResult(err.Error())
@@ -734,8 +775,9 @@ func callTool(store *agentmemory.Store, name string, args json.RawMessage) map[s
 
 	case "memory_read_page":
 		var in struct {
-			Path      string `json:"path"`
-			ProjectID string `json:"project_id"`
+			Path            string `json:"path"`
+			ProjectID       string `json:"project_id"`
+			WithFrontmatter bool   `json:"with_frontmatter"`
 		}
 		if err := json.Unmarshal(args, &in); err != nil || strings.TrimSpace(in.Path) == "" {
 			return errorResult("parâmetro 'path' é obrigatório")
@@ -756,9 +798,9 @@ func callTool(store *agentmemory.Store, name string, args json.RawMessage) map[s
 			return textResult(fmt.Sprintf("Nenhuma page com path %q.", in.Path))
 		}
 		// Shim leve: devolve 'description' (lido pela get_memory genérica) + 'content'.
-		// Sem parser YAML — AGENTS.md §3 pragmático. Se precisarmos de frontmatter
-		// estruturado (ex.: multi-line key), vira A-56-rabbit com yaml.v3.
-		return textResult(formatMemoryPage(name, m))
+		// A-92: with_frontmatter=true prepende bloco YAML reconstruído (emissão
+		// manual minimal, sem yaml.v3 — parser completo segue como A-56-rabbit).
+		return textResult(formatMemoryPage(name, m, in.WithFrontmatter))
 
 	default:
 		return errorResult("ferramenta desconhecida: " + name)
