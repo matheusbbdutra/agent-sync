@@ -117,7 +117,7 @@ func RunCommand(args []string) error {
 		}
 	}
 
-	if err := persistShellEnv(); err != nil {
+	if err := persistShellEnv(baseDir); err != nil {
 		fmt.Fprintf(os.Stderr, "⚠️  Falha ao persistir env no shell rc: %v\n", err)
 	}
 

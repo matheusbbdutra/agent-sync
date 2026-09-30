@@ -52,8 +52,9 @@ cline-install: cline-plugin-build ## Wira o plugin Cline TS via scripts/install.
 
 apply: install ## Compila, instala e aplica agent-sync nas 5 CLIs (hooks + skills + regras)
 	# shell-validate é opt-in via env (AGENT_SYNC_PRETOOLUSE_VALIDATE=1).
-	# `agent-sync -apply` persiste a env em ~/.zshrc (ou ~/.bashrc) por
-	# conta própria, então não precisa setar manualmente aqui.
+	# `agent-sync -apply` persiste em ~/.zshrc (ou ~/.bashrc) as envs
+	# AGENT_SYNC_PRETOOLUSE_VALIDATE=1 e AGENT_SYNC_HOME="<repo root>"
+	# por conta própria, então não precisa setar manualmente aqui.
 	~/.local/bin/agent-sync -apply
 	# Garante o esqueleto de ~/.config/agent-sync/config.json (turso.url/token
 	# vazios) sem sobrescrever um já existente; EnsureConfig() é idempotente.

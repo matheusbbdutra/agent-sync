@@ -9,16 +9,21 @@ import (
 
 // apply_shell_env.go: persistencia de env vars no shell rc (~/.zshrc ou
 // ~/.bashrc) usada por `agent-sync -apply` para marcar wirar do
-// shell-validate (opt-in via AGENT_SYNC_PRETOOLUSE_VALIDATE=1).
+// shell-validate (opt-in via AGENT_SYNC_PRETOOLUSE_VALIDATE=1) e fixar
+// AGENT_SYNC_HOME na raiz do repo.
+//
+// AGENT_SYNC_HOME e o que permite chamar o binario instalado em ~/.local/bin
+// de fora do repo: sem ele, pathutil.ResolveBaseDir nao tem start valido e
+// falha com "rules/global-rules.md nao encontrado".
 //
 // Migrado de main.go em 2026-09-21 (Fase 6). replaceBlock eh usado para
 // insercao idempotente do marker no rc file.
 
 const shellEnvMarker = "# agent-sync: shell-validate hook (gerenciado por `agent-sync -apply`)"
 
-func persistShellEnv() error {
+func persistShellEnv(baseDir string) error {
 	if shouldDryRun() {
-		fmt.Println("[dry-run] persistir AGENT_SYNC_PRETOOLUSE_VALIDATE=1 no shell rc (noop em dry-run)")
+		fmt.Println("[dry-run] persistir AGENT_SYNC_PRETOOLUSE_VALIDATE=1 e AGENT_SYNC_HOME no shell rc (noop em dry-run)")
 		return nil
 	}
 	home, err := os.UserHomeDir()
@@ -35,7 +40,7 @@ func persistShellEnv() error {
 		return fmt.Errorf("ler %s: %w", rcPath, err)
 	}
 
-	block := shellEnvMarker + "\nexport AGENT_SYNC_PRETOOLUSE_VALIDATE=1\n"
+	block := shellEnvMarker + "\nexport AGENT_SYNC_PRETOOLUSE_VALIDATE=1\nexport AGENT_SYNC_HOME=\"" + baseDir + "\"\n"
 	var out []byte
 	if bytes.Contains(existing, []byte(shellEnvMarker)) {
 		// Substitui o bloco existente (marcador + 1 linha) por uma versão nova.

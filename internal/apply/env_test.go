@@ -38,7 +38,7 @@ func readFile(t *testing.T, path string) string {
 func TestPersistShellEnvCriaBlocoEmBashrcQuandoNenhumRcExiste(t *testing.T) {
 	home := withHome(t, "", "")
 	// existe nem zshrc nem bashrc — fallback deve criar ~/.bashrc
-	if err := persistShellEnv(); err != nil {
+	if err := persistShellEnv("/tmp/agent-sync-root"); err != nil {
 		t.Fatalf("first persist: %v", err)
 	}
 	got := readFile(t, filepath.Join(home, ".bashrc"))
@@ -48,11 +48,14 @@ func TestPersistShellEnvCriaBlocoEmBashrcQuandoNenhumRcExiste(t *testing.T) {
 	if !strings.Contains(got, "export AGENT_SYNC_PRETOOLUSE_VALIDATE=1") {
 		t.Errorf("missing export line; got:\n%s", got)
 	}
+	if !strings.Contains(got, `export AGENT_SYNC_HOME="/tmp/agent-sync-root"`) {
+		t.Errorf("missing AGENT_SYNC_HOME line; got:\n%s", got)
+	}
 }
 
 func TestPersistShellEnvPrefereZshrcQuandoExiste(t *testing.T) {
 	home := withHome(t, "alias ls='ls --color=auto'\n", "")
-	if err := persistShellEnv(); err != nil {
+	if err := persistShellEnv("/tmp/agent-sync-root"); err != nil {
 		t.Fatalf("persist: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(home, ".bashrc")); err == nil {
@@ -70,7 +73,7 @@ func TestPersistShellEnvPrefereZshrcQuandoExiste(t *testing.T) {
 func TestPersistShellEnvIdempotenteEmChamadasRepetidas(t *testing.T) {
 	home := withHome(t, "", "")
 	for i := 0; i < 3; i++ {
-		if err := persistShellEnv(); err != nil {
+		if err := persistShellEnv("/tmp/agent-sync-root"); err != nil {
 			t.Fatalf("call %d: %v", i, err)
 		}
 	}
@@ -83,6 +86,10 @@ func TestPersistShellEnvIdempotenteEmChamadasRepetidas(t *testing.T) {
 	if count != 1 {
 		t.Errorf("export duplicated %d times (want 1):\n%s", count, got)
 	}
+	count = strings.Count(got, `export AGENT_SYNC_HOME="/tmp/agent-sync-root"`)
+	if count != 1 {
+		t.Errorf("AGENT_SYNC_HOME duplicated %d times (want 1):\n%s", count, got)
+	}
 }
 
 func TestPersistShellEnvSubstituiBlocoExistente(t *testing.T) {
@@ -91,7 +98,7 @@ func TestPersistShellEnvSubstituiBlocoExistente(t *testing.T) {
 	// há versão antiga hoje, mas a idempotência precisa tolerar).
 	old := "# cabeçalho\n" + shellEnvMarker + "\nexport AGENT_SYNC_PRETOOLUSE_VALIDATE=0\n\n# rodapé\n"
 	home := withHome(t, "", old)
-	if err := persistShellEnv(); err != nil {
+	if err := persistShellEnv("/tmp/agent-sync-root"); err != nil {
 		t.Fatalf("persist: %v", err)
 	}
 	got := readFile(t, filepath.Join(home, ".bashrc"))
