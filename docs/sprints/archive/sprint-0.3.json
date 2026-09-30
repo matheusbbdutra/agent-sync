@@ -1,9 +1,9 @@
 {
   "id": "S-0.3",
   "title": "Camada 4 memory-mcp: feedback + write-page + lint (DEFERIDOS de S-0.2)",
-  "status": "in_progress",
+  "status": "done",
   "starts": "2026-09-24",
-  "ends": null,
+  "ends": "2026-09-30",
   "scope": "Implementar os 3 itens da Camada 4 do memory-mcp que ficaram DEFERIDOS em S-0.2: A-58 (memory feedback), A-59 (memory write-page), A-61 (memory lint). Decisão tomada em 2026-09-24 (ses_f2b12742) com base no que S-0.2 entregou (Camadas 1-3 fechadas, A-54 com 4 camadas de evidencia). Cada item alvo recebe o mesmo padrão de validação da Camada 3: go test + smoke stdio real + wirado cross-CLI + execução real via delegate Claude headless. Decisões abertas a fechar DURANTE a sprint: (a) A-59 backward-compat: store_memory vira alias fino delega para write-page, ou convive lado-a-lado? (b) A-61 default-on vs opt-in: default-off para não surpreender em CI? Total: 3 itens em scope; A-53 (tier aging), A-47 (revisao ADRs prazo 2026-10-23), A-20 (smoke T5 prazo 2026-10-21) seguem fora do escopo.",
   "items": [
     {
@@ -20,9 +20,9 @@
     },
     {
       "ref": "A-61",
-      "phase": "Proposta",
-      "verdict": null,
-      "note": "Subcommand `agent-sync memory lint` (~200 linhas + testes). Origem: ai-memory memory_lint (rule-based + LLM contradiction findings → wiki/_lint/). Nossa versão: rule-based only (sem LLM, conforme D-6). Detecta: (1) dangling refs `[[X]]` apontando para path inexistente; (2) frontmatter YAML inválido em markdown com frontmatter; (3) pages órfãs (não linkadas por nenhuma outra). **Decisão a fechar ao atacar**: default-on ou opt-in (flag `--lint`)? Default-off é mais seguro (não surpreende em CI), default-on força correção imediata. Estimativa implementação: 3 regras isoladas, ~60-70L cada. Sem dependência externa além de parser YAML se for validar frontmatter (gopkg.in/yaml.v3 — adicionar dep OU fazer parser manual minimal). Trade-off: parser manual evita dep mas adiciona ~40L e bugs; yaml.v3 é 1 import mas bumpa go.mod. Preferência: yaml.v3 se já estiver em deps; senão parser manual."
+      "phase": "Final",
+      "verdict": "Aceita",
+      "note": "Subcommand `agent-sync memory lint` entregue em internal/memory/lint.go + lint_test.go (commit c9656b5, 2026-09-25) — zero deps externas (parser manual/regex para frontmatter; decisao: NAO adicionar yaml.v3 ao go.mod — desvio do compromisso A-59 F1 registrado explicitamente). Wirado em internal/memory/command.go:36 com flag -json. **Validacao 4 camadas (2026-09-30)**: (1) go test ./internal/memory/... verde + suites completas 15/15 pacotes (modulo main) + 23/23 (tools); (2) smoke real: `agent-sync memory lint` -> 'memory lint: 2 pages / OK - nenhum problema encontrado' contra ~/.cache/agent-sync/memory_pages.jsonl real; `memory lint -json` -> {pages:2,issues:null}; (3) wirado cross-CLI: ~/.local/bin/agent-sync identico ao build novo (sha256 0eb5fd81...); (4) delegate real: `claude -p --model claude-haiku-4-5 --allowedTools Bash` executou `agent-sync memory lint` e retornou output literal identico. **Pendencia derivada (nao bloqueia Final:Aceita)**: compromisso A-59 'read_page --with-frontmatter' nao implementado (grep tools/cmd/memory-mcp/main.go -> 0 hits) -> A-92. Promovida Proposta->Final:Aceita em 2026-09-30 (D-115, aprovacao do usuario para fechar S-0.3)."
     },
     {
       "ref": "A-62",

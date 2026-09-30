@@ -1,3 +1,5 @@
+> **[ARQUIVADO 2026-09-30 — D-115]** Documento histórico da sessão de migração events + auto-summarize. Situação dos pendentes da época: **Proposta B (PreCompact Claude Code)** foi supersedida por A-14 [done] (PreCompact cross-CLI com Claude ✅, ver ADR-precompact-snapshot-cross-cli.md); **plugins OpenCode .ts** entregues (hooks/ctx-window-nudge.opencode.v2.ts, ctx-window-summarize-at-stop.opencode.v2.ts, memory-pipeline.opencode.v2.ts); **delegate-run.sh task_delegated** e **ADR formal da migração** ver ADR-session-event-jsonl-append-only.md. Nada vivo resta aqui.
+
 # STATE — events-migration + auto-summarize
 
 ## Status final

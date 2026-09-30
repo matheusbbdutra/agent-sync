@@ -1,6 +1,6 @@
 # Sprint S-0.3 — Camada 4 memory-mcp: feedback + write-page + lint
 
-**Status**: in_progress (desde 2026-09-24)
+**Status**: done (2026-09-24 → 2026-09-30) — arquivada em `docs/sprints/archive/`
 **Branch**: (nenhuma — mudanças são em código + docs)
 **Mapa**: `docs/sprints/sprint-0.3.json`
 **Predecessor**: `docs/sprints/sprint-0.2.json` (status `done`, ends 2026-09-24)
@@ -105,12 +105,19 @@ Zero-LLM (D-6). Implementação isolada — 3 regras independentes, ~60-70L cada
 
 Quando esta Sprint for `done`, deve ser verdade **tudo abaixo**:
 
-- [ ] A-58/A-59/A-61 saíram de `phase=Proposta` para `phase=Final` (todos `Aceita` se 4 camadas de evidência forem atingidas).
-- [ ] Cada item tem `note` justificado com link para commit + 4 camadas de validação (go test + smoke stdio + wirado cross-CLI + delegate real).
-- [ ] `go test ./...` verde em todos os pacotes tocados.
-- [ ] Nenhuma regressão nas Camadas 1-3 (A-54, A-56, A-57, A-60 continuam funcionando com mesmas respostas).
-- [ ] `memory_feedback.jsonl` wirado e testado (A-58).
-- [ ] `store_memory` continua funcionando como antes (A-59, se alias for escolhido).
-- [ ] `agent-sync memory lint` retorna lista de findings em JSON (A-61).
-- [ ] Sprint movida para `docs/sprints/archive/` com status `done` (ritos D-65+D-37).
-- [ ] `non_goals` honrados: A-53/A-47/A-20 não tocados.
+- [x] A-58/A-59/A-61 saíram de `phase=Proposta` para `phase=Final` (todos `Aceita` se 4 camadas de evidência forem atingidas).
+- [x] Cada item tem `note` justificado com link para commit + 4 camadas de validação (go test + smoke stdio + wirado cross-CLI + delegate real).
+- [x] `go test ./...` verde em todos os pacotes tocados.
+- [x] Nenhuma regressão nas Camadas 1-3 (A-54, A-56, A-57, A-60 continuam funcionando com mesmas respostas).
+- [x] `memory_feedback.jsonl` wirado e testado (A-58).
+- [x] `store_memory` continua funcionando como antes (A-59, se alias for escolhido).
+- [x] `agent-sync memory lint` retorna lista de findings em JSON (A-61).
+- [x] Sprint movida para `docs/sprints/archive/` com status `done` (ritos D-65+D-37).
+- [x] `non_goals` honrados: A-53/A-47/A-20 não tocados.
+
+
+## Fechamento (2026-09-30, D-115)
+
+- A-58, A-59, A-61 e A-62: todos `Final:Aceita` em sprint-0.3.json (A-61 validado com 4 camadas nesta data: go test 15/15+23/23, smoke real `-json`, binário `~/.local/bin` == build sha256 `0eb5fd81…`, delegate `claude -p` headless).
+- Decisões adiadas honradas: A-53 segue em `docs/adr-staging/`, A-47 (2026-10-23) e A-20 (2026-10-21) seguem tasks pending em `session-state.json`.
+- Pendência derivada nova: **A-92** (`read-page --with-frontmatter`, compromisso A-59 F1 não implementado).

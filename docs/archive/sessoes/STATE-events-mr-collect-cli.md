@@ -1,3 +1,5 @@
+> **[ARQUIVADO 2026-09-30 — D-115]** Documento histórico do delivery mr-collect-cli (GitLab+GitHub). Situação dos pendentes da época: **ADR-cli-vs-http-collect** já promovido a Aceito (D-64, 2026-09-23); **smoke glab real** bloqueado sem credenciais GitLab (aceito); **documentação nos READMEs** segue viva → migrada para task **A-93** em session-state.json.
+
 # STATE — mr-collect-cli (glab/gh provider paralelo)
 
 ## Status
