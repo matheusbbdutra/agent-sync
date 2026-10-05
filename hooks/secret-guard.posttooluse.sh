@@ -11,9 +11,10 @@
 #   Camada 2: regex de literal (JWT/AWS/GitHub PAT) preservada como
 #     antes para outputs de arquivos fora da deny-list.
 #
-# Padrao JSON-RPC: recebe JSON com tool_output via stdin, retorna JSON
-# com tool_output redacted (substitui matches por <REDACTED:TIPO>) OU
-# retorna input intacto se nada mudou.
+# Padrao JSON-RPC: recebe JSON via stdin (campo tool_output ou
+# tool_response), e devolve SEMPRE JSON valido de hook: {} quando nao ha
+# o que reportar, ou hookSpecificOutput.additionalContext com o trecho
+# redacted.
 #
 # STDOUT termina com \n obrigatorio (mesma razao do pretooluse.sh).
 #
@@ -25,19 +26,25 @@ set -uo pipefail
 
 input="$(cat)"
 
-emit_json() { printf '%s\n' "$1"; }
+# Codex exige JSON de hook valido no stdout; texto cru quebra o parse
+# ("hook returned invalid post-tool-use JSON output"). Contexto extra
+# segue o mesmo formato do token-nudge.check.sh (compativel Claude/Codex).
+emit_silent() { printf '{}\n'; }
+emit_context() { printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"%s"}}\n' "$1"; }
 
 extract_field() {
   local key="$1" data="$2"
   printf '%s' "$data" | grep -oE "${key}[[:space:]]*:[[:space:]]*\"[^\"]*\"" | head -n1 | sed -E "s/^${key}[[:space:]]*:[[:space:]]*\"(.*)\"$/\1/"
 }
 
-# Extrai o tool_output (JSON value escapado pode ter \n literais; tratamos simples).
-tool_output="$(printf '%s' "$input" | grep -oE '"tool_output"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n1 | sed -E 's/^"tool_output"[[:space:]]*:[[:space:]]*"(.*)"$/\1/')"
+# Extrai o output da tool. Claude Code usa "tool_response"; o payload
+# legado/alternativo usa "tool_output". Sem nenhum dos dois, nao ha o que
+# redigir.
+tool_output="$(printf '%s' "$input" | grep -oE '"tool_(output|response)"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n1 | sed -E 's/^"tool_(output|response)"[[:space:]]*:[[:space:]]*"(.*)"$/\2/')"
 
 if [ -z "$tool_output" ]; then
-  # Sem tool_output (caso edge: hook chamado sem output de tool); repassa intacto.
-  printf '%s\n' "$input"
+  # Sem tool_output (caso edge: hook chamado sem output de tool); nada a fazer.
+  emit_silent
   exit 0
 fi
 
@@ -62,8 +69,8 @@ if [ -n "$candidate" ]; then
   deny_pattern='(/\.env($|\.)|/\.envrc$|\.pem$|\.key$|\.p12$|\.pfx$|/id_rsa|/id_ed25519|/id_ecdsa|/id_dsa|/\.ssh($|/)|/\.aws($|/)|/\.gnupg($|/)|/\.config/gh($|/)|/\.docker($|/)|/\.kube($|/)|\.netrc|\.npmrc|\.pypirc|\.pgpass|/\.aws/credentials|/\.aws/config|/hosts\.yml|/config\.json|/kube/config|\.terraformrc|/\.zshrc$|/\.bashrc$|/\.bash_profile$|/\.profile$|/\.zprofile$|/\.zshenv$|/\.bash_env$|credentials\.json|credentials\.yaml|/secrets($|/)|\.secret\.json|\.secret\.yaml|/\.env\.local$|/\.env\.production$|/\.env\.staging$|zscaler($|/))'
 
   if printf '%s' "$candidate" | grep -qiE "$deny_pattern"; then
-    # Redacao total: substitui tool_output por <REDACTED:FILE_IN_DENYLIST>.
-    emit_json "<REDACTED:FILE_IN_DENYLIST:${candidate}>"
+    # Redacao total: sinaliza via contexto em vez de ecoar texto no stdout.
+    emit_context "<REDACTED:FILE_IN_DENYLIST:${candidate}>"
     exit 0
   fi
 fi
@@ -74,14 +81,13 @@ redacted="$(printf '%s' "$redacted" | sed -E 's/eyJ[A-Za-z0-9_=]+\.eyJ[A-Za-z0-9
 redacted="$(printf '%s' "$redacted" | sed -E 's/AKIA[0-9A-Z]{16}/<REDACTED:AWS_ACCESS_KEY>/g')"
 redacted="$(printf '%s' "$redacted" | sed -E 's/gh[pousr]_[A-Za-z0-9]{36,255}/<REDACTED:GITHUB_PAT>/g')"
 
-# Se nada mudou, repassa input intacto (evita hook mudo em tool normal).
+# Se nada mudou, hook silencioso (evita injetar ruido em tool normal).
 if [ "$redacted" = "$tool_output" ]; then
-  printf '%s\n' "$input"
+  emit_silent
   exit 0
 fi
 
-# Substitui o tool_output no JSON. Para simplicidade, mantemos apenas
-# tool_output (descarta outros campos do input; hook PostToolUse de Claude/
-# Codex aceita tool_output como unico campo).
-printf '%s\n' "$redacted"
+# Substitui o tool_output. Claude/Codex naoACEITAM reescrever o output da
+# tool via hook; o unico canal e contexto adicional.
+emit_context "$redacted"
 exit 0
