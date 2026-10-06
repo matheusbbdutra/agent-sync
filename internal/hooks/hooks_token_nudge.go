@@ -58,6 +58,19 @@ func syncTokenNudgeHook(baseDir string, target TargetCLI) error {
 		return nil
 	}
 	// Claude Code + Codex: PostToolUse nativo.
+	// Codex: o script real roda (o budget segue sendo registrado), mas o
+	// additionalContext e descartado — em PostToolUse ele cai entre a tool
+	// call e o output e o provider rejeita com 400 (2013). Ver
+	// hooks_codex_session_nudges.go.
+	if target.AgentKind == "codex" {
+		silentCommand, err := codexSilentHookCommand(baseDir, scriptName)
+		if err != nil {
+			return err
+		}
+		return syncHookCommandAtEvent(baseDir, target, tokenNudgeHookName,
+			command+silentCommand,
+			"*", "PostToolUse", nil)
+	}
 	return syncHookCommandAtEvent(baseDir, target, tokenNudgeHookName,
 		command+wrapHookCommand(baseDir, "PostToolUse", tokenNudgeHookName,
 			scriptPath),

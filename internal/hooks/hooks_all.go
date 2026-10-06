@@ -16,6 +16,12 @@ func syncHooks(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" || target.HooksEvent == "" {
 		return nil
 	}
+	// Codex: wirado em SessionStart por syncCodexSessionNudgesHook. Em
+	// PreToolUse o additionalContext cai entre a tool call e o output e o
+	// provider rejeita com 400 (2013). Ver hooks_codex_session_nudges.go.
+	if target.AgentKind == "codex" {
+		return nil
+	}
 	if target.HooksFormat == "antigravity" {
 		return syncAntigravityHook(baseDir, target, contextGuardHookName, "context-guard-nudge.antigravity.sh", "*")
 	}

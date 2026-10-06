@@ -102,7 +102,12 @@ func syncHookCommandAtEvent(baseDir string, target TargetCLI, hookName, command,
 		adapterPath := filepath.Join(baseDir, "hooks", "codex-protect-mcp-adapter.sh")
 		entries = adaptCodexProtectionHooks(entries, adapterPath)
 		if event != "PreToolUse" {
-			hooksRoot["PreToolUse"] = adaptCodexProtectionHooks(decodeHookEntries(hooksRoot["PreToolUse"]), adapterPath)
+			// Opera sobre o raw ([]interface{} de maps), NAO sobre
+			// []hookEntry: o cleanup de orfaos abaixo chama
+			// decodeHookEntries, que so consegue ler a forma raw. Gravar
+			// []hookEntry aqui fazia o cleanup ser no-op no codex e a
+			// migracao de evento deixar wirares duplicados.
+			hooksRoot["PreToolUse"] = adaptCodexProtectionRaw(hooksRoot["PreToolUse"], adapterPath)
 		}
 	}
 	hooksRoot[event] = upsertHookEntry(entries, command, hookName, matcher, ifFilters)
@@ -153,6 +158,41 @@ func syncHookCommandAtEvent(baseDir string, target TargetCLI, hookName, command,
 	settings["hooks"] = hooksRoot
 
 	return writeJSONObject(target.HooksSettingsPath, settings)
+}
+
+// adaptCodexProtectionRaw é adaptCodexProtectionHooks operando direto no raw
+// do JSON ([]interface{} de maps), preservando a forma que decodeHookEntries
+// consegue ler. Usado no path que precisa devolver a lista ao map de eventos
+// sem passar por []hookEntry.
+func adaptCodexProtectionRaw(raw interface{}, adapterPath string) interface{} {
+	entries, ok := raw.([]interface{})
+	if !ok {
+		return raw
+	}
+	for _, item := range entries {
+		entry, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		hooksRaw, ok := entry["hooks"].([]interface{})
+		if !ok {
+			continue
+		}
+		for _, hr := range hooksRaw {
+			hc, ok := hr.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			command, _ := hc["command"].(string)
+			if strings.Contains(command, "npx protect-mcp@0.7.4 evaluate") {
+				hc["command"] = strings.Replace(command, "npx protect-mcp@0.7.4 evaluate", adapterPath+" evaluate", 1)
+			}
+			if strings.Contains(command, "npx protect-mcp@0.7.4 sign") {
+				hc["command"] = strings.Replace(command, "npx protect-mcp@0.7.4 sign", adapterPath+" sign", 1)
+			}
+		}
+	}
+	return entries
 }
 
 // adaptCodexProtectionHooks substitui invocações de npx protect-mcp@0.7.4

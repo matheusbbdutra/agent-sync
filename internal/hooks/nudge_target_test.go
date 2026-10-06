@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -26,14 +27,15 @@ func setupNudgeTest(t *testing.T, scriptName string) (string, TargetCLI) {
 	}
 }
 
-// TestNudgeForCodexUsesPreToolUse valida que syncAgentReactNudgeHook wirar
-// em PreToolUse (nao PostToolUse) para Codex — o schema PreToolUse aceita
-// additionalContext sem bloquear tool call (validado por principles-inject).
-// Regressao do bug "hooks mudos" (PostToolUse sempre retornava {}).
-func TestNudgeForCodexUsesPreToolUse(t *testing.T) {
+// TestNudgeForCodexNotWiredInPreToolUse valida que syncAgentReactNudgeHook NAO
+// wirar em PreToolUse para o Codex. Com features.code_mode_host ligado
+// (codex >= 0.160) a unica tool emite custom_tool_call, e o Codex injeta o
+// additionalContext do hook entre a call e o output dela — o /v1/responses da
+// MiniMax responde 400 (2013) "tool call result does not follow tool call".
+// No Codex os lembretes entram em SessionStart (syncCodexSessionNudgesHook).
+func TestNudgeForCodexNotWiredInPreToolUse(t *testing.T) {
 	tempBase, target := setupNudgeTest(t, "agent-react-nudge.pretooluse.sh")
 
-	// cria tambem o .sh antigo para garantir que nao eh usado
 	oldScript := filepath.Join(tempBase, "hooks", "agent-react-nudge.sh")
 	if err := os.WriteFile(oldScript, []byte("#!/bin/sh\necho {}\n"), 0o755); err != nil {
 		t.Fatal(err)
@@ -43,30 +45,92 @@ func TestNudgeForCodexUsesPreToolUse(t *testing.T) {
 		t.Fatalf("syncAgentReactNudgeHook falhou: %v", err)
 	}
 
-	root, err := readJSONObject(target.HooksSettingsPath)
+	data, err := os.ReadFile(target.HooksSettingsPath)
+	if err == nil {
+		t.Fatalf("nada deveria ter sido wirado, arquivo contem: %s", data)
+	}
+}
+
+// TestCodexSessionNudgesWiredInSessionStart valida que os 4 lembretes entram
+// em SessionStart no Codex, com os mesmos hookName usados antes em
+// PreToolUse (para que o cleanup de orfaos remova as entradas antigas).
+func TestCodexSessionNudgesWiredInSessionStart(t *testing.T) {
+	tempBase := t.TempDir()
+	hooksDir := filepath.Join(tempBase, "hooks")
+	if err := os.MkdirAll(hooksDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range []string{"codex-session-nudges.sh"} {
+		if err := os.WriteFile(filepath.Join(hooksDir, n), []byte("#!/bin/sh\necho {}\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Pre-condicao: wirares antigos em PreToolUse, como antes da mudanca.
+	settingsPath := filepath.Join(t.TempDir(), "hooks.json")
+	pre := `{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[` +
+		`{"name":"agent-sync-principles-inject","command":"/old/principles.pretooluse.sh"},` +
+		`{"name":"agent-sync-context-guard","command":"/old/ctx.pretooluse.sh"},` +
+		`{"name":"agent-sync-memory-nudge","command":"/old/mem.pretooluse.sh"},` +
+		`{"name":"agent-sync-agent-react-nudge","command":"/old/react.pretooluse.sh"},` +
+		`{"name":"outros-hook","command":"/keep.sh"}]}]}}`
+	if err := os.WriteFile(settingsPath, []byte(pre), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	target := TargetCLI{
+		Name:              "codex",
+		AgentKind:         "codex",
+		HooksSettingsPath: settingsPath,
+		HooksEvent:        "PostToolUse",
+	}
+
+	if err := syncCodexSessionNudgesHook(tempBase, target); err != nil {
+		t.Fatalf("syncCodexSessionNudgesHook falhou: %v", err)
+	}
+
+	root, err := readJSONObject(settingsPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	hooksRoot := root["hooks"].(map[string]interface{})
 
-	// Deve ter entrada em PreToolUse (com .pretooluse.sh)
-	preEntries, ok := hooksRoot["PreToolUse"].([]interface{})
-	if !ok || len(preEntries) == 0 {
-		t.Fatalf("PreToolUse deve ter entradas, obteve: %v", hooksRoot["PreToolUse"])
+	// 1. Os 4 nomes em SessionStart, apontando pro script novo.
+	sessionEntries, ok := hooksRoot["SessionStart"].([]interface{})
+	if !ok || len(sessionEntries) == 0 {
+		t.Fatalf("SessionStart deve ter entradas, obteve: %v", hooksRoot["SessionStart"])
 	}
-
-	encontrou := false
-	for _, e := range preEntries {
+	names := map[string]bool{}
+	for _, e := range sessionEntries {
 		entry := e.(map[string]interface{})
 		for _, h := range entry["hooks"].([]interface{}) {
-			cmd := h.(map[string]interface{})["command"].(string)
-			if filepath.Base(cmd[:len(cmd)-len(filepath.Ext(cmd))]) == "agent-react-nudge.pretooluse" {
-				encontrou = true
+			hk := h.(map[string]interface{})
+			names[hk["name"].(string)] = true
+			cmd := hk["command"].(string)
+			if !strings.Contains(cmd, "codex-session-nudges.sh") {
+				t.Errorf("SessionStart deve usar codex-session-nudges.sh, obteve %q", cmd)
 			}
 		}
 	}
-	if !encontrou {
-		t.Fatalf("agent-react-nudge.pretooluse.sh nao encontrado em PreToolUse: %v", preEntries)
+	for _, want := range []string{
+		principlesInjectHookName, contextGuardHookName,
+		memoryNudgeHookName, agentReactNudgeHookName,
+	} {
+		if !names[want] {
+			t.Errorf("hook %s ausente em SessionStart", want)
+		}
+	}
+
+	// 2. Os wirares antigos sairam de PreToolUse; outros hooks preservados.
+	preEntries, _ := hooksRoot["PreToolUse"].([]interface{})
+	for _, e := range preEntries {
+		entry := e.(map[string]interface{})
+		for _, h := range entry["hooks"].([]interface{}) {
+			n := h.(map[string]interface{})["name"].(string)
+			if n != "outros-hook" {
+				t.Errorf("PreToolUse ainda tem %s apos migrar para SessionStart", n)
+			}
+		}
 	}
 }
 

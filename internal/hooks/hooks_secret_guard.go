@@ -86,7 +86,17 @@ func syncSecretGuardPostToolUseHook(baseDir string, target TargetCLI) error {
 		return nil
 	}
 	switch target.AgentKind {
-	case "claude", "codex":
+	case "codex":
+		// Codex: o script real roda, mas o additionalContext e descartado —
+		// em PostToolUse ele cai entre a tool call e o output e o provider
+		// rejeita com 400 (2013). Ver hooks_codex_session_nudges.go.
+		command, err := codexSilentHookCommand(baseDir, secretGuardPostToolUseScript)
+		if err != nil {
+			return err
+		}
+		return syncHookCommandAtEvent(baseDir, target, secretGuardPostToolUseHookName,
+			command, "*", "PostToolUse", nil)
+	case "claude":
 		scriptPath, err := pathutil.HookScriptPath(baseDir, secretGuardPostToolUseScript)
 		if err != nil {
 			return err

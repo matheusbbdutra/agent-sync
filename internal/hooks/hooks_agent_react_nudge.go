@@ -27,6 +27,11 @@ func syncAgentReactNudgeHook(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" || target.HooksEvent == "" {
 		return nil
 	}
+	// Codex: wirado em SessionStart por syncCodexSessionNudgesHook (o
+	// additionalContext em PreToolUse quebra o provider com 400 (2013)).
+	if target.AgentKind == "codex" {
+		return nil
+	}
 	if target.HooksFormat == "antigravity" {
 		return syncAntigravityHook(baseDir, target, agentReactNudgeHookName, "agent-react-nudge.antigravity.sh", "*")
 	}

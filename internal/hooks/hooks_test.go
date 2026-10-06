@@ -312,8 +312,12 @@ func TestAdaptCodexProtectionHooks(t *testing.T) {
 	}
 }
 
+// TestSyncPrinciplesInjectHookWiresPreToolUse cobre apenas o Claude Code: no
+// Codex o principles-inject sai de PreToolUse e entra em SessionStart (o
+// additionalContext em PreToolUse quebra o provider com 400/2013). Ver
+// TestCodexSessionNudgesWiredInSessionStart.
 func TestSyncPrinciplesInjectHookWiresPreToolUse(t *testing.T) {
-	for _, kind := range []string{"claude", "codex"} {
+	for _, kind := range []string{"claude"} {
 		t.Run(kind, func(t *testing.T) {
 			tempBase := t.TempDir()
 			hooksDir := filepath.Join(tempBase, "hooks")
@@ -597,13 +601,16 @@ func findHookIfFiltersAtEvent(t *testing.T, settingsPath, hookName, event string
 	return out
 }
 
-func TestNudgesEmitAllIfFiltersForClaudeAndCodex(t *testing.T) {
+// TestNudgesEmitAllIfFiltersForClaude valida os `if` filters dos nudges wirados
+// em PreToolUse. Codex saiu do caso: com code_mode_host ligado o
+// additionalContext em PreToolUse quebra o provider (400/2013) e os lembretes
+// entram em SessionStart — ver TestCodexSessionNudgesWiredInSessionStart.
+func TestNudgesEmitAllIfFiltersForClaude(t *testing.T) {
 	tempBase := t.TempDir()
 	hooksDir := filepath.Join(tempBase, "hooks")
 	if err := os.MkdirAll(hooksDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// codex/claude wirar em PreToolUse com .pretooluse.sh (2026-09-23)
 	for _, script := range []string{
 		"context-guard-nudge.pretooluse.sh",
 		"memory-nudge.pretooluse.sh",
@@ -622,9 +629,6 @@ func TestNudgesEmitAllIfFiltersForClaudeAndCodex(t *testing.T) {
 		{"claude", contextGuardHookName, syncHooks},
 		{"claude", memoryNudgeHookName, syncMemoryNudgeHook},
 		{"claude", agentReactNudgeHookName, syncAgentReactNudgeHook},
-		{"codex", contextGuardHookName, syncHooks},
-		{"codex", memoryNudgeHookName, syncMemoryNudgeHook},
-		{"codex", agentReactNudgeHookName, syncAgentReactNudgeHook},
 	}
 	for _, tc := range cases {
 		t.Run(tc.agentKind+"/"+tc.hookName, func(t *testing.T) {

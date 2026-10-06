@@ -23,7 +23,12 @@ func syncPrinciplesInjectHook(baseDir string, target TargetCLI) error {
 		return nil
 	}
 	switch target.AgentKind {
-	case "claude", "codex":
+	case "codex":
+		// Wirado em SessionStart por syncCodexSessionNudgesHook: o
+		// additionalContext em PreToolUse cai entre a tool call e o output
+		// e o provider rejeita com 400 (2013).
+		return nil
+	case "claude":
 		scriptPath, err := pathutil.HookScriptPath(baseDir, "principles-inject.pretooluse.sh")
 		if err != nil {
 			return err

@@ -47,6 +47,11 @@ func syncBashRmGuardianStandard(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" {
 		return nil
 	}
+	// Codex fica como Claude aqui: o additionalContext entre a tool call e o
+	// output derruba o turno com 400 (2013), mas este e o unico hook que
+	// AVISA antes de um rm destrutivo. Silencia-lo no codex trocaria um
+	// evento raro por perda permanente de aviso. O scenario e raro de
+	// proposito: so dispara quando o audit detecta refs ativas.
 	return syncStandardHookAtEvent(baseDir, target, bashRmGuardianHookName,
 		"bash-rm-guardian.pretooluse.sh", "*", "PreToolUse", nil)
 }

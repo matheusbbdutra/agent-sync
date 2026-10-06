@@ -28,6 +28,12 @@ func TestSyncSecretGuardHooksWirePreAndPost(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
+			// No Codex o PostToolUse e wirado via codex-silent-hook.sh
+			// (descarta o additionalContext). Ver hooks_codex_session_nudges.go.
+			if err := os.WriteFile(filepath.Join(hooksDir, "codex-silent-hook.sh"),
+				[]byte("#!/usr/bin/env bash\nexit 0\n"), 0o755); err != nil {
+				t.Fatal(err)
+			}
 			tempHooksPath := filepath.Join(tempBase, "settings.json")
 			target := TargetCLI{
 				Name:              kind,

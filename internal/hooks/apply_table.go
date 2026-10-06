@@ -8,6 +8,13 @@ package hooks
 // (Fase 6).
 
 var standardHooks = []hookSpec{
+	// Codex: os 4 lembretes (principles/context-guard/memory-nudge/
+	// agent-react) saem de PreToolUse e entram em SessionStart. Com
+	// code_mode_host ligado o Codex injeta o additionalContext entre a
+	// custom_tool_call e o output dela, e o /v1/responses da MiniMax
+	// responde 400 (2013). Este hook faz o cleanup dos wirares antigos em
+	// PreToolUse. Ver hooks_codex_session_nudges.go.
+	{name: "codex-session-nudges", fn: syncCodexSessionNudgesHook, agentKinds: []string{"codex"}, detail: settingsPathDetail},
 	// Hooks suportados em Claude Code, Codex e Antigravity (os early-returns
 	// internos de cada sync*Hook silenciam o que não se aplica).
 	{name: "context-guard", fn: syncHooks, detail: settingsPathDetail},
