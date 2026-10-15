@@ -1,7 +1,13 @@
 // docs-cache-write persiste no cache local do docs-fetch (usado também pelo
 // docs-mcp) o conteúdo de uma doc já consultada por outra ferramenta
 // (WebFetch, context7, read_url_content etc.), sem refazer a requisição de
-// rede. Lê um único objeto JSON via stdin: {"url", "contentType", "text"}.
+// rede.
+//
+// Dois modos (regra §4 Linguagens & Runtime: Python-zero, Go é fonte da verdade):
+//   - direto (default): lê um único objeto JSON via stdin: {"url", "contentType", "text"}.
+//   - hook (--from-hook): lê o payload cru do hook PostToolUse via stdin e extrai
+//     {url,text} internamente (antes feito por hooks/docs-cache.py, removido).
+//     --cli=auto|claude|codex|antigravity (auto detecta via presença de "toolCall").
 // "url" pode ser uma URL real ou uma chave sintética (ex: context7://<lib>/<query>).
 package main
 
@@ -24,6 +30,8 @@ type input struct {
 
 func main() {
 	cacheDirFlag := flag.String("cache-dir", "", "Diretório de cache (default ~/.cache/agent-sync/docs)")
+	fromHookFlag := flag.Bool("from-hook", false, "Lê payload cru do hook PostToolUse via stdin e extrai {url,text} (antes via Python)")
+	cliFlag := flag.String("cli", "auto", "CLI do payload no modo --from-hook: auto|claude|codex|antigravity")
 	flag.Parse()
 
 	cacheDir := *cacheDirFlag
@@ -38,9 +46,17 @@ func main() {
 	}
 
 	var in input
-	if err := json.Unmarshal(raw, &in); err != nil {
-		fmt.Fprintf(os.Stderr, "docs-cache-write: JSON inválido: %v\n", err)
-		os.Exit(1)
+	if *fromHookFlag {
+		url, text := extractFromHook(raw, *cliFlag)
+		if url == "" || text == "" {
+			return
+		}
+		in = input{URL: url, ContentType: "text/plain", Text: text}
+	} else {
+		if err := json.Unmarshal(raw, &in); err != nil {
+			fmt.Fprintf(os.Stderr, "docs-cache-write: JSON inválido: %v\n", err)
+			os.Exit(1)
+		}
 	}
 	if in.URL == "" || in.Text == "" {
 		// Nada de útil pra cachear (ex: contexto vazio, resultado só de erro).

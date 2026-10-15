@@ -209,8 +209,8 @@ func joinContent(parts ...string) string {
 }
 
 // claudeCodexPayload is the schema shared by Claude Code and Codex,
-// confirmed against hooks/docs-cache.py (already relied on the same
-// fields, live-tested for both CLIs before this change existed).
+// confirmed against tools/cmd/docs-cache-write/hook_extract.go (which owns
+// the same field extraction since the Python helpers were removed).
 type claudeCodexPayload struct {
 	SessionID    string          `json:"session_id"`
 	ToolName     string          `json:"tool_name"`
@@ -228,9 +228,9 @@ func parseClaudeCodexPayload(raw []byte) (sessionID, toolName, content string) {
 	return p.SessionID, p.ToolName, content
 }
 
-// antigravityPayload is the schema confirmed against
-// hooks/docs-cache.antigravity.py: the payload itself carries no result
-// (documented upstream limitation) — it has to be read back from the
+// antigravityPayload is the schema owned by
+// tools/cmd/docs-cache-write/hook_extract.go: the payload itself carries no
+// result (documented upstream limitation) — it has to be read back from the
 // transcript JSONL at step_index == stepIdx + 1.
 type antigravityPayload struct {
 	SessionID      string `json:"session_id"`
