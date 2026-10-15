@@ -11,10 +11,10 @@ import (
 )
 
 // denyPattern: Camada 1, mesma do shell (case-insensitive).
-var denyPattern = regexp.MustCompile(`(?i)__DENY_BODY__`)
+var denyPattern = regexp.MustCompile(`(?i)(/\.env($|\.)|/\.envrc$|\.pem$|\.key$|\.p12$|\.pfx$|/id_rsa|/id_ed25519|/id_ecdsa|/id_dsa|/\.ssh($|/)|/\.aws($|/)|/\.gnupg($|/)|/\.config/gh($|/)|/\.docker($|/)|/\.kube($|/)|\.netrc|\.npmrc|\.pypirc|\.pgpass|/\.aws/credentials|/\.aws/config|/hosts\.yml|/kube/config|\.terraformrc|/\.zshrc$|/\.bashrc$|/\.bash_profile$|/\.profile$|/\.zprofile$|/\.zshenv$|/\.bash_env$|credentials\.json|credentials\.yaml|/secrets($|/)|\.secret\.json|\.secret\.yaml|/\.env\.local$|/\.env\.production$|/\.env\.staging$|zscaler($|/))`)
 
 // literalPattern: Camada 2, mesma do shell.
-var literalPattern = regexp.MustCompile(`__LITERAL_RE__`)
+var literalPattern = regexp.MustCompile(`eyJ[A-Za-z0-9_=]+\.eyJ[A-Za-z0-9_=]+\.[A-Za-z0-9_-]+|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36,255}`)
 
 var pathWordRe = regexp.MustCompile(`(/|~|\.)[^ "}{]+`)
 

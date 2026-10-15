@@ -8,8 +8,10 @@
 // e post (com `/config.json`): o padrão canônico aqui é o do PRE.
 //
 // Subcommands (sempre stdout JSON + exit 0 — fail-open, nunca derruba hook):
-//   check  [--format decision|auto]  lê payload PreToolUse via stdin.
-//   redact [--format decision|auto]  lê payload PostToolUse via stdin.
+//
+//	check  [--format decision|auto]  lê payload PreToolUse via stdin.
+//	redact [--format decision|auto]  lê payload PostToolUse via stdin.
+//
 // Formato auto detecta Antigravity pela presença de `toolCall` (mesmo padrão
 // do .sh) e emite o contrato de cada host; `decision` emite envelope neutro
 // para o plugin Cline.

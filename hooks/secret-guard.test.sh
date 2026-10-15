@@ -23,13 +23,13 @@ skip() { printf '  SKIP: %s\n' "$1"; }
 # Adapters sao fail-open: sem binário, stdout deve ser '{}' com exit 0.
 adapter_pre_no_bin() {
   local out rc
-  out="$(printf '%s' '{"tool_name":"Read","tool_input":{"file_path":"/x/.env"}}' | AGENT_SYNC_BIN_DIR=/nonexistent PATH=/usr/bin:/bin bash "$PRE")"; rc=$?
+  out="$(mkdir -p /tmp/sg_nobin/hooks && cp "$PRE" /tmp/sg_nobin/hooks/ && printf '%s' '{"tool_name":"Read","tool_input":{"file_path":"/x/.env"}}' | PATH=/usr/bin:/bin bash /tmp/sg_nobin/hooks/$(basename "$PRE"))"; rc=$?
   if [ "$rc" -eq 0 ] && [ "$out" = "{}" ]; then pass; else fail "pre fail-open: rc=$rc out=$out"; fi
 }
 
 adapter_post_no_bin() {
   local out rc
-  out="$(printf '%s' '{"tool_output":"x"}' | AGENT_SYNC_BIN_DIR=/nonexistent PATH=/usr/bin:/bin bash "$POST")"; rc=$?
+  out="$(mkdir -p /tmp/sg_nobin/hooks && cp "$POST" /tmp/sg_nobin/hooks/ && printf '%s' '{"tool_output":"x"}' | PATH=/usr/bin:/bin bash /tmp/sg_nobin/hooks/$(basename "$POST"))"; rc=$?
   if [ "$rc" -eq 0 ] && [ "$out" = "{}" ]; then pass; else fail "post fail-open: rc=$rc out=$out"; fi
 }
 
