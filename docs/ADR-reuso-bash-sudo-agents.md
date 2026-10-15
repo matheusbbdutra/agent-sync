@@ -1,6 +1,8 @@
 # ADR — Reuso seletivo do `nickarab/bash-sudo-agents` (overwrite+cache em Go; conceitos como ADR; resto rejeitado)
 
-- **Status**: Aceito
+- **Status**: Aceito (§1 implementado em 2026-10-15 — `tools/cmd/shell-validate` +
+  hook `cmd-cache`, opt-in `AGENT_SYNC_CMD_CACHE=1`; gaps declarados na seção
+  "Implementação")
 - **Data**: 2026-10-15
 - **Decisor**: agente + usuário (sessão de consolidação pós-aposentadoria do Cursor)
 - **Fonte**: análise do repo externo `nickarab/bash-sudo-agents` (v4.2, 16 commits, 0 stars) +
@@ -56,6 +58,62 @@ hooks: adapter shell/TS fino → binário Go.
      (Arch-only) e `journalctl/dmesg -n 35` como default cego.
   5. TTL obrigatório + expiração por mtime; sem cache para comando com `|`/`>`.
   6. Compressor não reescreve comando do usuário sem allowlist explícita (fail-open).
+
+### Implementação (2026-10-15)
+
+**Onde caiu**: `tools/cmd/shell-validate` (o "Onde" do §1) — o binário já wirado para
+`PreToolUse`, então nenhum gate novo entrou no fluxo.
+
+| Peça | Arquivo | Papel |
+|---|---|---|
+| Núcleo | `tools/cmd/shell-validate/cmdcache.go` | allowlist, chave, TTL/mtime, cap, chmod 0700, higiene via `secret-scan` |
+| CLI | `tools/cmd/shell-validate/cmdcache_cli.go` | `cache-get` / `cache-put [--from-hook]` |
+| Pre (hit) | `tools/cmd/shell-validate/hook.go` → `serveCmdCacheHit` | injeta o resultado já obtido como `additionalContext` |
+| Testes | `tools/cmd/shell-validate/cmdcache_test.go` | 11 funções (allowlist, chave, TTL, cap, segredo, perms, hook, payload) |
+| Adapter | `hooks/cmd-cache.posttooluse.sh` (~25L) | cola fina: só chama o binário e devolve `{}` |
+| Wiramento | `internal/hooks/hooks_cmd_cache.go` + `apply_table.go` | `PostToolUse` matcher `Bash`, `agentKinds: [claude, codex]` |
+
+**Liga/desliga** (opt-in, mesmo padrão do `AGENT_SYNC_PRETOOLUSE_VALIDATE`):
+`AGENT_SYNC_CMD_CACHE=1` ativa; sem a flag o adapter e o binário são no-op.
+`AGENT_SYNC_CMD_CACHE_TTL` (segundos) e `AGENT_SYNC_CMD_CACHE_DIR` calibram;
+`AGENT_SYNC_SECRET_SCAN` fixa o caminho do scanner.
+
+**Allowlist e TTL**: `lscpu`, `uname`, `cat /etc/os-release` (TTL 3600s) e `git log`
+(TTL 60s) — exatamente o §1.4, sem `yay/paru`/`journalctl`/`dmesg`.
+
+**Fluxo**: PostToolUse grava o stdout (allowlist + `secret-scan` limpo + ≤64 KiB) →
+PreToolUse do mesmo comando no mesmo `uid`+`cwd` injeta o texto (compressão
+determinística: 120 linhas / 8 KiB) com idade e TTL. Nada é reescrito: o comando do
+agente nunca muda (§1.6).
+
+**As 6 correções obrigatórias**:
+
+| # | Como ficou |
+|---|---|
+| 1 | `ensureCacheDir` força `0700` (e conserta dir pré-existente); arquivo `0600`; `cmdCachePut` recusa quando `secret-scan redact` ≠ `none` ou `check` = `deny`, e **não grava** se o scanner estiver ausente/quebrado (fail-closed na escrita) |
+| 2 | `cacheKey = sha256(uid + cwd + cmd)`; cap de 64 KiB por entrada |
+| 3 | `shellMetaChars` casa `>`/`|`/`<`/`;`/`&`/crase/aspas — `&&` não é tratado como redirect (o comando `a && b` é recusado por não ser 1 comando exato) |
+| 4 | Allowlist cross-platform read-only (acima); nada de Arch-only nem `journalctl`/`dmesg` |
+| 5 | TTL obrigatório por kind, expiração por `mtime` (entrada expirada é **removida**); comando com `|`/`>` recusado |
+| 6 | O hook nunca reescreve o comando; só adiciona contexto (ou passa) — fail-open |
+
+**Gaps declarados** (não wirar agora, avaliar depois):
+
+- **Antigravity**: `additionalContext` em `PreToolUse`/`PreInvocation` é lido como deny
+  (achado de 2026-09-22, `docs/investigations/agy-memory-nudge-loop.md`) → o hit responde
+  `{"decision":"allow"}` e o cache **não** é injetado ali; o Post também fica de fora
+  porque o output do Bash vem por `transcriptPath`, não no payload.
+- **OpenCode**: `PostToolUse` exige plugin TS (`tool.execute.after`).
+- **Cline**: hooks de arquivo são inertes na CLI v3 (só plugin).
+- **`git log` em repo ativo**: TTL de 60s é o compromisso; subir por env se incomodar.
+
+**Evidência desta implementação** (sessão 2026-10-15): `go vet` limpo + `go test ./...`
+14/14 (raiz) e 25/25 (tools) + `bash hooks/cmd-cache.test.sh` 5/5; smoke wirado com
+payloads reais —
+`PostToolUse → cache criado 0700/0600` → `PreToolUse → {"hookSpecificOutput":...
+cmd-cache HIT `cat /etc/os-release` (kind=static, idade=0s, TTL=3600s)...}`; saída com
+JWT sintético recusada pelo `secret-scan` real (`redact=redact-inline`, nenhuma entrada
+gravada); sem `AGENT_SYNC_CMD_CACHE=1` o adapter devolve `{}` e não escreve nada.
 
 ### §2. Conceitos viram ADR markdown — zero runtime
 
