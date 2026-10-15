@@ -1,7 +1,11 @@
 # Padrão Arquitetural de Hooks Multi-CLI (Agent Harness)
 
 > **Referência Teórica**: Taxonomia ETCLOVG & HarnessFix (arXiv:2606.06324v2)  
-> **Escopo**: Padronização dos eventos de ciclo de vida nas 5 CLIs suportadas (`Claude Code`, `OpenAI Codex`, `Google Antigravity`, `Cursor`, `OpenCode`).
+> **Escopo**: Padronização dos eventos de ciclo de vida nas 5 CLIs suportadas (`Claude Code`, `OpenAI Codex`, `Google Antigravity`, `OpenCode`, `Cline`).
+>
+> **Revisão 2026-10-15**: a coluna `Cursor Agent` das matrizes abaixo é **registro histórico** —
+> o Cursor foi aposentado como target wirado (`3a973d5`; ver `ADR-cursor-aposentadoria.md`) e o
+> Cline passou a ser uma das 5 CLIs canônicas (`internal/target/target.go:38-100`).
 
 ---
 

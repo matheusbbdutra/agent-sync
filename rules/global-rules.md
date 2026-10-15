@@ -21,6 +21,7 @@
 - Ao encontrar débito técnico ou código morto fora do escopo, aponte ao usuário em vez de mexer silenciosamente.
 
 ## 4. Linguagens & Runtime (Go/TS/Shell — sem Python)
+> Detalhe e racional em `docs/ADR-politica-linguagens.md` (o **porquê**); §4 é a regra curta.
 - **Go é fonte da verdade**: toda lógica nova (audit, cache, budget, memória) vai em Go (`internal/`, `tools/cmd/`). O que está em Go fica em Go. Não reescrever Go em TS.
 - **Shell é cola fina (≤50 LOC)**: só traduz contrato do host (Claude `{}` vs Antigravity `{"decision":"allow"}`) e chama binário Go. Zero lógica de negócio.
 - **TS só na borda onde a API obriga** (OpenCode v2 `hooks/*.v2.ts` + Cline `cline-plugin/src/hooks/`): adapter fino (≤150 LOC), sem lógica — delega via `bridge.ts`/`execFile` (`~/.local/bin/<bin>`). TS nunca reimplementa deny-list nem lógica do Go.

@@ -6,6 +6,10 @@
 >
 > Use em conjunto com `architecture-flow.md` (fluxo atual) e a matriz
 > da [Trilha C](../ADR-trilha-c-cobertura-cross-cli.md).
+>
+> **Revisão 2026-10-15**: onde este documento cita o **Cursor**, leia como histórico — o target
+> foi aposentado (`3a973d5`; ver `../ADR-cursor-aposentadoria.md`). As 5 CLIs canônicas são
+> `claude`, `codex`, `antigravity`, `opencode` (v2) e `cline`.
 
 ---
 

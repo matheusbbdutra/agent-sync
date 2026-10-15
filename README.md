@@ -2,12 +2,11 @@
 
 > [English](README.md) · [Português](README.pt-BR.md)
 
-Versiona, mantém, e sincroniza **Global Rules**, **Skills**, **Agents** e **Tools** entre 6 CLIs:
+Versiona, mantém, e sincroniza **Global Rules**, **Skills**, **Agents** e **Tools** entre 5 CLIs:
 - **Claude Code** (`~/.claude`)
 - **Codex / OpenAI** (`~/.codex`)
 - **Google Antigravity CLI** (`~/.gemini`) — successor to the now-deprecated standalone Gemini CLI (retired 2026-06-18 for non-enterprise accounts)
 - **OpenCode** (`~/.config/opencode`)
-- **Cursor** (`~/.cursor`) — IDE + Agent CLI (`agent` / `cursor-agent`)
 - **Cline** (`~/.cline`) — CLI + IDE extension; hooks wired via a Cline Plugin
   (`~/.cline/plugins/_installed/local/agent-sync-hooks-<hash>/`) that bridges to
   `agent-sync hook cline` (file hooks in `~/.cline/hooks` are inert in CLI v3)
@@ -54,7 +53,7 @@ agent-sync/
 | `spec-planner`, `code-reviewer`, `mr-reviewer`, `security-auditor`, `architecture-reviewer`, `db-guardian`, `token-optimizer`, `sentry-debugger` | ✅ |
 | `debugger`, `test-engineer`, `refactor-specialist` | ❌ |
 
-`readonly: true` vira `permission.edit=deny` (OpenCode), `sandbox_mode=read-only` (Codex), `readonly: true` (Cursor). Aplicado por `-apply`.
+`readonly: true` vira `permission.edit=deny` (OpenCode) e `sandbox_mode=read-only` (Codex). Aplicado por `-apply`.
 
 ### Skills
 
@@ -91,17 +90,10 @@ relacionados. → Detalhes em [`docs/guides/memory-cross-cli.md`](docs/guides/me
 
 ### Cursor specifics
 
-On `-apply` / `-target cursor`, agent-sync writes:
-
-| Artifact | Path |
-| --- | --- |
-| Global rules | `~/.cursor/rules/agent-sync-global.mdc` (`alwaysApply: true`) — local file rules; do **not** confuse with account-synced User Rules in the UI |
-| Skills | `~/.cursor/skills/<name>/` (symlinks) — **never** `~/.cursor/skills-cursor/` (Cursor built-ins) |
-| Subagents | `~/.cursor/agents/<name>.md` (`model: inherit`, optional `readonly: true`) |
-| Hooks | `~/.cursor/hooks.json` + scripts in `~/.cursor/hooks/` |
-| MCP | via `make mcp` → `~/.cursor/mcp.json` (`mcpServers`) |
-
-Caveats: user-level hooks do **not** run on Cloud Agents; Cloud Agents only pick up project `.cursor/hooks.json`. UI User Rules are account-synced and have no filesystem path — the `.mdc` under `~/.cursor/rules/` is the versionable stand-in.
+> **Retired on 2026-10-15** (`3a973d5`): Cursor is no longer a wired target. `-target cursor` does
+> not exist; see `docs/ADR-cursor-aposentadoria.md`. The historical artifact map was: rules
+> `~/.cursor/rules/agent-sync-global.mdc`, skills `~/.cursor/skills/`, subagents
+> `~/.cursor/agents/`, hooks `~/.cursor/hooks.json`, MCP `~/.cursor/mcp.json`.
 
 > Context7 is hosted: even in local mode (stdio) the server calls the context7.com API — it is not offline. For true offline, use the `docs` MCP + `make mirror`.
 
