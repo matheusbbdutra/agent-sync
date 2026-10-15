@@ -20,12 +20,19 @@
 - Prefira editar código existente a criar novos arquivos. Nomes expressivos, funções curtas (SRP) e early returns (Object Calisthenics).
 - Ao encontrar débito técnico ou código morto fora do escopo, aponte ao usuário em vez de mexer silenciosamente.
 
-## 4. Persistência de Erros & Verificação
+## 4. Linguagens & Runtime (Go/TS/Shell — sem Python)
+- **Go é fonte da verdade**: toda lógica nova (audit, cache, budget, memória) vai em Go (`internal/`, `tools/cmd/`). O que está em Go fica em Go. Não reescrever Go em TS.
+- **Shell é cola fina (≤50 LOC)**: só traduz contrato do host (Claude `{}` vs Antigravity `{"decision":"allow"}`) e chama binário Go. Zero lógica de negócio.
+- **TS só na borda onde a API obriga** (OpenCode v2 `hooks/*.v2.ts` + Cline `cline-plugin/src/hooks/`): adapter fino (≤150 LOC), sem lógica — delega via `bridge.ts`/`execFile` (`~/.local/bin/<bin>`). TS nunca reimplementa deny-list nem lógica do Go.
+- **Python = zero**: proibido criar `.py` novo. Reaproveitamento de código Python externo (ex.: `governance-gate.py`, cache TTL, `overwrite`) deve ser portado para Go, nunca copiado como `.py`.
+- **1 fonte de verdade por função**: 1 core Go + adapters finos por host. Proibido duplicar a mesma regra em `.sh` + `.ts` com lógicas divergentes.
+
+## 5. Persistência de Erros & Verificação
 - Trate sempre a causa raiz comprovada, nunca apenas paliativos.
 - Em caso de falha/bug, registre o que desencadeou, a causa comprovada e como evitar reincidência para não entrar em loops de tentativa e erro.
 - Antes de declarar pronto, verifique na prática (testes/typecheck reais) ou declare explicitamente o que não pôde ser testado.
 
-## 5. Contexto & Janela (Anti-Degradação)
+## 6. Contexto & Janela (Anti-Degradação)
 - Em tarefas multi-etapa (3+ passos) ou sessões longas: use a skill `context-guard` e mantenha o `STATE.md` atualizado.
 - **Memória Enxuta**: Ao gravar no memory-mcp (`store_memory` ou `record_event`), registre apenas fatos e regras acionáveis em formato ultra-conciso (máx 2-3 linhas ou ~180 caracteres). Nunca registre diários, tentativas falhas descartadas ou código transitório já deletado.
 - Evite despejar arquivos inteiros no contexto (prefira outlines, buscas cirúrgicas e trechos delimitados).
