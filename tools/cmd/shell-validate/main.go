@@ -17,11 +17,16 @@ import (
 )
 
 const usage = `shell-validate — avisador de comandos shell provavelmente inválidos (PreToolUse, arXiv 2609.11957)
+               + cache TTL de comandos read-only (ADR-reuso-bash-sudo-agents §1)
 
 Usage:
   shell-validate check --cmd "<comando>"     classifica um comando (lê de --cmd ou stdin)
-  shell-validate hook                        lê payload PreToolUse do stdin; só emite aviso se
-                                              AGENT_SYNC_PRETOOLUSE_VALIDATE=1
+  shell-validate hook                        lê payload PreToolUse do stdin; avisa se
+                                              AGENT_SYNC_PRETOOLUSE_VALIDATE=1 e serve cache
+                                              se AGENT_SYNC_CMD_CACHE=1
+  shell-validate cache-get --cmd "<cmd>"     imprime a saída cacheada (exit 0 = hit)
+  shell-validate cache-put --cmd "<cmd>"     cacheia o stdout lido do stdin
+  shell-validate cache-put --from-hook       cacheia a partir de payload PostToolUse no stdin
   shell-validate -help
 `
 
@@ -35,6 +40,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return runCheck(args[1:], stdin, stdout, stderr)
 	case "hook":
 		return runHook(stdin, stdout, stderr)
+	case "cache-get":
+		return runCacheGet(args[1:], stdin, stdout, stderr)
+	case "cache-put":
+		return runCachePut(args[1:], stdin, stdout, stderr)
 	case "-help", "--help", "help":
 		fmt.Fprint(stdout, usage)
 		return nil

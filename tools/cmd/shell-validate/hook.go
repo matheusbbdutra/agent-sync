@@ -64,6 +64,12 @@ func runHook(stdin io.Reader, stdout, stderr io.Writer) error {
 		fmt.Fprint(stdout, "{}")
 		return nil
 	}
+	// Estágio overwrite+cache (ADR-reuso-bash-sudo-agents §1), independente do
+	// validador: se o comando é allowlistado e o cache está fresco, o resultado
+	// já obtido volta como contexto e o agente não precisa re-executar.
+	if cmdCacheEnabled() && serveCmdCacheHit(raw, stdout) {
+		return nil
+	}
 	if strings.TrimSpace(os.Getenv("AGENT_SYNC_PRETOOLUSE_VALIDATE")) != "1" {
 		fmt.Fprint(stdout, passResponse(raw))
 		return nil
@@ -88,7 +94,53 @@ func runHook(stdin io.Reader, stdout, stderr io.Writer) error {
 	return nil
 }
 
-// extractBashCommand tenta extrair a string do comando bash do payload.
+// serveCmdCacheHit injeta a saída cacheada como additionalContext quando o
+// comando do payload é allowlistado e o cache está dentro do TTL. Devolve true
+// quando já escreveu a resposta do hook.
+//
+// Antigravity (payload com "toolCall") só aceita o envelope `decision` em
+// PreToolUse/PreInvocation — injetar additionalContext ali é lido como deny
+// (mesmo achado do memory-nudge em 2026-09-22). Nesse caso respondemos
+// {"decision":"allow"} e o cache segue disponível para os outros hosts.
+func serveCmdCacheHit(raw []byte, stdout io.Writer) bool {
+	var payload preToolUsePayload
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return false
+	}
+	cmd, ok := extractBashCommand(payload)
+	if !ok {
+		return false
+	}
+	policy, ok := classifyCacheable(cmd)
+	if !ok {
+		return false
+	}
+	out, age, hit := cmdCacheGet(policy, cmd)
+	if !hit {
+		return false
+	}
+	if bytes.Contains(raw, []byte(`"toolCall":{`)) {
+		fmt.Fprint(stdout, `{"decision":"allow"}`)
+		return true
+	}
+	text, truncated := compressForContext(out)
+	note := ""
+	if truncated {
+		note = " (truncado)"
+	}
+	ctx := fmt.Sprintf("[agent-sync] cmd-cache HIT `%s` (kind=%s, idade=%ds, TTL=%ds)%s — saída já obtida nesta sessão; não precisa executar de novo:\n\n%s",
+		cmd, policy.kind, int(age.Seconds()), int(policy.ttl.Seconds()), note, text)
+	resp, err := json.Marshal(map[string]any{"hookSpecificOutput": map[string]any{
+		"hookEventName":     "PreToolUse",
+		"additionalContext": ctx,
+	}})
+	if err != nil {
+		return false
+	}
+	stdout.Write(resp)
+	return true
+}
+
 // Suporta três formatos:
 //  1. Claude Code / Codex: tool_name="Bash" e tool_input={"command": "..."}
 //  2. Cursor: tool_name="Bash" e tool_input (mesma forma)
