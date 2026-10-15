@@ -49,9 +49,8 @@ var standardHooks = []hookSpec{
 	// Hooks de término/Stop suportados em Antigravity CLI, Claude Code e Codex.
 	{name: "stop", fn: syncStopHook, agentKinds: []string{"antigravity", "claude", "codex"}, detail: settingsPathDetail},
 	{name: "preinvocation", fn: syncPreInvocationReminderHook, formats: []string{"antigravity"}, detail: settingsPathDetail},
-	// Plugins TS do OpenCode com chave de versão: v1 mantém .opencode.ts
-	// (best-effort, issue #13574); v2 usa .v2.ts (@opencode/plugin).
-	// Plugins novos só existem em v2 (silenciosos em v1).
+	// Plugins TS do OpenCode (v2-only, @opencode/plugin).
+	// Plugins novos só existem em v2.
 	{name: "opencode-context-guard", fn: syncOpenCodePlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetailNote},
 	{name: "opencode-memory", fn: syncOpenCodeMemoryNudgePlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetailNote},
 	{name: "opencode-agent-react", fn: syncOpenCodeAgentReactNudgePlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetailNote},

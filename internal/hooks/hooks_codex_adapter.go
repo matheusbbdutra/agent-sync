@@ -14,14 +14,12 @@ import (
 	"github.com/matheusdutra/agent-sync/internal/pathutil"
 )
 
-// opencodePluginSuffix centraliza o sufixo por versão para facilitar teste.
-// v2 retorna o padrão legado ".v2.ts" para retrocompatibilidade; o padrão
-// novo ".opencode.v2.ts" é tentado dentro de syncOpenCodePluginVersioned.
-func opencodePluginSuffix(major int) string {
-	if major >= 2 {
-		return ".v2.ts"
-	}
-	return ".opencode.ts"
+// opencodePluginSuffix foi aposentado com a linha v1 (hooks/*.opencode.ts
+// deletados). O instalador v2-only usa sufixos literais (.opencode.v2.ts,
+// .v2.ts) direto em syncOpenCodePluginVersioned. Mantido como alias para
+// não quebrar callers externos — sempre retorna o padrão v2.
+func opencodePluginSuffix(_ int) string {
+	return ".v2.ts"
 }
 
 // adaptCodexPlugins percorre ~/.codex/plugins/*/hooks/hooks.json e adapta

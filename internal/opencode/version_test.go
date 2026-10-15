@@ -31,11 +31,4 @@ func TestOpencodeVersionOverride(t *testing.T) {
 	}
 }
 
-func TestOpencodePluginSource(t *testing.T) {
-	if got := PluginSource("/base", "myplugin", 1); got != "/base/hooks/myplugin.opencode.ts" {
-		t.Errorf("v1 source: got %q", got)
-	}
-	if got := PluginSource("/base", "myplugin", 2); got != "/base/hooks/myplugin.v2.ts" {
-		t.Errorf("v2 source: got %q", got)
-	}
-}
+

@@ -52,7 +52,7 @@ func CheckRuntime(opencodePluginDir string) []RuntimeIssue {
 		issues = append(issues, RuntimeIssue{
 			Kind:   "opencode",
 			Detail: fmt.Sprintf("OpenCode %s e anterior ao minimo v2.0.0 (plugins novos sao so-v2)", ocVer),
-			Hint:   "atualize OpenCode para >= v2.0.0, ou defina AGENT_SYNC_OPENCODE_VERSION=1 para fallback v1",
+			Hint:   "atualize OpenCode para >= v2.0.0 (linha v1 aposentada)",
 		})
 	}
 

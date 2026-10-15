@@ -36,8 +36,9 @@ func TestOpencodeVersionOverride(t *testing.T) {
 }
 
 func TestOpencodePluginSuffix(t *testing.T) {
-	if got := opencodePluginSuffix(1); got != ".opencode.ts" {
-		t.Errorf("v1 suffix: got %q", got)
+	// v1 aposentado: sufixo sempre v2 (hooks/*.opencode.ts deletados).
+	if got := opencodePluginSuffix(1); got != ".v2.ts" {
+		t.Errorf("v1 aposentado deve retornar sufixo v2, got %q", got)
 	}
 	if got := opencodePluginSuffix(2); got != ".v2.ts" {
 		t.Errorf("v2 suffix: got %q", got)
@@ -104,7 +105,8 @@ func TestSyncOpenCodeVersionedSelectsSource(t *testing.T) {
 	if err := os.MkdirAll(hooks, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(hooks, "memory-nudge.opencode.ts"), []byte("// v1"), 0o644); err != nil {
+	// v1 aposentado: arquivo .opencode.ts legado é ignorado; v2 instala .v2.ts.
+	if err := os.WriteFile(filepath.Join(hooks, "memory-nudge.opencode.ts"), []byte("// v1-legado-ignorado"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(hooks, "memory-nudge.v2.ts"), []byte("// v2"), 0o644); err != nil {
@@ -112,21 +114,18 @@ func TestSyncOpenCodeVersionedSelectsSource(t *testing.T) {
 	}
 	dest := t.TempDir()
 
+	// Mesmo com override v1, instalador v2-only retorna erro explícito.
 	t.Setenv("AGENT_SYNC_OPENCODE_VERSION", "1")
 	tgt := TargetCLI{AgentKind: "opencode", OpenCodePluginDir: dest}
-	if err := syncOpenCodeMemoryNudgePlugin(base, tgt); err != nil {
-		t.Fatal(err)
-	}
-	raw, _ := os.ReadFile(filepath.Join(dest, "memory-nudge.ts"))
-	if string(raw) != "// v1" {
-		t.Errorf("v1 deve instalar .opencode.ts, got %q", raw)
+	if err := syncOpenCodeMemoryNudgePlugin(base, tgt); err == nil {
+		t.Errorf("v1 aposentado deve retornar erro explícito, got nil")
 	}
 
 	t.Setenv("AGENT_SYNC_OPENCODE_VERSION", "2")
 	if err := syncOpenCodeMemoryNudgePlugin(base, tgt); err != nil {
 		t.Fatal(err)
 	}
-	raw, _ = os.ReadFile(filepath.Join(dest, "memory-nudge.ts"))
+	raw, _ := os.ReadFile(filepath.Join(dest, "memory-nudge.ts"))
 	if string(raw) != "// v2" {
 		t.Errorf("v2 deve instalar .v2.ts, got %q", raw)
 	}
@@ -143,14 +142,11 @@ func TestSyncOpenCodeNewPluginOnlyV2(t *testing.T) {
 	}
 	dest := t.TempDir()
 
-	// Em v1, plugin novo é silencioso (sem erro, sem arquivo).
+	// v1 aposentado: erro explícito em vez de silencioso.
 	t.Setenv("AGENT_SYNC_OPENCODE_VERSION", "1")
 	tgt := TargetCLI{AgentKind: "opencode", OpenCodePluginDir: dest}
-	if err := syncOpenCodeRepoMapWarmupPlugin(base, tgt); err != nil {
-		t.Fatalf("v1 novo plugin deve ser silencioso, got %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(dest, "repo-map-warmup.ts")); !os.IsNotExist(err) {
-		t.Errorf("v1 não deve instalar plugin só-v2")
+	if err := syncOpenCodeRepoMapWarmupPlugin(base, tgt); err == nil {
+		t.Errorf("v1 aposentado deve retornar erro explícito, got nil")
 	}
 
 	// Em v2 instala normalmente.

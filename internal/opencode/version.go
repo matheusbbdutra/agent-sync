@@ -37,32 +37,20 @@ func ParseMajor(out string) int {
 }
 
 // MajorVersion detecta a linha instalada do OpenCode.
-// Ordem: override de env > `opencode --version` > fallback 1.
-// O fallback 1 preserva o comportamento histórico (plugins v1) quando o
-// binário está ausente ou a saída não é parseável — nunca quebra o -apply.
+// Ordem: override de env > `opencode --version` > fallback 2.
+// v1 foi aposentado (hooks/*.opencode.ts deletados): o fallback agora é 2,
+// e quem tem v1 real instalado recebe erro explícito no sync (fail-fast)
+// em vez de wirar plugin legado silenciosamente.
 func MajorVersion() int {
 	if v := VersionOverride(); v != 0 {
 		return v
 	}
 	out, err := exec.Command("opencode", "--version").Output()
 	if err != nil {
-		return 1
+		return 2
 	}
 	if v := ParseMajor(string(out)); v != 0 {
 		return v
 	}
-	return 1
-}
-
-// PluginSource escolhe o arquivo-fonte no repo conforme a versão:
-// v1 -> hooks/<base>.opencode.ts (formato @opencode-ai/plugin)
-// v2 -> hooks/<base>.v2.ts (formato @opencode/plugin, Plugin.define + setup).
-// Retorna "" quando o arquivo esperado não existe (caller decide se é
-// opcional ou erro — plugins legados são obrigatórios, novos só-v2 são
-// silenciosos em v1).
-func PluginSource(baseDir, base string, major int) string {
-	if major >= 2 {
-		return baseDir + "/hooks/" + base + ".v2.ts"
-	}
-	return baseDir + "/hooks/" + base + ".opencode.ts"
+	return 2
 }
