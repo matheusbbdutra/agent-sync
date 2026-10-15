@@ -30,5 +30,3 @@ func TestOpencodeVersionOverride(t *testing.T) {
 		t.Errorf("override 1: got %d", got)
 	}
 }
-
-

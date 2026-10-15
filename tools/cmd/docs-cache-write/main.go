@@ -8,6 +8,7 @@
 //   - hook (--from-hook): lê o payload cru do hook PostToolUse via stdin e extrai
 //     {url,text} internamente (antes feito por hooks/docs-cache.py, removido).
 //     --cli=auto|claude|codex|antigravity (auto detecta via presença de "toolCall").
+//
 // "url" pode ser uma URL real ou uma chave sintética (ex: context7://<lib>/<query>).
 package main
 

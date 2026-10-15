@@ -2,7 +2,7 @@
 //
 // Portado de hooks/docs-cache.py + hooks/docs-cache.antigravity.py (removidos,
 // regra §4 Python-zero). A lógica de parse vive aqui, em Go, junto do writer —
-/// o wrapper shell só traduz o contrato e repassa o stdin.
+// / o wrapper shell só traduz o contrato e repassa o stdin.
 package main
 
 import (
