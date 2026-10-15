@@ -1,4 +1,4 @@
-.PHONY: help setup setup-go setup-opencode build install cline-plugin-build cline-install apply sync status vendor mcp mirror test lint fmt clean
+.PHONY: help setup setup-go setup-opencode build install cline-plugin-build cline-install apply sync status doctor vendor mcp mirror test lint check fmt clean
 
 .DEFAULT_GOAL := help
 
@@ -66,6 +66,9 @@ sync: apply ## Alias silencioso de apply (mantido para retrocompatibilidade)
 status: ## Mostra o status de sincronização de cada CLI
 	~/.local/bin/agent-sync -status
 
+doctor: ## Saúde do ambiente: skills, schemas, plugins OpenCode, binários e AGENTS.md nas 5 CLIs
+	go run ./cmd/agent-sync doctor
+
 vendor: ## Reimporta as skills curadas do catálogo (skills/manifest.json)
 	go run ./cmd/agent-sync -vendor
 
@@ -84,6 +87,9 @@ lint: ## go vet + gofmt -l em ambos os módulos (nao mutativo)
 	cd tools && go vet ./...
 	@gofmt -l . | tee /tmp/agent-sync-gofmt-root.out && [ ! -s /tmp/agent-sync-gofmt-root.out ]
 	cd tools && gofmt -l . | tee /tmp/agent-sync-gofmt-tools.out && [ ! -s /tmp/agent-sync-gofmt-tools.out ]
+
+check: lint test ## Gate pré-commit (repo-local): vet+gofmt, testes (raiz+tools) e lint das skills (spec SKILL.md)
+	go run ./cmd/agent-sync skills lint
 
 fmt: ## Corrige formatação com gofmt -w em ambos os módulos
 	gofmt -w .

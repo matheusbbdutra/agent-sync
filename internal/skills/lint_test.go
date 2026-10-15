@@ -105,3 +105,46 @@ func TestSkillsLintRealManifestPasses(t *testing.T) {
 		t.Fatalf("repo real deveria passar lint: %v", err)
 	}
 }
+
+// Colisão de gatilhos: descriptions praticamente idênticas competem pelo mesmo
+// prompt, então o lint sinaliza warning (sem falhar o gate: Errors continua 0).
+func TestSkillsLintCollisionWarning(t *testing.T) {
+	baseDir := t.TempDir()
+	desc := "Use when reviewing authentication flows, validating input and auditing security sensitive code."
+	makeSkill(t, baseDir, "alpha-security", "---\nname: alpha-security\ndescription: \""+desc+"\"\n---\n\n# A\n")
+	makeSkill(t, baseDir, "beta-security", "---\nname: beta-security\ndescription: \""+desc+"\"\n---\n\n# B\n")
+
+	res, err := CollectLint(baseDir)
+	if err != nil {
+		t.Fatalf("CollectLint falhou: %v", err)
+	}
+	if res.Errors != 0 {
+		t.Fatalf("colisão deveria ser warning, nao error (issues=%+v)", res.Issues)
+	}
+	found := false
+	for _, iss := range res.Issues {
+		if iss.Check == "collision" && iss.Severity == "warning" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("esperava warning de collision, issues=%+v", res.Issues)
+	}
+	if err := RunLintWithBase(nil, baseDir); err != nil {
+		t.Fatalf("warning de colisao nao pode quebrar o gate: %v", err)
+	}
+}
+
+func TestSkillsLintNoCollisionForDistinctDescriptions(t *testing.T) {
+	baseDir := t.TempDir()
+	makeSkill(t, baseDir, "foo", "---\nname: foo\ndescription: \"Use when fooing a quux.\"\n---\n")
+	makeSkill(t, baseDir, "bar", "---\nname: bar\ndescription: \"Design bars with baz.\"\n---\n")
+
+	res, err := CollectLint(baseDir)
+	if err != nil {
+		t.Fatalf("CollectLint falhou: %v", err)
+	}
+	if res.Warnings != 0 {
+		t.Fatalf("nao esperava warnings, issues=%+v", res.Issues)
+	}
+}
