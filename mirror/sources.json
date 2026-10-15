@@ -65,6 +65,13 @@
     "https://eslint.org/docs/latest/use/getting-started",
     "https://cheatsheetseries.owasp.org/",
     "https://owasp.org/www-project-top-ten/",
-    "https://owasp.org/www-project-application-security-verification-standard/"
+    "https://owasp.org/www-project-application-security-verification-standard/",
+    "https://agentskills.io/specification",
+    "https://agents.md",
+    "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+    "https://github.com/agentplugins/agent-plugins-spec",
+    "https://modelcontextprotocol.io/",
+    "https://github.com/modelcontextprotocol/registry",
+    "https://github.com/modelcontextprotocol/servers"
   ]
 }
