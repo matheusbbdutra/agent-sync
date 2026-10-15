@@ -27,6 +27,16 @@ Responda em PT-BR, objetivo (AGENTS.md global). O objetivo aqui é **avaliar**, 
 3. Se não houver MCP e a integração for recorrente, apresente a opção como sugestão curta — não decida sozinho por instalar/configurar nada sem aprovação (mudança de configuração conta como ação que precisa de confirmação, conforme AGENTS.md).
 4. Se for código de produto do próprio usuário (não tooling do agente), não sugira MCP — isso é escopo de aplicação, não de assistente.
 
+## Descoberta e segurança antes de instalar
+
+Se a decisão for usar um MCP, avalie a origem antes de configurar qualquer coisa:
+
+- **Descoberta**: o catálogo oficial é o MCP Registry (publicação via `server.json` + CLI `mcp-publisher`); o namespace denuncia a posse (`io.github.<usuario>/...` exige login GitHub; domínio próprio exige challenge DNS/HTTP). Prefira o servidor mantido por quem mantém o sistema a um fork de terceiro.
+- **Manutenção**: confira último push, issues abertas e licença — servidor abandonado vira superfície de risco no tooling do agente.
+- **Scan antes de instalar**: existem scanners que cobrem agentes, servidores MCP e skills (ex.: `snyk/agent-scan`); trate skill/servidor de terceiro como código não auditado.
+- **Execução isolada**: nunca rode servidor MCP não confiável direto no filesystem/credenciais do usuário — use sandbox, container ou microVM com capabilities restritas.
+- **Escala**: com vários servidores/MCPs no time, avalie um gateway de agregação (auth centralizada, rate limit, observabilidade) em vez de espalhar N configurações por CLI — só vale quando o número de servidores justificar o processo a mais.
+
 ## Formato da sugestão
 
 Seja direto: nome do sistema, por que um MCP ajudaria mais que código custom, e pergunte se o usuário quer que você configure/verifique isso — não implemente a integração custom "de qualquer jeito" e depois mencione o MCP como nota de rodapé.
