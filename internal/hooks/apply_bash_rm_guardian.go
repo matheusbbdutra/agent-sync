@@ -40,7 +40,7 @@ func syncBashRmGuardian(baseDir string, target TargetCLI) error {
 }
 
 // syncBashRmGuardianStandard wirar PreToolUse para Claude Code e Codex.
-// Usa o script `bash-rm-guardian.pretooluse.sh` que emite no formato
+// Usa o core `bash-rm-guardian.sh` (entrypoint com deteccao de contrato)
 // `hookSpecificOutput.additionalContext` (Claude/Codex nativos) em vez de
 // injectSteps (Antigravity-only).
 func syncBashRmGuardianStandard(baseDir string, target TargetCLI) error {
@@ -53,7 +53,7 @@ func syncBashRmGuardianStandard(baseDir string, target TargetCLI) error {
 	// evento raro por perda permanente de aviso. O scenario e raro de
 	// proposito: so dispara quando o audit detecta refs ativas.
 	return syncStandardHookAtEvent(baseDir, target, bashRmGuardianHookName,
-		"bash-rm-guardian.pretooluse.sh", "*", "PreToolUse", nil)
+		"bash-rm-guardian.sh", "*", "PreToolUse", nil)
 }
 
 // bashRmGuardianOpenCodePatterns lista os patterns bash que disparam o
@@ -171,7 +171,7 @@ func syncBashRmGuardianAntigravity(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" || target.HooksFormat != "antigravity" {
 		return nil
 	}
-	scriptPath, err := pathutil.HookScriptPath(baseDir, "bash-rm-guardian.antigravity.sh")
+	scriptPath, err := pathutil.HookScriptPath(baseDir, "bash-rm-guardian.sh")
 	if err != nil {
 		return err
 	}

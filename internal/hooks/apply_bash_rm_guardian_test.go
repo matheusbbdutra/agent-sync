@@ -18,7 +18,7 @@ import (
 func TestSyncBashRmGuardianAntigravity(t *testing.T) {
 	root := t.TempDir()
 
-	// setup baseDir com hooks/bash-rm-guardian.antigravity.sh
+	// setup baseDir com hooks/bash-rm-guardian.sh (core + entrypoint)
 	baseDir := filepath.Join(root, "base")
 	hooksDir := filepath.Join(baseDir, "hooks")
 	if err := os.MkdirAll(hooksDir, 0o755); err != nil {
@@ -26,13 +26,13 @@ func TestSyncBashRmGuardianAntigravity(t *testing.T) {
 	}
 	// copia script real do worktree para hooksDir
 	wd, _ := os.Getwd()
-	srcScript := filepath.Join(wd, "..", "..", "hooks", "bash-rm-guardian.antigravity.sh")
+	srcScript := filepath.Join(wd, "..", "..", "hooks", "bash-rm-guardian.sh")
 	srcScript = filepath.Clean(srcScript)
 	data, err := os.ReadFile(srcScript)
 	if err != nil {
-		t.Skipf("script bash-rm-guardian.antigravity.sh não encontrado em %s: %v", srcScript, err)
+		t.Skipf("script bash-rm-guardian.sh não encontrado em %s: %v", srcScript, err)
 	}
-	if err := os.WriteFile(filepath.Join(hooksDir, "bash-rm-guardian.antigravity.sh"), data, 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(hooksDir, "bash-rm-guardian.sh"), data, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -93,7 +93,7 @@ func TestSyncBashRmGuardianAntigravity(t *testing.T) {
 	}
 	h0, _ := hooks[0].(map[string]any)
 	cmd, _ := h0["command"].(string)
-	if !strings.Contains(cmd, "bash-rm-guardian.antigravity.sh") {
+	if !strings.Contains(cmd, "bash-rm-guardian.sh") {
 		t.Errorf("command não referencia o script: %q", cmd)
 	}
 

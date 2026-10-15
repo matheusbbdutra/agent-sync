@@ -9,15 +9,19 @@
 #   - Se blockers > 0: stdout com injectSteps listando refs ativas para o
 #     modelo revisar antes de prosseguir.
 #
-# Contrato por CLI:
-#   - Antigravity (PreToolUse): {"decision":"allow"} + injectSteps opcional.
-#   - Cursor (beforeShellExecution): {"permission":"allow"} + agent_message opcional.
-#   - OpenCode (TS): adapter emite stdout específico.
-#   - Codex (PreToolUse): hookSpecificOutput.permissionDecision=allow.
-#   - Claude: regra permissions em settings.json (não usa este script).
+# Contrato por CLI (detectado pelo shape do payload, 1 core — regra §4):
+#   - Antigravity PreToolUse (toolCall presente): {"decision":"allow"} + injectSteps opcional.
+#   - Claude/Codex PreToolUse: {} + hookSpecificOutput.additionalContext opcional.
+#   - OpenCode: permission.bash=ask (via Go, sem script). Cline: via bridge TS.
+#   - NUNCA bloqueia (sem deny) — só avisa.
 #
-# Este script é o CORE compartilhado — cada wrapper fino por CLI invoca
-# este core e adapta o output para o contrato.
+# Este script é o CORE + entrypoint — os wrappers finos por CLI foram
+# dobrados para cá (fold passo 4): o contrato é decidido pelo payload.
+# Modos:
+#   - "analyze": recebe command_line em $1, retorna blockers via stdout JSON
+#                no contrato neutro {"blockers":[...],"target":"..."}
+#   - default (sem args): hook entrypoint, lê payload do stdin e emite o
+#                contrato da CLI detectada.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -114,19 +118,62 @@ if [ "${1:-}" = "analyze" ]; then
   exit 0
 fi
 
-# Modo padrão: stdin = payload do hook, parse command_line via detector CLI
-# (este modo é raramente usado diretamente; cada wrapper fino deve passar
-# command_line explicitamente via "analyze <cmd>")
+# Modo padrão: hook entrypoint — lê payload do stdin, detecta a CLI pelo
+# shape e emite o contrato correspondente (fold passo 4 — regra §4).
 input="$(cat)"
+is_antigravity=0
+case "$input" in
+  *'"toolCall"'*) is_antigravity=1 ;;
+esac
+
 command_line="$(printf '%s' "$input" | grep -oE '"(command|CommandLine)"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n1 | sed -E 's/.*:[[:space:]]*"(.*)"/\1/' || true)"
 
+emit_allow_plain() {
+  if [ "$is_antigravity" -eq 1 ]; then
+    printf '{"decision":"allow"}'
+  else
+    printf '{}'
+  fi
+}
+
 if [ -z "$command_line" ]; then
-  printf '{}'
+  # Sem command_line: PreInvocation sem toolCall também cai aqui — emite o
+  # contrato vazio da CLI detectada (nunca deny).
+  if [ "$is_antigravity" -eq 1 ]; then
+    printf '{"decision":"allow"}'
+  else
+    printf '{}'
+  fi
   exit 0
 fi
 
 # Desescapar minimo
 command_line="$(printf '%s' "$command_line" | sed -e 's/\\"/"/g' -e 's/\\\\/\\/g')"
 
-analyze "$command_line"
+result="$(AGENT_SYNC_ROOT="${AGENT_SYNC_ROOT:-$(pwd)}" analyze "$command_line" 2>/dev/null || true)"
+blockers="$(printf '%s' "$result" | grep -oE '"blockers":\[[^]]*\]' | sed 's/"blockers"://' || true)"
+target="$(printf '%s' "$result" | grep -oE '"target":"[^"]*"' | sed 's/"target":"//;s/"$//' || true)"
+
+if [ -z "$blockers" ] || [ "$blockers" = "[]" ]; then
+  emit_allow_plain
+  exit 0
+fi
+
+summary="$(printf '%s' "$blockers" | grep -oE '"[^"]+"' | sed 's/"//g' | tr '\n' ';' | sed 's/;$//')"
+# Nota: sem escape manual de aspas aqui — `jq --arg` já escapa ao serializar.
+message="bash-rm-guardian: \"$target\" tem refs ativas no repo. Revise antes de prosseguir: $summary"
+
+if [ "$is_antigravity" -eq 1 ]; then
+  # injectSteps: shape aceito por Antigravity PreToolUse.
+  jq -n \
+    --arg target "$target" \
+    --arg summary "$summary" \
+    '{decision:"allow", injectSteps:[{label:"bash-rm-guardian", message:("bash-rm-guardian: \"" + $target + "\" tem refs ativas no repo. Revise antes de prosseguir: " + $summary)}]}'
+  exit 0
+fi
+
+# Formato Claude Code / Codex PreToolUse.
+jq -n \
+  --arg msg "$message" \
+  '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$msg}}'
 exit 0

@@ -6,7 +6,8 @@
 #
 # Regra §4 (Python-zero): a extração de {url,text} vive em
 # tools/cmd/docs-cache-write (--from-hook, Go). Este wrapper só traduz o
-# contrato e repassa o stdin.
+# contrato e repassa o stdin. --cli=auto detecta Antigravity via `toolCall`
+# (fold passo 4 — o .antigravity.sh foi dobrado para cá).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,5 +21,5 @@ fi
 
 # docs-cache-write nunca quebra o hook: sem doc cacheável sai silencioso.
 # O writer só loga em stderr; o contrato do hook exige '{}' no stdout.
-"$WRITER" --from-hook --cli=claude || true
+"$WRITER" --from-hook --cli=auto || true
 printf '{}'

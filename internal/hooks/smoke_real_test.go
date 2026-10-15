@@ -47,9 +47,9 @@ func TestSmokeRealAntigravityEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 	wd, _ := os.Getwd()
-	srcScript := filepath.Join(wd, "..", "..", "hooks", "bash-rm-guardian.antigravity.sh")
+	srcScript := filepath.Join(wd, "..", "..", "hooks", "bash-rm-guardian.sh")
 	if data, err := os.ReadFile(srcScript); err == nil {
-		_ = os.WriteFile(filepath.Join(hooksDir, "bash-rm-guardian.antigravity.sh"), data, 0o755)
+		_ = os.WriteFile(filepath.Join(hooksDir, "bash-rm-guardian.sh"), data, 0o755)
 	}
 	srcCore := filepath.Join(wd, "..", "..", "hooks", "bash-rm-guardian.sh")
 	coreData, err := os.ReadFile(srcCore)
@@ -93,7 +93,7 @@ func TestSmokeRealAntigravityEndToEnd(t *testing.T) {
 	}
 
 	// O command wirado tem a forma:
-	//   <baseDir>/hooks/wrap-hook.sh PreToolUse <hookName> <baseDir>/hooks/bash-rm-guardian.antigravity.sh
+	//   <baseDir>/hooks/wrap-hook.sh PreToolUse <hookName> <baseDir>/hooks/bash-rm-guardian.sh
 	// Extrai o caminho do script final (último argumento)
 	parts := strings.Fields(wiradoCmd)
 	scriptFinal := parts[len(parts)-1]
