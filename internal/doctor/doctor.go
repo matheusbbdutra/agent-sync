@@ -98,6 +98,7 @@ var expectedDoctorBinaries = []string{
 	"mr-collect-cli",
 	"mr-review-local",
 	"repo-map",
+	"secret-scan",
 	"shell-validate",
 	"trace-strip",
 }
