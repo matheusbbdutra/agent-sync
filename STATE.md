@@ -3,7 +3,7 @@
 # STATE — agent-sync
 
 > Fonte de verdade: `.agent-sync/session-state.json` (schema v1.2).
-> Renderizado por `agent-sync state render` em 2026-10-15T18:40:00Z. Não edite à mão.
+> Renderizado por `agent-sync state render` em 2026-10-15T18:55:00Z. Não edite à mão.
 
 ## Estado do repositório
 
@@ -15,7 +15,7 @@
 
 - ID: `sess-20260920-170000`
 - Início: 2026-09-19T18:37:59Z
-- Última atualização: 2026-10-15T18:40:00Z
+- Última atualização: 2026-10-15T18:55:00Z
 
 ## Decisões
 
@@ -167,8 +167,8 @@
 - **A-21** [done] ADR Trilha C (D-27) - criar docs/ADR-trilha-c-cobertura-cross-cli.md formalizando regra 5xN + 3 estados + criterio de promocao Proposto->Aceito. Enxuto, ~70 linhas.
 - **A-22** [done] Probe empirica A-22 fechada em 2026-09-21 (subagente ses_f3c668c7bffe4aqJiel37W6Bk8). OpenCode CLI v2.0.11 EXPOE /compact programaticamente via: (a) POST /api/session/{sessionID}/compact HTTP (path correto com prefixo /api/, NAO /session/.../compact direto) — service-5mmhmmk7.js:397-404; (b) SDK client.session.compact({sessionID, id?, delivery?: 'steer'|'queue'}) em @opencode/client@2.0.11 — client.d.ts:51; (c) hook de plugin ctx.session.hook('compaction', ...) first-class em @opencode/plugin@2.0.11 — session.d.ts:42-45; (d) keybind TUI session_compact + comando 'session.compact' — types.gen.d.ts:547,694. NAO existe subcommand CLI direto 'opencode session compact' — apenas proxy via 'opencode api POST /api/session/<id>/compact'. C-4 mantido Aceito (D-36); smoke planejado real via endpoint HTTP fica para entrega subsequente (ver D-38).
 - **A-23** [pending] C-3 Antigravity tokens — smoke script+wiramento PASS 2026-09-30 (D-116/SMOKE-TEST-U, bug actor-vocab corrigido); falta e2e em sessao agy real para fechar ✅
-- **A-24** [pending] C-3 Cursor tokens via heuristica de transcript — reavaliar a cada release (PLAYBOOK-K)
-- **A-25** [pending] C-1 Cursor PreCompact ⛔ gap aceito — reavaliar a cada release do Cursor
+- **A-24** [cancelled] [cancelado 2026-10-15 -> Cursor aposentado como target (D-128; docs/ADR-cursor-aposentadoria.md) — item sem objeto] C-3 Cursor tokens via heuristica de transcript — reavaliar a cada release (PLAYBOOK-K)
+- **A-25** [cancelled] [cancelado 2026-10-15 -> Cursor aposentado como target (D-128; docs/ADR-cursor-aposentadoria.md) — item sem objeto] C-1 Cursor PreCompact ⛔ gap aceito — reavaliar a cada release do Cursor
 - **A-26** [done] session-event.json bump minor 1.0->1.1 (enum kind ganha precompact_snapshot) + false-success-guard/inspectTranscript reconhece tool 'compact' como RanTestCommand (analogia ao fix D-25 Shell) - 3 arquivos editados: tools/jsonschema/schemas/session-event.json (enum + description), tools/cmd/false-success-guard/hook.go:194-201 (substring 'compact' adicionada), tools/cmd/false-success-guard/hook_test.go (TestRunHookAcceptsCompactAsVerification). ADR-promoted Proposto->Aceito. Ver D-39.
 - **A-27** [done] Sincronizar README.pt-BR.md com EN compactado (162 linhas) - mesma estrutura de docs/guides/. Nao foi feito automaticamente (traducao exige consistencia PT-BR). Pendente decisao do usuario.
 - **A-28** [pending] Briefing nova sessao — sub-item (i) SMOKE-TEST-U FECHADO 2026-09-30 (D-116); resta (iv) livre escolha do usuario
