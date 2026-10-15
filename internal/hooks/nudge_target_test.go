@@ -196,7 +196,7 @@ func TestNudgeForAntigravityStillUsesPostToolUse(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(tempBase, "hooks"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for _, n := range []string{"agent-react-nudge.antigravity.sh", "agent-react-nudge.pretooluse.sh"} {
+	for _, n := range []string{"agent-react-nudge.pretooluse.sh"} {
 		if err := os.WriteFile(filepath.Join(tempBase, "hooks", n),
 			[]byte("#!/bin/sh\necho {}\n"), 0o755); err != nil {
 			t.Fatal(err)

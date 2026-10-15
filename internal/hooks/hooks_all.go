@@ -23,7 +23,7 @@ func syncHooks(baseDir string, target TargetCLI) error {
 		return nil
 	}
 	if target.HooksFormat == "antigravity" {
-		return syncAntigravityHook(baseDir, target, contextGuardHookName, "context-guard-nudge.antigravity.sh", "*")
+		return syncAntigravityHook(baseDir, target, contextGuardHookName, "context-guard-nudge.pretooluse.sh", "*")
 	}
 	// Codex + Claude: PreToolUse + .pretooluse.sh
 	return syncStandardHookAtEvent(baseDir, target, contextGuardHookName,

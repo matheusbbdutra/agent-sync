@@ -691,9 +691,9 @@ func TestNudgesDoNotEmitIfFilterForAntigravity(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, script := range []string{
-		"context-guard-nudge.antigravity.sh",
-		"memory-nudge.antigravity.sh",
-		"agent-react-nudge.antigravity.sh",
+		"context-guard-nudge.pretooluse.sh",
+		"memory-nudge.pretooluse.sh",
+		"agent-react-nudge.pretooluse.sh",
 	} {
 		if err := os.WriteFile(filepath.Join(hooksDir, script), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 			t.Fatalf("criar stub %s: %v", script, err)

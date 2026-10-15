@@ -33,7 +33,7 @@ func syncAgentReactNudgeHook(baseDir string, target TargetCLI) error {
 		return nil
 	}
 	if target.HooksFormat == "antigravity" {
-		return syncAntigravityHook(baseDir, target, agentReactNudgeHookName, "agent-react-nudge.antigravity.sh", "*")
+		return syncAntigravityHook(baseDir, target, agentReactNudgeHookName, "agent-react-nudge.pretooluse.sh", "*")
 	}
 	// Codex + Claude: PreToolUse + .pretooluse.sh
 	return syncStandardHookAtEvent(baseDir, target, agentReactNudgeHookName,
