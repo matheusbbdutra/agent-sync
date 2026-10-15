@@ -47,10 +47,6 @@ func TestSmokeRealAntigravityEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 	wd, _ := os.Getwd()
-	srcScript := filepath.Join(wd, "..", "..", "hooks", "bash-rm-guardian.sh")
-	if data, err := os.ReadFile(srcScript); err == nil {
-		_ = os.WriteFile(filepath.Join(hooksDir, "bash-rm-guardian.sh"), data, 0o755)
-	}
 	srcCore := filepath.Join(wd, "..", "..", "hooks", "bash-rm-guardian.sh")
 	coreData, err := os.ReadFile(srcCore)
 	if err != nil {

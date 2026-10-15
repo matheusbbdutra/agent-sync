@@ -239,7 +239,8 @@ func runHandoff(args []string, stdin io.Reader, stdout, stderr io.Writer) error 
 	// NUNCA emitir `injectSteps + ephemeralMessage` no PreInvocation:
 	// o Gemini CLI interpreta esse schema como "tool call denied by
 	// pre-tool hook" (verificado em runtime 2026-09-22, mesmo motivo
-	// que tornou `agent-react-nudge.antigravity.sh` no-op).
+	// que faz os nudges unificados emitirem `{}` + stderr no
+	// Antigravity — ver hooks/agent-react-nudge.pretooluse.sh).
 	context := "Resumo anterior do projeto (confirme no código antes de agir):\n" + summary + formatTurnsForHandoff(turns)
 	var output any
 	switch cli {

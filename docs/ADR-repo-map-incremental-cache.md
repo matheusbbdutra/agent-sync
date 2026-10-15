@@ -114,10 +114,8 @@ Como esta é uma tarefa bem isolada e de escopo determinístico (estruturação 
 | `tools/internal/repomap/repomap_test.go` | 13 testes: update idempotente, invalidação por mtime, remoção de arquivos, extratores Go/Py/TS/PHP, focus, summary, resolução por sufixo, roundtrip save/load |
 | `tools/cmd/repo-map/main.go` | CLI com flags `--update [--quiet]`, `--focus <path> [--depth N]`, `--summary [--max-tokens N]`, `--root`, `--cache-dir`, `--version`. `runMain` retorna exit code (testável sem `os.Exit`) |
 | `tools/cmd/repo-map/main_test.go` | 7 testes CLI: update em dir temporário, focus sem cache, sem flags, version, focus pós-update, summary, summary com max-tokens |
-| `hooks/repo-map-warmup.sh` | Hook bash genérico silencioso (sempre retorna `{}`, exit 0; roda `repo-map --update --quiet` em background) |
-| `hooks/repo-map-warmup.cursor.sh` | Variante para Cursor (síncrono via `FOREGROUND=1`) |
-| `hooks/repo-map-warmup.antigravity.sh` | Variante para Antigravity (delega ao genérico) |
-| `hooks/repo-map-warmup.opencode.ts` | Plugin OpenCode: warm-up lazy na primeira chamada de tool |
+| `hooks/repo-map-warmup.sh` | Hook bash genérico silencioso (sempre retorna `{}`, exit 0; roda `repo-map --update --quiet` em background). Único ponto de entrada desde o fold A/B — os wrappers `.cursor.sh`/`.antigravity.sh` foram removidos |
+| `hooks/repo-map-warmup.v2.ts` | Plugin OpenCode v2: warm-up lazy na primeira chamada de tool (substitui o `.opencode.ts` v1, aposentado) |
 | `Makefile` | Adicionado target `cd tools && go build -o ../bin/repo-map ./cmd/repo-map` |
 
 ### Extratores por Linguagem

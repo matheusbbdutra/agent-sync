@@ -37,3 +37,10 @@
 - **Memória Enxuta**: Ao gravar no memory-mcp (`store_memory` ou `record_event`), registre apenas fatos e regras acionáveis em formato ultra-conciso (máx 2-3 linhas ou ~180 caracteres). Nunca registre diários, tentativas falhas descartadas ou código transitório já deletado.
 - Evite despejar arquivos inteiros no contexto (prefira outlines, buscas cirúrgicas e trechos delimitados).
 - Ao final de cada turno, finalize com 1-2 frases resumindo o que mudou e o que falta.
+
+## 7. Convenções de Processo Agêntico
+Detalhe e racional em `docs/ADR-convencoes-processo-agentico.md` (zero runtime, honor-system):
+- **Proposta-Primeiro**: propor regra/refactor = só texto no chat. Escrever em disco só com imperativo explícito (`aplique`, `faça`, `execute`) — espelha §3.
+- **Regra 3X**: 3 recusas consecutivas do mesmo guardrail → congela, resume o histórico e escala ao usuário em vez de insistir numa 4ª tentativa.
+- **Modo Sticky**: sessão continua no agente corrente até `exit`/troca explícita (latente — sem caso de uso no agent-sync hoje).
+
