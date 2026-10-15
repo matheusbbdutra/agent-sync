@@ -22,6 +22,12 @@ var standardHooks = []hookSpec{
 		// detail nil → não imprime sucesso (preserva comportamento histórico)
 	},
 	{name: "shell-validate", fn: syncShellValidateHook, detail: settingsPathDetail},
+	// cmd-cache (PostToolUse): grava o stdout de comandos read-only do
+	// allowlist para o shell-validate (PreToolUse) servir o hit. Opt-in via
+	// AGENT_SYNC_CMD_CACHE=1. Só Claude/Codex nesta entrega (Antigravity manda
+	// o output por transcript, OpenCode exige plugin TS, Cline exige plugin).
+	// Ver docs/ADR-reuso-bash-sudo-agents.md §1.
+	{name: "cmd-cache", fn: syncCmdCacheHook, agentKinds: []string{"claude", "codex"}, detail: settingsPathDetail},
 	{name: "docs-cache", fn: syncDocsCacheHook, detail: settingsPathDetail},
 	// Nudge combinado de ctx-window summarize (PostToolUse). OpenCode fica para plugin TS separado.
 	{name: "ctx-window-nudge", fn: syncCtxWindowNudgeHook, detail: settingsPathDetail},

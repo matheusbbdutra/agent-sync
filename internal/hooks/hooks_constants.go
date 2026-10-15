@@ -36,6 +36,7 @@ const (
 	ctxHandoffHookName              = "agent-sync-ctx-handoff"
 	ctxNudgeHookName                = "agent-sync-ctx-nudge"
 	shellValidateHookName           = "agent-sync-shell-validate"
+	cmdCacheHookName                = "agent-sync-cmd-cache"
 	agentStopHookName               = "agent-sync-agent-stop"
 	preInvocationReminderHookName   = "agent-sync-preinvocation-reminder"
 	principlesInjectHookName        = "agent-sync-principles-inject"
