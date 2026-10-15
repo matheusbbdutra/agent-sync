@@ -67,7 +67,7 @@ post_no_secret() {
   local input='{"tool_output":"total 4\ndrwxr-xr-x 2 user user 4096 sep 25 12:00 .\n"}'
   local out
   out="$(printf '%s' "$input" | bash "$POST")"
-  if printf '%s' "$out" | grep -q '"tool_output":"total 4'; then pass; else fail "output deveria passar intacto, obtive: $out"; fi
+  if [ "$out" = "{}" ]; then pass; else fail "output sem secret deveria ser silencioso '{}', obtive: $out"; fi
 }
 
 # Caso PostToolUse 2: output com JWT -> hook redaciona para <REDACTED:JWT>.
