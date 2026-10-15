@@ -14,8 +14,7 @@ package hooks
 // agent-react) a tools de edicao em Claude Code e Codex, cortando ~60-70%
 // dos forks em sessoes tipicas. Cada filtro vira um hook handler
 // independente - permission rule syntax do Claude Code nao suporta OR
-// entre tool names num unico `if`. Antigravity ignora `if` silenciosamente;
-// Cursor mantem matcher `*` em outros targets.
+// entre tool names num unico `if`. Antigravity ignora `if` silenciosamente.
 var nudgeIfFilters = []string{"Edit(*)", "Write(*)", "MultiEdit(*)", "NotebookEdit(*)"}
 
 // supportsNudgeFilter retorna true quando o AgentKind atual respeita o

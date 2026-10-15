@@ -284,8 +284,7 @@ func decodeHookEntries(raw interface{}) []hookEntry {
 	return out
 }
 
-// encodeHookEntries converte []hookEntry de volta para o formato JSON
-// (usado em Cursor que tem merge próprio, ver hooks_cursor_apply.go).
+// encodeHookEntries converte []hookEntry de volta para o formato JSON.
 func encodeHookEntries(entries []hookEntry) []map[string]interface{} {
 	out := make([]map[string]interface{}, 0, len(entries))
 	for _, e := range entries {

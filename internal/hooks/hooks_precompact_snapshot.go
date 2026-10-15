@@ -37,17 +37,13 @@ func syncContextSnapshotHook(baseDir string, target TargetCLI) error {
 			command, "*", "PreCompact", nil)
 	case "antigravity":
 		// PreInvocation = proxy do PreCompact (D-28). Wrapper bash
-		// resolve o project root via walk-up no filesystem (mesma
-		// estrategia do agent-react-nudge.stop.cursor.sh).
+		// resolve o project root via walk-up no filesystem.
 		scriptPath, err := pathutil.HookScriptPath(baseDir, "agent-sync-precompact-snapshot.sh")
 		if err != nil {
 			return err
 		}
 		wrapped := wrapHookCommand(baseDir, "PreInvocation", ctxSnapshotHookName, scriptPath)
 		return syncAntigravityPreInvocation(target, ctxSnapshotHookName, wrapped)
-	case "cursor":
-		// Observacional ja wirado via syncCtxCompactHook; nao duplicar.
-		return nil
 	default:
 		return nil
 	}

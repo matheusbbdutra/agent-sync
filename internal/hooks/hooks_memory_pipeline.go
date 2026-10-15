@@ -17,10 +17,6 @@ func syncMemoryObserveHook(baseDir string, target TargetCLI) error {
 		return err
 	}
 	command := "AGENT_SYNC_AGENT_KIND=" + target.AgentKind + " "
-	if target.HooksFormat == "cursor" {
-		return syncCursorCommandAtEvent(target.HooksSettingsPath, "postToolUse",
-			command+"./hooks/"+scriptName+" "+scriptName)
-	}
 	if target.HooksFormat == "antigravity" {
 		targetCopy := target
 		targetCopy.HooksEvent = "PostToolUse"
@@ -46,9 +42,6 @@ func syncMemoryConsolidateHook(baseDir string, target TargetCLI) error {
 		return err
 	}
 	command := "AGENT_SYNC_AGENT_KIND=" + target.AgentKind + " "
-	if target.HooksFormat == "cursor" {
-		return syncCursorCommandAtEvent(target.HooksSettingsPath, "stop", "./hooks/"+scriptName+" "+scriptName)
-	}
 	if target.HooksFormat == "antigravity" {
 		return syncAntigravityFlatHook(target, memoryConsolidateHookName, "Stop",
 			command+wrapHookCommand(baseDir, "Stop", memoryConsolidateHookName, scriptPath))

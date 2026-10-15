@@ -99,23 +99,6 @@ func TestSyncSecretGuardHooksWirePreAndPost(t *testing.T) {
 	}
 }
 
-// TestSyncSecretGuardCursorPostToolUseInCursorManagedHooks valida que a
-// entrada de secret-guard.posttooluse.sh esta em cursorManagedHooks()
-// (merge gerenciado por syncCursorAll).
-func TestSyncSecretGuardCursorPostToolUseInCursorManagedHooks(t *testing.T) {
-	found := false
-	for _, h := range cursorManagedHooks() {
-		if h.Event == "postToolUse" && h.Script == secretGuardPostToolUseScript {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("cursorManagedHooks() deveria conter entrada postToolUse para %s",
-			secretGuardPostToolUseScript)
-	}
-}
-
 // TestSyncSecretGuardHooksSkipNonSupported valida que wiramento e no-op
 // para CLIs fora do escopo (matriz 5xN do ADR §2: 1 gap 🟡 aceito fica
 // para A-64+ via permission.hook).

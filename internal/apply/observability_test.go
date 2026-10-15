@@ -106,7 +106,7 @@ func TestReadHookEventsParsesNewFields(t *testing.T) {
 	content := "" +
 		`{"timestamp":"t1","event":"hook_error","version":"1","stage":"PostToolUse","code":"rc=1","message":"a","cli":"codex","tool":"bash","session_id":"s1","status":"ok","duration_ms":42}` + "\n" +
 		`{"timestamp":"t2","event":"hook_error","version":"1","stage":"PreToolUse","code":"rc=2","message":"b","cli":"antigravity","tool":"","session_id":"s2","status":"fail","duration_ms":7}` + "\n" +
-		`{"timestamp":"t3","event":"hook_error","version":"1","stage":"Stop","code":"rc=3","message":"c","cli":"cursor","tool":"edit","session_id":""}` + "\n"
+		`{"timestamp":"t3","event":"hook_error","version":"1","stage":"Stop","code":"rc=3","message":"c","cli":"cline","tool":"edit","session_id":""}` + "\n"
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestReadHookEventsParsesNewFields(t *testing.T) {
 		t.Fatalf("expected 3 events, got %d", len(events))
 	}
 
-	wantCLIs := []string{"codex", "antigravity", "cursor"}
+	wantCLIs := []string{"codex", "antigravity", "cline"}
 	wantTools := []string{"bash", "", "edit"}
 	wantDur := []int{42, 7, 0}
 	for i, ev := range events {
@@ -153,11 +153,11 @@ func TestAggregateObservability(t *testing.T) {
 		{Stage: "PostToolUse", Code: "hook_exit_2", CLI: "codex", Tool: "Write", DurationMs: dur(20)},
 		{Stage: "Stop", Code: "false_success_guard_failed", CLI: "antigravity", Tool: "", DurationMs: dur(30)},
 		{Stage: "Stop", Code: "false_success_guard_failed", CLI: "antigravity", Tool: "", DurationMs: dur(40)},
-		{Stage: "PreToolUse", Code: "protect_mcp_exit_2", CLI: "cursor", Tool: "Bash", DurationMs: dur(50)},
+		{Stage: "PreToolUse", Code: "protect_mcp_exit_2", CLI: "cline", Tool: "Bash", DurationMs: dur(50)},
 		{Stage: "PostToolUse", Code: "hook_exit_1", CLI: "codex", Tool: "Read", DurationMs: dur(2)},
 		{Stage: "PostToolUse", Code: "hook_exit_1", CLI: "antigravity", Tool: "Bash", DurationMs: dur(60)},
-		{Stage: "PreToolUse", Code: "protect_mcp_exit_2", CLI: "cursor", Tool: "Write", DurationMs: nil},
-		{Stage: "Stop", Code: "false_success_guard_failed", CLI: "cursor", Tool: "", DurationMs: nil},
+		{Stage: "PreToolUse", Code: "protect_mcp_exit_2", CLI: "cline", Tool: "Write", DurationMs: nil},
+		{Stage: "Stop", Code: "false_success_guard_failed", CLI: "cline", Tool: "", DurationMs: nil},
 	}
 
 	summary := aggregateHookEvents(events)
@@ -174,7 +174,7 @@ func TestAggregateObservability(t *testing.T) {
 	if got, want := summary.ByCLI, []keyCount{
 		{Key: "codex", Count: 4},
 		{Key: "antigravity", Count: 3},
-		{Key: "cursor", Count: 3},
+		{Key: "cline", Count: 3},
 	}; !equalKeyCounts(got, want) {
 		t.Errorf("ByCLI=%v want %v", got, want)
 	}

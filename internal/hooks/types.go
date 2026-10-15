@@ -80,27 +80,9 @@ func StandardHookNames() []string {
 	return names
 }
 
-// RunStandardHooks executa os hooks padrão para targets não-Cursor.
+// RunStandardHooks executa os hooks padrão para todos os targets.
 func RunStandardHooks(baseDir string, t TargetCLI, log Logger) {
 	for _, h := range standardHooks {
 		h.Run(baseDir, t, log)
-	}
-}
-
-// RunCursorHooks cobre o caminho específico do Cursor.
-func RunCursorHooks(baseDir string, t TargetCLI, log Logger) {
-	if err := syncCursorAll(baseDir, t); err != nil {
-		log.Append("⚠️  [%s/cursor-all] %v", t.Name, err)
-		return
-	}
-	log.Append("✅ [%s/cursor-all] Hooks (context-guard, memory, agent-react, docs-cache, bash-guardian) em: %s", t.Name, t.HooksSettingsPath)
-	if err := syncCtxCompactHook(baseDir, t); err != nil {
-		log.Append("⚠️  [%s/ctx-compact] %v", t.Name, err)
-	}
-	if err := syncCtxHandoffHook(baseDir, t); err != nil {
-		log.Append("⚠️  [%s/ctx-handoff] %v", t.Name, err)
-	}
-	if err := syncMemoryPruneSessionStartHook(baseDir, t); err != nil {
-		log.Append("⚠️  [%s/memory-prune-session-start] %v", t.Name, err)
 	}
 }

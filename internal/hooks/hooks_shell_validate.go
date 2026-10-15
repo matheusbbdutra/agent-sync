@@ -17,19 +17,10 @@ package hooks
 //
 // Mapping de eventos por CLI (verificado no settings.json/schema oficial):
 //   - Claude Code / Codex:  "PreToolUse" / matcher "Bash" (schema padrão)
-//   - Cursor:               shell-validate não se aplica — Cursor já tem
-//     `beforeShellExecution` com bash-guardian que faz
-//     papel equivalente (instalado por syncBash- ou
-//     outro helper específico do Cursor). Não escreve.
 //   - Antigravity:          usa syncAntigravityHookCommand direto, formato
 //     top-level já gravado em HooksEvent="PreInvocation".
 func syncShellValidateHook(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" {
-		return nil
-	}
-	if target.HooksFormat == "cursor" {
-		// bash-guardian já cobre a checagem pré-execução em
-		// beforeShellExecution; shell-validate seria redundante aqui.
 		return nil
 	}
 	command := "shell-validate hook"

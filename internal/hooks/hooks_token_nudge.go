@@ -25,10 +25,6 @@ func syncTokenNudgeHook(baseDir string, target TargetCLI) error {
 		return err
 	}
 	command := "AGENT_SYNC_AGENT_KIND=" + target.AgentKind + " "
-	if target.HooksFormat == "cursor" {
-		return syncCursorCommandAtEvent(target.HooksSettingsPath, "postToolUse",
-			command+"./hooks/"+scriptName+" "+scriptName)
-	}
 	if target.HooksFormat == "antigravity" {
 		// Antigravity: PreInvocation/Stop/PostInvocation exigem formato flat
 		// (lista direta de handlers, sem matcher). PreToolUse/PostToolUse

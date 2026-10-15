@@ -12,7 +12,7 @@ import (
 // syncCtxWindowSummarizeAtStopHook: ctx-window summarize-at-stop cross-CLI
 // syncCtxWindowSummarizeAtStopHook wirar o summarize automático em Stop/agent-stop.
 // Roda em background quando (a) tool calls >= threshold OU (b) summary.md velho.
-// Suportado em Claude Code, Codex, Antigravity e Cursor (stop). OpenCode é plugin TS.
+// Suportado em Claude Code, Codex e Antigravity (stop). OpenCode é plugin TS.
 func syncCtxWindowSummarizeAtStopHook(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" {
 		return nil
@@ -21,9 +21,6 @@ func syncCtxWindowSummarizeAtStopHook(baseDir string, target TargetCLI) error {
 	scriptPath, err := pathutil.HookScriptPath(baseDir, scriptName)
 	if err != nil {
 		return err
-	}
-	if target.HooksFormat == "cursor" {
-		return syncCursorCommandAtEvent(target.HooksSettingsPath, "stop", "./hooks/"+scriptName+" "+scriptName)
 	}
 	if target.HooksFormat == "antigravity" {
 		return syncAntigravityFlatHook(target, ctxWindowSummarizeStopHookName, "Stop",

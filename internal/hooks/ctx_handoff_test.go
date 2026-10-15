@@ -11,7 +11,6 @@ func TestSyncCtxHandoffUsesEachHookSchema(t *testing.T) {
 	}{
 		{"claude", "", "SessionStart"},
 		{"codex", "", "SessionStart"},
-		{"cursor", "cursor", "sessionStart"},
 		{"antigravity", "antigravity", "PreInvocation"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -38,22 +37,5 @@ func TestSyncCtxHandoffUsesEachHookSchema(t *testing.T) {
 				t.Fatalf("duplicate hooks: %v", hooks)
 			}
 		})
-	}
-}
-
-func TestSyncCursorCtxTrackingUsesCursorSchema(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "hooks.json")
-	target := TargetCLI{AgentKind: "cursor", HooksSettingsPath: path, HooksEvent: "postToolUse", HooksFormat: "cursor"}
-	if err := syncCtxCompactHook(t.TempDir(), target); err != nil {
-		t.Fatal(err)
-	}
-	root, err := readJSONObject(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	hooks := root["hooks"].(map[string]interface{})
-	entries := decodeCursorHookEntries(hooks["postToolUse"])
-	if len(entries) != 1 || entries[0].Command != "ctx-window hook cursor" {
-		t.Fatalf("unexpected Cursor tracking hooks: %v", entries)
 	}
 }

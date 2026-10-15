@@ -11,7 +11,7 @@ package hooks
 // So age quando o target define HooksSettingsPath e HooksEvent.
 //
 // Migrado para PreToolUse em codex/claude (ver hooks_agent_react_nudge.go
-// para o rationale completo). Antigravity e cursor mantem PostToolUse.
+// para o rationale completo). Antigravity mantem PostToolUse.
 func syncHooks(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" || target.HooksEvent == "" {
 		return nil
@@ -24,12 +24,6 @@ func syncHooks(baseDir string, target TargetCLI) error {
 	}
 	if target.HooksFormat == "antigravity" {
 		return syncAntigravityHook(baseDir, target, contextGuardHookName, "context-guard-nudge.antigravity.sh", "*")
-	}
-	if target.HooksFormat == "cursor" {
-		if supportsNudgeFilter(target) {
-			return syncStandardHookFiltered(baseDir, target, contextGuardHookName, "context-guard-nudge.sh", "*", nudgeIfFilters)
-		}
-		return syncStandardHook(baseDir, target, contextGuardHookName, "context-guard-nudge.sh", "*")
 	}
 	// Codex + Claude: PreToolUse + .pretooluse.sh
 	return syncStandardHookAtEvent(baseDir, target, contextGuardHookName,

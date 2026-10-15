@@ -2,8 +2,7 @@
 # Wrapper para agent-sync state snapshot que resolve o project root
 # corretamente em PreInvocation (sem cwd do projeto disponivel).
 #
-# Estrategia: sobe diretorios ate encontrar go.mod que seja do agent-sync,
-# igual ao logica do agent-react-nudge.stop.cursor.sh.
+# Estrategia: sobe diretorios ate encontrar go.mod que seja do agent-sync.
 set -euo pipefail
 
 repo_root=""

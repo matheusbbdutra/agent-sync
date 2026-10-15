@@ -24,12 +24,6 @@ func syncMemoryNudgeHook(baseDir string, target TargetCLI) error {
 	if target.HooksFormat == "antigravity" {
 		return syncAntigravityHook(baseDir, target, memoryNudgeHookName, "memory-nudge.antigravity.sh", "*")
 	}
-	if target.HooksFormat == "cursor" {
-		if supportsNudgeFilter(target) {
-			return syncStandardHookFiltered(baseDir, target, memoryNudgeHookName, "memory-nudge.sh", "*", nudgeIfFilters)
-		}
-		return syncStandardHook(baseDir, target, memoryNudgeHookName, "memory-nudge.sh", "*")
-	}
 	// Codex + Claude: PreToolUse + .pretooluse.sh
 	return syncStandardHookAtEvent(baseDir, target, memoryNudgeHookName,
 		"memory-nudge.pretooluse.sh", "*", "PreToolUse", nudgeIfFilters)

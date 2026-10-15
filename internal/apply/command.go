@@ -26,7 +26,7 @@ func shouldDryRun() bool {
 func RunCommand(args []string) error {
 	fs := flag.NewFlagSet("agent-sync", flag.ContinueOnError)
 	applyFlag := fs.Bool("apply", false, "Aplica as regras e skills para todas as CLIs configuradas")
-	targetFlag := fs.String("target", "", "Aplica para uma CLI específica (claude, codex, antigravity, opencode, cursor)")
+	targetFlag := fs.String("target", "", "Aplica para uma CLI específica (claude, codex, antigravity, opencode)")
 	statusFlag := fs.Bool("status", false, "Exibe o status de sincronização com as CLIs")
 	vendorFlag := fs.Bool("vendor", false, "Importa as skills curadas do catálogo definido em skills/manifest.json")
 	observabilityFlag := fs.Bool("observability", false, "Exibe resumo dos erros persistidos pelos hooks (texto)")
@@ -129,7 +129,7 @@ func printUsage() {
 	fmt.Println("🚀 Agent-Sync: Gerenciador Unificado de Regras e Skills para Agentes AI")
 	fmt.Println("\nUso:")
 	fmt.Println("  agent-sync -apply              # Sincroniza em todas as CLIs instaladas")
-	fmt.Println("  agent-sync -target <cli>       # Sincroniza apenas para claude, codex, antigravity, opencode ou cursor")
+	fmt.Println("  agent-sync -target <cli>       # Sincroniza apenas para claude, codex, antigravity, opencode")
 	fmt.Println("  agent-sync -status             # Verifica o status atual de cada CLI")
 	fmt.Println("  agent-sync -vendor             # Importa as skills curadas do manifest")
 	fmt.Println("  agent-sync -observability      # Resume erros persistidos pelos hooks")

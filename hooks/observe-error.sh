@@ -24,7 +24,6 @@ detect_cli() {
 
   case "$code" in
     *antigravity*) printf '%s' "antigravity"; return ;;
-    *cursor*)      printf '%s' "cursor"; return ;;
     *opencode*)    printf '%s' "opencode"; return ;;
     *claude*)      printf '%s' "claude"; return ;;
     *codex*)       printf '%s' "codex"; return ;;
@@ -38,7 +37,6 @@ detect_cli() {
     case "$pcmd" in
       *agy*|*gemini*|*antigravity*) printf '%s' "antigravity"; return ;;
       *claude*) printf '%s' "claude"; return ;;
-      *cursor*) printf '%s' "cursor"; return ;;
       *opencode*) printf '%s' "opencode"; return ;;
       *codex*) printf '%s' "codex"; return ;;
     esac

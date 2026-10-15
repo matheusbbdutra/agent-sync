@@ -1,11 +1,6 @@
 package hooks
 
 // apply_table.go: tabela standardHooks - define quais wirar em cada CLI.
-//
-// Tabela ordenada de hooks instalada em targets nao-Cursor. Cursor usa
-// runCursorHooks (syncCursorAll + syncCtxCompactHook + syncCtxHandoffHook)
-// por ter merge proprio em hooks.json. Migrado de main.go em 2026-09-21
-// (Fase 6).
 
 var standardHooks = []hookSpec{
 	// Codex: os 4 lembretes (principles/context-guard/memory-nudge/
@@ -28,22 +23,21 @@ var standardHooks = []hookSpec{
 	},
 	{name: "shell-validate", fn: syncShellValidateHook, detail: settingsPathDetail},
 	{name: "docs-cache", fn: syncDocsCacheHook, detail: settingsPathDetail},
-	// Nudge combinado de ctx-window summarize (PostToolUse). Wirar tambem no
-	// Cursor via cursorManagedHooks; OpenCode fica para plugin TS separado.
+	// Nudge combinado de ctx-window summarize (PostToolUse). OpenCode fica para plugin TS separado.
 	{name: "ctx-window-nudge", fn: syncCtxWindowNudgeHook, detail: settingsPathDetail},
-	// Auto-summarize no Stop/agent-stop. Wirar nos 4 CLIs padrao (Claude,
-	// Codex, Antigravity, Cursor). OpenCode fica para plugin TS separado.
+	// Auto-summarize no Stop/agent-stop. Wirar nos 3 CLIs padrao (Claude,
+	// Codex, Antigravity). OpenCode fica para plugin TS separado.
 	{name: "ctx-window-summarize-at-stop", fn: syncCtxWindowSummarizeAtStopHook, detail: settingsPathDetail},
 	// PreCompact cross-CLI com snapshot estruturado (ADR-precompact-snapshot).
 	// Wirar Claude Code, Codex (PreCompact direto) + Antigravity (PreInvocation
 	// proxy). Cursor ja tem observacional via ctx-compact; nao wirar novo.
 	{name: "precompact-snapshot", fn: syncContextSnapshotHook, detail: settingsPathDetail},
 	// Budget tracking write path cross-CLI (A-15): hook Stop wirado em Claude
-	// Code, Codex, Antigravity e Cursor para popular .agent-sync/agent_tasks.jsonl.
+	// Code, Codex e Antigravity para popular .agent-sync/agent_tasks.jsonl.
 	// OpenCode fica para plugin TS separado (mesma decisao de outros wirar v2).
 	{name: "agent-task-record", fn: syncAgentTaskRecordHook, detail: settingsPathDetail},
 	// Token nudge contract cross-CLI (A-16): hook postToolUse wirado em
-	// Claude Code, Codex, Antigravity e Cursor. OpenCode via plugin v2.
+	// Claude Code, Codex e Antigravity. OpenCode via plugin v2.
 	// Decide should_nudge via agent-sync budget nudge; emite additionalContext
 	// quando utilization_pct >= threshold.
 	{name: "token-nudge", fn: syncTokenNudgeHook, detail: settingsPathDetail},
@@ -75,20 +69,18 @@ var standardHooks = []hookSpec{
 	// Secret guard cross-CLI (A-63 / ADR-secret-guard-cross-cli.md). Defesa
 	// em 2 camadas: deny-list de path (primario) + regex de literal nos args
 	// (secundario). Wirar PreToolUse + PostToolUse em Claude Code + Codex +
-	// Antigravity (mesmo formato nested). Para Cursor, postToolUse e wirado
-	// via cursorManagedHooks (hooks_cursor_apply.go); PreToolUse em Cursor
-	// so shell via beforeShellExecution. OpenCode v2 fica A-64+ via
+	// Antigravity (mesmo formato nested). OpenCode v2 fica A-64+ via
 	// permission.hook("evaluate") com effect mutavel
 	// (Permission.Effect="allow"|"deny"|"ask" — schema
 	// @opencode/schema/dist/permission.d.ts).
 	{name: "secret-guard-pretooluse", fn: syncSecretGuardPreToolUseHook, agentKinds: []string{"claude", "codex", "antigravity"}, detail: settingsPathDetail},
-	{name: "secret-guard-posttooluse", fn: syncSecretGuardPostToolUseHook, agentKinds: []string{"claude", "codex", "antigravity", "cursor"}, detail: settingsPathDetail},
+	{name: "secret-guard-posttooluse", fn: syncSecretGuardPostToolUseHook, agentKinds: []string{"claude", "codex", "antigravity"}, detail: settingsPathDetail},
 	// Observação e consolidação contínua de memória (A-39 / ADR-automated-memory-observation-pipeline).
 	{name: "memory-observe", fn: syncMemoryObserveHook, detail: settingsPathDetail},
 	{name: "memory-consolidate", fn: syncMemoryConsolidateHook, detail: settingsPathDetail},
 	// Auto-prune scratch + alerta staleness no SessionStart (A-68).
-	// Wirar Claude Code + Codex + Antigravity (PreInvocation como proxy) +
-	// Cursor. OpenCode fica A-69 (sem hook nativo SessionStart em
+	// Wirar Claude Code + Codex + Antigravity (PreInvocation como proxy).
+	// OpenCode fica A-69 (sem hook nativo SessionStart em
 	// @opencode/plugin v2.0.11).
 	{name: "memory-prune-session-start", fn: syncMemoryPruneSessionStartHook, detail: settingsPathDetail},
 	// bash-guardian: 3 entradas porque cada CLI tem implementação própria
@@ -98,9 +90,9 @@ var standardHooks = []hookSpec{
 	{name: "bash-guardian", fn: syncBashGuardianAntigravity, agentKinds: []string{"antigravity"}, detail: settingsPathDetail},
 	// bash-rm-guardian (A-75/A-76/A-77/A-79): detecta rm/rmdir/mv destrutivo,
 	// roda audit_removal, emite additionalContext warn (Claude/Codex),
-	// injectSteps (Antigravity), agent_message (Cursor), permission.bash=ask
+	// injectSteps (Antigravity), permission.bash=ask
 	// (OpenCode) ou context (Cline v3). NÃO bloqueia (exceto OpenCode "ask").
-	// Wirar em claude + codex + antigravity + cursor + opencode + cline.
+	// Wirar em claude + codex + antigravity + opencode + cline.
 	{name: "bash-rm-guardian", fn: syncBashRmGuardian, agentKinds: []string{"antigravity", "claude", "codex", "opencode"}, detail: settingsPathDetail},
 	// A-90: wiramento de hooks Cline migrou para o plugin TS autocontido
 	// (`cline-plugin/scripts/install.ts`). Não há mais `agent-sync hook cline`

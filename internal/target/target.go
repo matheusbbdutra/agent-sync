@@ -7,7 +7,7 @@ import (
 )
 
 // TargetCLI descreve o schema de instalacao de um CLI alvo (Claude Code,
-// Codex, Antigravity, OpenCode, Cursor, Cline). Cada campo vira path no
+// Codex, Antigravity, OpenCode, Cline). Cada campo vira path no
 // filesystem do usuario.
 type TargetCLI struct {
 	Name              string
@@ -18,7 +18,7 @@ type TargetCLI struct {
 	PluginDir         string
 	HooksSettingsPath string
 	HooksEvent        string
-	HooksFormat       string // "" (padrao Claude/Codex), "antigravity", "cursor" ou "cline"
+	HooksFormat       string // "" (padrao Claude/Codex), "antigravity" ou "cline"
 	OpenCodePluginDir string
 }
 
@@ -35,12 +35,12 @@ func GetHome() string {
 	return home
 }
 
-// GetTargets retorna os 6 CLI targets wiraveis pelo agent-sync.
+// GetTargets retorna os 5 CLI targets wiraveis pelo agent-sync.
 func GetTargets() []TargetCLI {
 	return GetTargetsForHome(GetHome())
 }
 
-// GetTargetsForHome retorna os 6 CLI targets usando o home directory fornecido.
+// GetTargetsForHome retorna os 5 CLI targets usando o home directory fornecido.
 func GetTargetsForHome(home string) []TargetCLI {
 	return []TargetCLI{
 		{
@@ -79,16 +79,6 @@ func GetTargetsForHome(home string) []TargetCLI {
 			AgentsDir:         filepath.Join(home, ".config", "opencode", "agents"),
 			AgentKind:         "opencode",
 			OpenCodePluginDir: filepath.Join(home, ".config", "opencode", "plugins"),
-		},
-		{
-			Name:              "cursor",
-			RulesPath:         filepath.Join(home, ".cursor", "AGENTS.md"),
-			SkillsDir:         filepath.Join(home, ".cursor", "skills"),
-			AgentsDir:         filepath.Join(home, ".cursor", "agents"),
-			AgentKind:         "cursor",
-			HooksSettingsPath: filepath.Join(home, ".cursor", "hooks.json"),
-			HooksEvent:        "postToolUse",
-			HooksFormat:       "cursor",
 		},
 		{
 			Name:      "cline",

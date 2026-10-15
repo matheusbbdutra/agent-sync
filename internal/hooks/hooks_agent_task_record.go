@@ -29,10 +29,6 @@ func syncAgentTaskRecordHook(baseDir string, target TargetCLI) error {
 	}
 	// Variavel exportada para o script identificar a CLI.
 	command := "AGENT_SYNC_AGENT_KIND=" + target.AgentKind + " "
-	if target.HooksFormat == "cursor" {
-		// Cursor: stop event lowercase.
-		return syncCursorCommandAtEvent(target.HooksSettingsPath, "stop", "./hooks/"+scriptName+" "+scriptName)
-	}
 	if target.HooksFormat == "antigravity" {
 		return syncAntigravityFlatHook(target, agentTaskRecordHookName, "Stop",
 			command+wrapHookCommand(baseDir, "Stop", agentTaskRecordHookName, scriptPath))

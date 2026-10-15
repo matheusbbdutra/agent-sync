@@ -10,7 +10,7 @@ import (
 )
 
 // apply_bash_rm_guardian.go: wiramento cross-CLI do hook bash-rm-guardian
-// (A-74). Cobre antigravity (A-75), claude/codex/cursor (A-76), opencode
+// (A-74). Cobre antigravity (A-75), claude/codex (A-76), opencode
 // (A-77). Cline (A-79) migrou para o bridge de hooks por arquivo (A-80.1) —
 // ver internal/hooks/apply_cline.go.
 

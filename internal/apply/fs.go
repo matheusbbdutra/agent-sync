@@ -91,34 +91,6 @@ func removeLegacyGeminiRules(rulesPath string) (bool, error) {
 	return true, nil
 }
 
-// removeLegacyCursorRules apaga o ~/.cursor/rules/agent-sync-global.mdc
-// legado depois que as regras passam a ir para ~/.cursor/AGENTS.md.
-// Padrao igual aos removeLegacy* anteriores: copia verbatim do wirar
-// antigo, remocao elimina duplicata. Tambem apaga ~/.cursor/rules/
-// inteira se ficar vazia depois da remocao (higiene).
-func removeLegacyCursorRules(rulesPath string) (bool, error) {
-	legacy := filepath.Join(filepath.Dir(rulesPath), "rules", "agent-sync-global.mdc")
-	if shouldDryRun() {
-		if _, err := os.Stat(legacy); err != nil {
-			return false, nil
-		}
-		fmt.Printf("[dry-run] remove %s\n", legacy)
-		return true, nil
-	}
-	if err := os.Remove(legacy); err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	// Higiene: se ~/.cursor/rules/ ficou vazia, remove o diretorio.
-	rulesDir := filepath.Join(filepath.Dir(rulesPath), "rules")
-	if entries, err := os.ReadDir(rulesDir); err == nil && len(entries) == 0 {
-		_ = os.Remove(rulesDir)
-	}
-	return true, nil
-}
-
 func copyDir(src, dst string) error {
 	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil {

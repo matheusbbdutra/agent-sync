@@ -12,8 +12,6 @@ func syncCtxHandoffHook(baseDir string, target TargetCLI) error {
 	}
 	command := "ctx-window handoff " + target.AgentKind
 	switch target.HooksFormat {
-	case "cursor":
-		return syncCursorCommandAtEvent(target.HooksSettingsPath, "sessionStart", command)
 	case "antigravity":
 		return syncAntigravityPreInvocation(target, ctxHandoffHookName, command)
 	default:

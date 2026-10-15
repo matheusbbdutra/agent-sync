@@ -23,9 +23,6 @@ func syncMemoryPruneSessionStartHook(baseDir string, target TargetCLI) error {
 		return err
 	}
 	switch target.HooksFormat {
-	case "cursor":
-		return syncCursorCommandAtEvent(target.HooksSettingsPath, "sessionStart",
-			"./hooks/"+scriptName+" "+scriptName)
 	case "antigravity":
 		return syncAntigravityPreInvocation(target, memoryPruneSessionStartHookName,
 			wrapHookCommand(baseDir, "SessionStart", memoryPruneSessionStartHookName, scriptPath))

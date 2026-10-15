@@ -63,12 +63,6 @@ func (c applyContext) applyCommon(t TargetCLI) {
 			} else if removed {
 				c.log.append("🧹 [%s/rules] GEMINI.md legado removido (agora AGENTS.md)", t.Name)
 			}
-		case "cursor":
-			if removed, err := removeLegacyCursorRules(t.RulesPath); err != nil {
-				c.log.append("⚠️  [%s/rules] legado .mdc: %v", t.Name, err)
-			} else if removed {
-				c.log.append("🧹 [%s/rules] .mdc legado removido (agora AGENTS.md)", t.Name)
-			}
 		}
 	}
 
@@ -87,10 +81,6 @@ func (c applyContext) applyCommon(t TargetCLI) {
 	}
 }
 
-func runCursorHooks(c applyContext, t TargetCLI) {
-	hooks.RunCursorHooks(c.baseDir, t, c.log)
-}
-
 func runStandardHooks(c applyContext, t TargetCLI) {
 	hooks.RunStandardHooks(c.baseDir, t, c.log)
 }
@@ -103,11 +93,7 @@ func applyToTarget(c applyContext, t TargetCLI) error {
 				t.Name, issue.Kind, issue.Detail, issue.Hint)
 		}
 	}
-	if t.HooksFormat == "cursor" {
-		runCursorHooks(c, t)
-	} else {
-		runStandardHooks(c, t)
-	}
+	runStandardHooks(c, t)
 	if t.AgentKind == "codex" {
 		if err := hooks.AdaptCodexPlugins(c.baseDir); err != nil {
 			c.log.append("⚠️  [%s/codex-plugins] %v", t.Name, err)

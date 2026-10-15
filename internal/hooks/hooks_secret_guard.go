@@ -14,9 +14,6 @@ import (
 //   - Antigravity: mesmo formato nested de Claude/Codex (PreToolUse +
 //     PostToolUse com matcher "*") via syncAntigravityHookCommand
 //     (formato flat nested de hooks_antigravity_apply.go:54).
-//   - Cursor: postToolUse via syncCursorCommandAtEvent (merge gerenciado
-//     em hooks_cursor_apply.go:15) + beforeShellExecution (so Bash; Read/
-//     Edit/Write/etc. nao tem equivalente gerenciado pelo agent-sync).
 //   - OpenCode v2: gap 🟡 aceito (A-64+ via permission.hook("evaluate")
 //     com effect mutation — investigacao 2026-09-25 confirmou que
 //     tool.hook("execute.before") e so observacional, mas permission.
@@ -80,7 +77,7 @@ func syncSecretGuardPreToolUseHook(baseDir string, target TargetCLI) error {
 }
 
 // syncSecretGuardPostToolUseHook: wirar PostToolUse em Claude Code + Codex +
-// Antigravity + Cursor (postToolUse).
+// Antigravity.
 func syncSecretGuardPostToolUseHook(baseDir string, target TargetCLI) error {
 	if target.HooksSettingsPath == "" {
 		return nil
@@ -112,14 +109,6 @@ func syncSecretGuardPostToolUseHook(baseDir string, target TargetCLI) error {
 		targetCopy.HooksEvent = "PostToolUse"
 		return syncAntigravityHookCommand(targetCopy, secretGuardPostToolUseHookName,
 			scriptPath, "*")
-	case "cursor":
-		// Cursor: postToolUse ja e wirado por outros hooks via
-		// syncCursorCommandAtEvent (merge gerenciado por agent-sync em
-		// hooks_cursor_apply.go:36). A entrada em cursorManagedHooks()
-		// (adicionada separadamente) ativa o wiramento real.
-		// Aqui apenas sinaliza que a CLI esta no escopo; syncCursorAll
-		// fara o trabalho.
-		return nil
 	default:
 		return nil
 	}

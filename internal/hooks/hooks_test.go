@@ -359,7 +359,7 @@ func TestSyncPrinciplesInjectHookWiresPreToolUse(t *testing.T) {
 }
 
 func TestSyncPrinciplesInjectHookSkipsNonSupported(t *testing.T) {
-	for _, kind := range []string{"antigravity", "cursor", "opencode"} {
+	for _, kind := range []string{"antigravity", "opencode"} {
 		t.Run(kind, func(t *testing.T) {
 			tempBase := t.TempDir()
 			tempHooksPath := filepath.Join(t.TempDir(), "settings.json")
@@ -561,7 +561,7 @@ func findHookIfFilters(t *testing.T, settingsPath, hookName string) []string {
 }
 
 // findHookIfFiltersAtEvent: codex/claude wirar nudges em PreToolUse (2026-09-23);
-// antigravity/cursor continuam em PostToolUse.
+// antigravity continua em PostToolUse.
 func findHookIfFiltersAtEvent(t *testing.T, settingsPath, hookName, event string) []string {
 	t.Helper()
 	data, err := os.ReadFile(settingsPath)
@@ -1155,7 +1155,7 @@ func TestObserveErrorCLIDetection(t *testing.T) {
 		if err := os.WriteFile(failScript, []byte("#!/bin/sh\nexit 3\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		cmd := exec.Command("bash", wrapScript, "--cli=cursor", "PostToolUse", "my-hook", failScript)
+		cmd := exec.Command("bash", wrapScript, "--cli=codex", "PostToolUse", "my-hook", failScript)
 		cmd.Env = append(os.Environ(), "AGENT_SYNC_HOOK_LOG="+logFile)
 		_ = cmd.Run() // esperado falhar com exit code 3
 
@@ -1167,8 +1167,8 @@ func TestObserveErrorCLIDetection(t *testing.T) {
 		if err := json.Unmarshal(data, &entry); err != nil {
 			t.Fatal(err)
 		}
-		if entry["cli"] != "cursor" {
-			t.Errorf("want cursor, got %v", entry["cli"])
+		if entry["cli"] != "codex" {
+			t.Errorf("want codex, got %v", entry["cli"])
 		}
 	})
 }

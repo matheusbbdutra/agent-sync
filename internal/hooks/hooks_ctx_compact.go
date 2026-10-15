@@ -12,12 +12,6 @@ func syncCtxCompactHook(baseDir string, target TargetCLI) error {
 		return nil
 	}
 	command := "ctx-window hook " + target.AgentKind
-	if target.HooksFormat == "cursor" {
-		if err := syncCursorCommandAtEvent(target.HooksSettingsPath, "postToolUse", command); err != nil {
-			return err
-		}
-		return syncCursorCommandAtEvent(target.HooksSettingsPath, "preCompact", command+" precompact")
-	}
 	if target.HooksFormat == "antigravity" {
 		targetCopy := target
 		targetCopy.HooksEvent = "PostToolUse"
