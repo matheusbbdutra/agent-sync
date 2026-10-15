@@ -26,7 +26,7 @@ have() { command -v "$1" >/dev/null 2>&1; }
 usage() {
   cat <<'EOF'
 Uso:
-  delegate-run start --target <opencode|agy|claude|cursor|codex> --mode <print|session> \
+  delegate-run start --target <opencode|agy|claude|codex> --mode <print|session> \
       (--prompt TEXT | --prompt-file PATH | stdin) [--workspace DIR] [--name SLUG] [--force-agy-print]
   delegate-run status <id>
   delegate-run result <id> [--raw]
@@ -208,12 +208,6 @@ resolve_bin() {
     opencode) command -v opencode ;;
     agy) command -v agy ;;
     claude) command -v claude ;;
-    cursor)
-      if have agent; then command -v agent
-      elif have cursor-agent; then command -v cursor-agent
-      else return 1
-      fi
-      ;;
     codex) command -v codex ;;
     *) return 1 ;;
   esac
@@ -255,12 +249,6 @@ EOF
       ;;
     claude-session)
       printf '%q "$(cat %q)"\n' "$bin" "$prompt_file"
-      ;;
-    cursor-print)
-      printf '%q -p --workspace %q "$(cat %q)"\n' "$bin" "$workspace" "$prompt_file"
-      ;;
-    cursor-session)
-      printf '%q --workspace %q "$(cat %q)"\n' "$bin" "$workspace" "$prompt_file"
       ;;
     codex-print)
       # < /dev/null: mesmo recebendo o prompt como argumento, `codex exec`
@@ -304,7 +292,7 @@ cmd_start() {
   [ -n "$target" ] || die "falta --target"
   [ -n "$mode" ] || die "falta --mode (print|session)"
   case "$mode" in print|session) ;; *) die "mode inválido: $mode" ;; esac
-  case "$target" in opencode|agy|claude|cursor|codex) ;; *) die "target inválido: $target" ;; esac
+  case "$target" in opencode|agy|claude|codex) ;; *) die "target inválido: $target" ;; esac
 
   resolve_bin "$target" >/dev/null || die "binário do target=$target não está no PATH"
 

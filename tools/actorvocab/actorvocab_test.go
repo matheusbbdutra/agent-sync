@@ -9,8 +9,8 @@ func TestCLIsIncluiCline(t *testing.T) {
 	if !IsCLI("cline") {
 		t.Fatal("cline deveria estar na lista canônica de CLIs (6ª CLI, A-78)")
 	}
-	if got := len(CLIs()); got != 6 {
-		t.Fatalf("esperava 6 CLIs canônicas, obteve %d: %v", got, CLIs())
+	if got := len(CLIs()); got != 5 {
+		t.Fatalf("esperava 5 CLIs canônicas, obteve %d: %v", got, CLIs())
 	}
 }
 

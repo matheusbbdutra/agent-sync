@@ -61,7 +61,7 @@ type PrecompactInner struct {
 }
 
 // BuildPrecompactSnapshot monta o snapshot a partir do SessionState lido.
-// `actor` e a CLI origem (claude/codex/opencode/cursor/agy).
+// `actor` e a CLI origem (claude/codex/opencode/agy).
 // `kind` e manual|auto|native. `cliVersion` e string livre (opcional).
 //
 // Regra de decisao (consolidada e revisavel):

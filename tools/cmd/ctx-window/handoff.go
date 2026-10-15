@@ -90,7 +90,6 @@ func formatTurnsForHandoff(turns []Turn) string {
 var handoffCLIs = map[string]bool{
 	"claude":      true,
 	"codex":       true,
-	"cursor":      true,
 	"antigravity": true,
 	"cline":       true,
 }
@@ -204,9 +203,6 @@ func runHandoff(args []string, stdin io.Reader, stdout, stderr io.Writer) error 
 	if cli == "antigravity" && len(payload.WorkspacePaths) == 1 {
 		projectPath = payload.WorkspacePaths[0]
 	}
-	if cli == "cursor" && projectPath == "" {
-		projectPath = os.Getenv("CURSOR_PROJECT_DIR")
-	}
 	if projectPath == "" {
 		var err error
 		projectPath, err = os.Getwd()
@@ -247,8 +243,6 @@ func runHandoff(args []string, stdin io.Reader, stdout, stderr io.Writer) error 
 	context := "Resumo anterior do projeto (confirme no código antes de agir):\n" + summary + formatTurnsForHandoff(turns)
 	var output any
 	switch cli {
-	case "cursor":
-		output = map[string]any{"additional_context": context}
 	case "antigravity":
 		// Stderr apenas (auditoria local; nada no contrato PreInvocation
 		// do Gemini, que exige `{}` para nao bloquear tool calls).

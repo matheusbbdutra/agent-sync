@@ -40,7 +40,7 @@ func DefaultDBPath() (string, error) {
 // Memory é uma entrada de memória compartilhada entre agentes.
 type Memory struct {
 	ID          string
-	Agent       string // quem gravou: claude-code | codex | antigravity | opencode | cursor
+	Agent       string // quem gravou: claude-code | codex | antigravity | opencode
 	SessionID   string
 	PC          string
 	ProjectPath string

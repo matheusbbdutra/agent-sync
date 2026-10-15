@@ -60,27 +60,6 @@ func TestHandoffUsesLatestSummaryForProject(t *testing.T) {
 	}
 }
 
-func TestCursorHandoffUsesProjectEnvironment(t *testing.T) {
-	withTempCache(t)
-	project := t.TempDir()
-	t.Setenv("CURSOR_PROJECT_DIR", project)
-	s, _ := Load("cursor-old")
-	s.ProjectPath = project
-	if err := s.AppendVersionedSummary("cursor decision"); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Save(); err != nil {
-		t.Fatal(err)
-	}
-	var output, stderr bytes.Buffer
-	if err := runHandoff([]string{"cursor"}, strings.NewReader(`{"session_id":"new"}`), &output, &stderr); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(output.String(), `"additional_context"`) || !strings.Contains(output.String(), "cursor decision") {
-		t.Fatalf("cursor handoff missing: %s", output.String())
-	}
-}
-
 func TestAntigravityHandoffUsesWorkspacePaths(t *testing.T) {
 	withTempCache(t)
 	project := t.TempDir()
@@ -185,7 +164,7 @@ func TestHandoffDefensiveOnEmptyOrInvalidPayload(t *testing.T) {
 	// Unknown project (no summary) returns "{}".
 	output.Reset()
 	stderr.Reset()
-	if err := runHandoff([]string{"cursor"}, strings.NewReader(`{"cwd":"/nonexistent/project"}`), &output, &stderr); err != nil {
+	if err := runHandoff([]string{"cline"}, strings.NewReader(`{"cwd":"/nonexistent/project"}`), &output, &stderr); err != nil {
 		t.Fatalf("unexpected error on missing summary: %v", err)
 	}
 	if output.String() != "{}" {

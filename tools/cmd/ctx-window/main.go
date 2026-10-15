@@ -38,12 +38,12 @@ Usage:
   ctx-window on-tool-call <session>          records a tool call and compacts (local heuristic) if needed
       --tool <name>                          tool name (required)
       [--input <text>]                       truncated input (optional)
-      [--cli <name>]                         claude|codex|opencode|cursor|antigravity (persisted on the session)
+      [--cli <name>]                         claude|codex|opencode|antigravity (persisted on the session)
   ctx-window on-tool-call-llm <session>      records a tool call without automatic LLM summarization
-      --cli <name>                           claude|codex|opencode|cursor|antigravity (required first call)
+      --cli <name>                           claude|codex|opencode|antigravity (required first call)
   ctx-window hook <cli>                      reads a PostToolUse-style payload from stdin, extracts session/tool/
                                               input/result for that CLI's schema, and calls on-tool-call-llm.
-                                              cli: claude|codex|cursor|antigravity. Installed directly as the hook
+                                              cli: claude|codex|antigravity. Installed directly as the hook
                                               command by cmd/agent-sync (syncCtxCompactHook) — no intermediate
                                               script file needed. OpenCode stays on hooks/ctx-compact.opencode.ts
                                               (its hook IS a TS plugin, no Go equivalent to swap in there).
@@ -222,7 +222,7 @@ func runOnToolCall(args []string, stdout, stderr io.Writer) error {
 	fs.SetOutput(stderr)
 	tool := fs.String("tool", "", "tool name (required)")
 	input := fs.String("input", "", "truncated tool input (optional)")
-	cliFlag := fs.String("cli", "", "CLI that owns this session: claude, codex, opencode, cursor, antigravity")
+	cliFlag := fs.String("cli", "", "CLI that owns this session: claude, codex, opencode, antigravity")
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
 	}

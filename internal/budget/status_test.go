@@ -94,7 +94,7 @@ func TestBuildTokenBudgetStatus_LegacyHeuristicToolCalls(t *testing.T) {
 }
 
 func TestBuildTokenBudgetStatus_LegacyHeuristicSummaryMissing(t *testing.T) {
-	s, err := BuildTokenBudgetStatus("cursor", "sess-4", "",
+	s, err := BuildTokenBudgetStatus("cline", "sess-4", "",
 		0, 0, 5, "", 80, nil) // summary vazio = missing
 	if err != nil {
 		t.Fatalf("BuildTokenBudgetStatus: %v", err)

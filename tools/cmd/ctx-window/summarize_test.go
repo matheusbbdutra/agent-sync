@@ -20,7 +20,6 @@ func TestSummarizerCommandDispatchesPerCLI(t *testing.T) {
 		{"claude", "claude", []string{"-p", "--model", "opus", "hello"}},
 		{"codex", "codex", []string{"exec", "--model", "opus", "hello"}},
 		{"opencode", "opencode", []string{"run", "--pure", "-m", "opus", "hello"}},
-		{"cursor", "cursor-agent", []string{"-p", "--model", "opus", "hello"}},
 		{"antigravity", "agy", []string{"-p", "--model", "opus", "hello"}},
 	}
 	for _, tc := range cases {

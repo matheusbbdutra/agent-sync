@@ -20,7 +20,7 @@
     "actor": {
       "type": "string",
       "anyOf": [
-        { "enum": ["user", "tool", "agent-sync", "claude", "codex", "opencode", "cursor", "agy", "cline"] },
+        { "enum": ["user", "tool", "agent-sync", "claude", "codex", "opencode", "agy", "cline"] },
         { "pattern": "^cli:[a-z][a-z0-9-]{0,31}$" }
       ],
       "description": "Origem da decisao. Mesmo conjunto de session-event.json (core + escape hatch 'cli:<slug>'; ver tools/actorvocab)."

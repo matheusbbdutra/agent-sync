@@ -102,7 +102,7 @@ func TestRunBudgetReadFiltraPorCLI(t *testing.T) {
 	a := sampleTask("t-1")
 	a.CLI = "claude"
 	b := sampleTask("t-2")
-	b.CLI = "cursor"
+	b.CLI = "cline"
 	seedTaskLog(t, dir, []AgentTask{a, b})
 	out, err := captureStdout(t, func() error {
 		return runBudgetRead([]string{"-root", dir, "-cli", "claude"})

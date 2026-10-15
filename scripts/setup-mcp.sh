@@ -4,7 +4,7 @@
 #   - docs     : MCP local offline sobre o cache do docs-fetch (~/.cache/agent-sync/docs)
 #   - memory   : memória compartilhada entre CLIs via libSQL local (~/.cache/agent-sync/memory.db)
 #   - sentry   : erros/performance do Sentry (opcional; defina SENTRY_MCP_URL)
-# Alvos: Claude Code, Codex, Antigravity (agy), OpenCode, Cursor (~/.cursor/mcp.json),
+# Alvos: Claude Code, Codex, Antigravity (agy), OpenCode,
 #        Cline (~/.cline/data/settings/cline_mcp_settings.json, via `cline mcp add`)
 #
 # Uso:
@@ -44,27 +44,6 @@ if os.path.exists(path):
     with open(path) as fh:
         data = json.load(fh)
 data.setdefault("mcp", {})[name] = spec
-with open(path, "w") as fh:
-    json.dump(data, fh, indent=2, ensure_ascii=False)
-    fh.write("\n")
-PY
-}
-
-upsert_cursor() {
-  local name="$1" spec="$2"
-  command -v python3 >/dev/null 2>&1 || { echo "⚠️  python3 ausente; pulando cursor"; return 0; }
-  python3 - "$name" "$spec" <<'PY'
-import json, os, sys
-name, spec = sys.argv[1], json.loads(sys.argv[2])
-path = os.path.expanduser("~/.cursor/mcp.json")
-data = {}
-if os.path.exists(path):
-    with open(path) as fh:
-        raw = fh.read().strip()
-        if raw:
-            data = json.loads(raw)
-data.setdefault("mcpServers", {})[name] = spec
-os.makedirs(os.path.dirname(path), exist_ok=True)
 with open(path, "w") as fh:
     json.dump(data, fh, indent=2, ensure_ascii=False)
     fh.write("\n")
@@ -116,9 +95,6 @@ setup_context7() {
     if command -v opencode >/dev/null 2>&1; then
       upsert_opencode "$CONTEXT7_NAME" '{"type":"local","command":["npx","-y","@upstash/context7-mcp"],"enabled":true}'
     fi
-    if [ -d "$HOME/.cursor" ] || command -v agent >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1; then
-      upsert_cursor "$CONTEXT7_NAME" '{"command":"npx","args":["-y","@upstash/context7-mcp"]}'
-    fi
     if command -v cline >/dev/null 2>&1; then
       upsert_cline "$CONTEXT7_NAME" npx -y @upstash/context7-mcp
     fi
@@ -153,13 +129,6 @@ setup_context7() {
       local spec='{"type":"remote","url":"'"$CONTEXT7_URL"'","enabled":true}'
       upsert_opencode "$CONTEXT7_NAME" "$spec"
     fi
-    if [ -d "$HOME/.cursor" ] || command -v agent >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1; then
-      if [ -n "${CONTEXT7_API_KEY:-}" ]; then
-        upsert_cursor "$CONTEXT7_NAME" '{"url":"'"$CONTEXT7_URL"'","headers":{"Authorization":"Bearer ${env:CONTEXT7_API_KEY}"}}'
-      else
-        upsert_cursor "$CONTEXT7_NAME" '{"url":"'"$CONTEXT7_URL"'"}'
-      fi
-    fi
     if command -v cline >/dev/null 2>&1; then
       if [ -n "${CONTEXT7_API_KEY:-}" ]; then
         upsert_cline_http "$CONTEXT7_NAME" "$CONTEXT7_URL" "Authorization: Bearer ${CONTEXT7_API_KEY}"
@@ -193,16 +162,13 @@ setup_docs() {
   if command -v opencode >/dev/null 2>&1; then
     upsert_opencode "$DOCS_NAME" '{"type":"local","command":["'"$DOCS_BIN"'"],"enabled":true}'
   fi
-  if [ -d "$HOME/.cursor" ] || command -v agent >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1; then
-    upsert_cursor "$DOCS_NAME" '{"command":"'"$DOCS_BIN"'"}'
-  fi
   if command -v cline >/dev/null 2>&1; then
     upsert_cline "$DOCS_NAME" "$DOCS_BIN"
   fi
   echo "✅ docs configurado (offline)"
 }
 
-# ── MCP local de memória compartilhada (Claude Code, Codex, agy, OpenCode, Cursor) ─
+# ── MCP local de memória compartilhada (Claude Code, Codex, agy, OpenCode) ─
 setup_memory() {
   if [ ! -x "$MEMORY_BIN" ]; then
     echo "⚠️  memory-mcp não encontrado ($MEMORY_BIN). Rode 'make install' primeiro."
@@ -223,9 +189,6 @@ setup_memory() {
   fi
   if command -v opencode >/dev/null 2>&1; then
     upsert_opencode "$MEMORY_NAME" '{"type":"local","command":["'"$MEMORY_BIN"'"],"enabled":true}'
-  fi
-  if [ -d "$HOME/.cursor" ] || command -v agent >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1; then
-    upsert_cursor "$MEMORY_NAME" '{"command":"'"$MEMORY_BIN"'"}'
   fi
   if command -v cline >/dev/null 2>&1; then
     upsert_cline "$MEMORY_NAME" "$MEMORY_BIN"
@@ -259,9 +222,6 @@ setup_code_graph() {
   if command -v opencode >/dev/null 2>&1; then
     upsert_opencode "$name" '{"type":"local","command":["'"$code_graph_bin"'","--mcp"],"enabled":true}'
   fi
-  if [ -d "$HOME/.cursor" ] || command -v agent >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1; then
-    upsert_cursor "$name" '{"command":"'"$code_graph_bin"'","args":["--mcp"]}'
-  fi
   if command -v cline >/dev/null 2>&1; then
     upsert_cline "$name" "$code_graph_bin" --mcp
   fi
@@ -291,9 +251,6 @@ setup_sentry() {
   fi
   if command -v opencode >/dev/null 2>&1; then
     upsert_opencode "$name" '{"type":"remote","url":"'"$url"'","enabled":true}'
-  fi
-  if [ -d "$HOME/.cursor" ] || command -v agent >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1; then
-    upsert_cursor "$name" '{"url":"'"$url"'"}'
   fi
   if command -v cline >/dev/null 2>&1; then
     upsert_cline_http "$name" "$url"

@@ -108,7 +108,7 @@ func TestReadAgentTasksFiltraPorCLI(t *testing.T) {
 	a := sampleTask("t-1")
 	a.CLI = "claude"
 	b := sampleTask("t-2")
-	b.CLI = "cursor"
+	b.CLI = "cline"
 	if err := AppendAgentTask(dir, a); err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +179,7 @@ func TestStatsAgentTasksContaPorCLIStatusETokens(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := sampleTask("t-2")
-	b.CLI = "cursor"
+	b.CLI = "cline"
 	b.Status = "failed"
 	if err := AppendAgentTask(dir, b); err != nil {
 		t.Fatal(err)
@@ -191,7 +191,7 @@ func TestStatsAgentTasksContaPorCLIStatusETokens(t *testing.T) {
 	if s.Total != 2 {
 		t.Fatalf("Total esperado 2, got %d", s.Total)
 	}
-	if s.ByCLI["claude"] != 1 || s.ByCLI["cursor"] != 1 {
+	if s.ByCLI["claude"] != 1 || s.ByCLI["cline"] != 1 {
 		t.Fatalf("ByCLI errado: %+v", s.ByCLI)
 	}
 	if s.ByStatus["completed"] != 1 || s.ByStatus["failed"] != 1 {

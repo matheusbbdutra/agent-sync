@@ -56,36 +56,6 @@ func TestRenderClaude(t *testing.T) {
 	}
 }
 
-func TestRenderCursorReadonly(t *testing.T) {
-	agent := Source{Name: "x", Description: "d", Body: "corpo", ReadOnly: true}
-	filename, content, err := RenderAgent("cursor", agent)
-	if err != nil {
-		t.Fatalf("RenderAgent: %v", err)
-	}
-	if filename != "x.md" {
-		t.Fatalf("filename = %q", filename)
-	}
-	for _, want := range []string{"model: inherit", "readonly: true"} {
-		if !strings.Contains(content, want) {
-			t.Errorf("faltando %q em:\n%s", want, content)
-		}
-	}
-}
-
-func TestRenderCursorWritable(t *testing.T) {
-	agent := Source{Name: "x", Description: "d", Body: "corpo"}
-	_, content, err := RenderAgent("cursor", agent)
-	if err != nil {
-		t.Fatalf("RenderAgent: %v", err)
-	}
-	if !strings.Contains(content, "model: inherit") {
-		t.Fatalf("faltando model: inherit em:\n%s", content)
-	}
-	if strings.Contains(content, "readonly:") {
-		t.Fatalf("não deveria ter readonly: %q", content)
-	}
-}
-
 func TestRenderOpenCodeReadonly(t *testing.T) {
 	agent := Source{Name: "x", Description: "d", Body: "corpo", ReadOnly: true}
 	_, content, err := RenderAgent("opencode", agent)
@@ -181,7 +151,7 @@ func TestMRReviewerRendersForAllCLIs(t *testing.T) {
 	if !agent.ReadOnly || !strings.Contains(agent.Body, "mr-review-local") {
 		t.Fatal("agente de MR deve ser somente leitura e usar o coletor comum")
 	}
-	for _, kind := range []string{"claude", "codex", "antigravity", "opencode", "cursor"} {
+	for _, kind := range []string{"claude", "codex", "antigravity", "opencode"} {
 		name, content, err := RenderAgent(kind, agent)
 		if err != nil || !strings.Contains(name, "mr-reviewer") || !strings.Contains(content, "mr-review-local") {
 			t.Fatalf("renderização %s: %s, %v", kind, name, err)

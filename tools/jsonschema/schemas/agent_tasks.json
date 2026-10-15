@@ -26,7 +26,7 @@
     "cli": {
       "type": "string",
       "anyOf": [
-        { "enum": ["claude", "codex", "opencode", "cursor", "agy", "cline"] },
+        { "enum": ["claude", "codex", "opencode", "agy", "cline"] },
         { "pattern": "^[a-z][a-z0-9-]{0,31}$" }
       ],
       "description": "CLI que executou a task. Aceita as CLIs canonicas ou qualquer slug bem formado (CLI nova = aditivo, sem bump; fonte unica: tools/actorvocab)."

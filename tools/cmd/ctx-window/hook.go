@@ -1,5 +1,5 @@
 // Handles the PostToolUse (or equivalent) hook payload for the CLIs that
-// invoke hooks as a plain shell command (claude, codex, cursor, antigravity)
+// invoke hooks as a plain shell command (claude, codex, antigravity)
 // instead of a native plugin runtime (OpenCode is the exception: its hook
 // IS a TS plugin, so it stays as hooks/ctx-compact.opencode.ts — there is
 // no Go equivalent to swap in there).
@@ -63,7 +63,7 @@ func toolFailureMarker(responseText string) string {
 // checks transcript token usage and may return one manual-summary reminder.
 func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if len(args) < 1 {
-		return errors.New("hook requires <cli> (claude, codex, cursor, antigravity)")
+		return errors.New("hook requires <cli> (claude, codex, antigravity)")
 	}
 	cli := args[0]
 
@@ -72,9 +72,6 @@ func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return fmt.Errorf("ctx-window: read hook payload: %w", err)
 	}
 
-	if cli == "cursor" && len(args) > 1 && args[1] == "precompact" {
-		return runCursorPreCompactHook(raw, stdout, stderr)
-	}
 	if cli == "antigravity" && len(args) > 1 && args[1] == "preinvocation" {
 		return runAntigravityPreInvocationHook(raw, stdout, stderr)
 	}
@@ -83,8 +80,6 @@ func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	switch cli {
 	case "claude", "codex":
 		sessionID, toolName, content = parseClaudeCodexPayload(raw)
-	case "cursor":
-		sessionID, toolName, content = parseCursorPayload(raw)
 	case "antigravity":
 		sessionID, toolName, content = parseAntigravityPayload(raw)
 	default:
@@ -108,10 +103,7 @@ func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if cli == "antigravity" && len(common.WorkspacePaths) > 1 {
 		projectPath = ""
 	}
-	if cli == "cursor" && projectPath == "" {
-		projectPath = os.Getenv("CURSOR_PROJECT_DIR")
-	}
-	if projectPath == "" && cli != "cursor" && cli != "antigravity" {
+	if projectPath == "" && cli != "antigravity" {
 		projectPath, _ = os.Getwd()
 	}
 	if projectPath != "" {
@@ -155,7 +147,7 @@ func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 }
 
 // asText mirrors the equivalent helper previously duplicated in
-// hooks/ctx-compact.py / ctx-compact.cursor.py: pulls a human-readable
+// hooks/ctx-compact.py: pulls a human-readable
 // string out of a tool_response-shaped JSON value.
 func asText(raw json.RawMessage) string {
 	if len(raw) == 0 {
@@ -236,42 +228,6 @@ func parseClaudeCodexPayload(raw []byte) (sessionID, toolName, content string) {
 	return p.SessionID, p.ToolName, content
 }
 
-// cursorPayload is the schema confirmed against hooks/docs-cache.cursor.py:
-// tool_input may arrive either as an object or as a JSON-stringified value;
-// the result comes back as tool_output or tool_response.
-type cursorPayload struct {
-	SessionID      string          `json:"session_id"`
-	ConversationID string          `json:"conversation_id"`
-	ToolName       string          `json:"tool_name"`
-	ToolInput      json.RawMessage `json:"tool_input"`
-	ToolOutput     json.RawMessage `json:"tool_output"`
-	ToolResponse   json.RawMessage `json:"tool_response"`
-}
-
-func parseCursorPayload(raw []byte) (sessionID, toolName, content string) {
-	var p cursorPayload
-	if err := json.Unmarshal(raw, &p); err != nil {
-		return "", "", ""
-	}
-	sessionID = p.SessionID
-	if sessionID == "" {
-		sessionID = p.ConversationID
-	}
-	inputRaw := p.ToolInput
-	// tool_input can be a JSON-encoded string instead of a raw object.
-	var asStr string
-	if json.Unmarshal(inputRaw, &asStr) == nil && asStr != "" {
-		inputRaw = json.RawMessage(asStr)
-	}
-	response := p.ToolOutput
-	if len(response) == 0 {
-		response = p.ToolResponse
-	}
-	responseText := asText(response)
-	content = joinContent(compactRaw(inputRaw), responseText, toolStatusMarker(responseText))
-	return sessionID, p.ToolName, content
-}
-
 // antigravityPayload is the schema confirmed against
 // hooks/docs-cache.antigravity.py: the payload itself carries no result
 // (documented upstream limitation) — it has to be read back from the
@@ -336,29 +292,6 @@ func findAntigravityResult(path string, targetStep int) string {
 		}
 	}
 	return ""
-}
-
-func runCursorPreCompactHook(raw []byte, stdout, stderr io.Writer) error {
-	if len(raw) == 0 {
-		fmt.Fprint(stdout, "{}")
-		return nil
-	}
-	var p struct {
-		ContextTokens  int    `json:"context_tokens"`
-		SessionID      string `json:"session_id"`
-		ConversationID string `json:"conversation_id"`
-	}
-	_ = json.Unmarshal(raw, &p)
-	tokens := p.ContextTokens
-	var msg string
-	if tokens > 0 {
-		msg = fmt.Sprintf("[AVISO agent-sync] Limite de contexto atingido (%d tokens). Para evitar perda de contexto e respeitar o sliding window, considere cancelar a compactação automática, executar `ctx-window summarize` e iniciar nova sessão com o resumo.", tokens)
-	} else {
-		msg = "[AVISO agent-sync] Compactação nativa acionada. Para manter o fluxo estruturado, considere executar `ctx-window summarize` e iniciar nova sessão."
-	}
-	return json.NewEncoder(stdout).Encode(map[string]string{
-		"user_message": msg,
-	})
 }
 
 func runAntigravityPreInvocationHook(raw []byte, stdout, stderr io.Writer) error {

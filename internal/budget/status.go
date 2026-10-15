@@ -2,18 +2,18 @@
 //
 // token_budget.go implementa o subcommand `agent-sync budget nudge` que
 // produz o payload `token-budget-status.json` consumido pelos hooks
-// cross-CLI (postToolUse de Claude Code/Codex/Antigravity/Cursor e plugin
+// cross-CLI (postToolUse de Claude Code/Codex/Antigravity e plugin
 // OpenCode v2). Migrado de token_budget.go em 2026-09-21 (Fase 5).
 // Renomeado: token_budget.go -> budget_status.go (prefir prefixo budget_
 
 // token_budget.go implementa o subcommand `agent-sync budget nudge` que
 // produz o payload `token-budget-status.json` consumido pelos hooks
-// cross-CLI (postToolUse de Claude Code/Codex/Antigravity/Cursor e plugin
+// cross-CLI (postToolUse de Claude Code/Codex/Antigravity e plugin
 // v2 do OpenCode). Logica de decisao conforme ADR-token-nudge-contract
 // Decisao 3: should_nudge = (utilization_pct >= threshold_pct) OR
 // (heuristica legada dispara).
 //
-// Heuristica legada (rede de seguranca para gaps Antigravity/Cursor):
+// Heuristica legada (rede de seguranca para gaps Antigravity):
 //   - tool_calls >= AGENT_SYNC_CTX_WINDOW_NUDGE_MIN_TOOL_CALLS (default 80)
 //   - summary.md ausente
 //   - summary.md com idade >= AGENT_SYNC_CTX_WINDOW_NUDGE_MAX_AGE_HOURS (default 4h)

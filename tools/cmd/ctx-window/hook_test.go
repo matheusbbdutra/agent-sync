@@ -33,25 +33,6 @@ func TestParseClaudeCodexPayloadInvalidJSON(t *testing.T) {
 	}
 }
 
-func TestParseCursorPayloadFallsBackToConversationID(t *testing.T) {
-	raw := []byte(`{
-		"conversation_id": "conv-1",
-		"tool_name": "Edit",
-		"tool_input": "{\"path\":\"calculator.go\"}",
-		"tool_output": {"stdout": "ok"}
-	}`)
-	sessionID, toolName, content := parseCursorPayload(raw)
-	if sessionID != "conv-1" {
-		t.Errorf("sessionID = %q, want conv-1", sessionID)
-	}
-	if toolName != "Edit" {
-		t.Errorf("toolName = %q, want Edit", toolName)
-	}
-	if !strings.Contains(content, "calculator.go") || !strings.Contains(content, "ok") {
-		t.Errorf("content missing expected substrings: %q", content)
-	}
-}
-
 func TestParseAntigravityPayloadReadsTranscript(t *testing.T) {
 	dir := t.TempDir()
 	transcriptPath := filepath.Join(dir, "transcript.jsonl")
@@ -190,19 +171,6 @@ func TestRunHookEndToEndRecordsTurn(t *testing.T) {
 	}
 	if !strings.Contains(s.Turns[0].Content, "go test") {
 		t.Errorf("turn content missing tool input: %q", s.Turns[0].Content)
-	}
-}
-
-func TestRunCursorPreCompactHook(t *testing.T) {
-	var stdout, stderr strings.Builder
-	payload := `{"context_tokens":165000,"session_id":"cur-123"}`
-	err := runHook([]string{"cursor", "precompact"}, strings.NewReader(payload), &stdout, &stderr)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	out := stdout.String()
-	if !strings.Contains(out, "user_message") || !strings.Contains(out, "165000 tokens") || !strings.Contains(out, "ctx-window summarize") {
-		t.Fatalf("unexpected cursor precompact output: %s", out)
 	}
 }
 

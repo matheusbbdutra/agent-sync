@@ -19,7 +19,7 @@ type Session struct {
 	ID          string    `json:"id"`
 	K           int       `json:"k"`
 	Summarizer  string    `json:"summarizer"`
-	CLIName     string    `json:"cli_name"` // which CLI owns this session: claude | codex | opencode | cursor | antigravity
+	CLIName     string    `json:"cli_name"` // which CLI owns this session: claude | codex | opencode | antigravity
 	ProjectPath string    `json:"project_path,omitempty"`
 	NudgeSent   bool      `json:"nudge_sent,omitempty"`
 	Budget      int       `json:"budget"`

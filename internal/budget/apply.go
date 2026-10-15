@@ -171,7 +171,7 @@ func newBudgetWriteFlags(name string) *budgetWriteFlags {
 
 // runBudgetWrite le uma AgentTask do stdin em JSON e grava via AppendAgentTask.
 // Usado pelo hook bash agent-task-record.stop.sh wirado no evento Stop de
-// Claude Code, Codex, Antigravity e Cursor. Schema enforcement fica em
+// Claude Code, Codex e Antigravity. Schema enforcement fica em
 // AppendAgentTask via jsonschema.Validate.
 func runBudgetWrite(args []string) error {
 	f := newBudgetWriteFlags("agent-sync budget write")

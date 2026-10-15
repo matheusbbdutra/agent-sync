@@ -46,7 +46,7 @@ func TestValidateAgentTasksMinimalPayload(t *testing.T) {
 		"schema_version": "1.0",
 		"task_id":        "t-1",
 		"ts":             "2026-09-19T18:30:00Z",
-		"cli":            "cursor",
+		"cli":            "cline",
 		"model":          "gpt-5",
 		"status":         "started",
 	}
@@ -92,13 +92,13 @@ func TestValidateAgentTasksAceitaCLINovaPorSlug(t *testing.T) {
 	}
 }
 
-// TestValidateAgentTasksAceitaTodasAsCLIs cobre as 6 CLIs do agent-sync.
+// TestValidateAgentTasksAceitaTodasAsCLIs cobre as 5 CLIs do agent-sync.
 // Regressao do A-80.4: o enum `cli` ficou para tras quando o Cline virou a 6a
 // CLI (A-78) — `agent-sync budget write` rejeitava `cli=cline` e o hook
 // agent-task-record (wirado pela ponte do Cline) falhava em silencio
 // (telemetria nao gravada em .agent-sync/agent_tasks.jsonl).
 func TestValidateAgentTasksAceitaTodasAsCLIs(t *testing.T) {
-	for _, cli := range []string{"claude", "codex", "opencode", "cursor", "agy", "cline"} {
+	for _, cli := range []string{"claude", "codex", "opencode", "agy", "cline"} {
 		t.Run(cli, func(t *testing.T) {
 			payload := validTaskPayload(t)
 			payload["cli"] = cli

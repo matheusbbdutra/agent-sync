@@ -71,13 +71,12 @@ var knownCLIs = map[string]struct {
 	"claude":      {bin: "claude", staticArgs: []string{"-p"}, modelFlag: "--model"},
 	"codex":       {bin: "codex", staticArgs: []string{"exec"}, modelFlag: "--model"},
 	"opencode":    {bin: "opencode", staticArgs: []string{"run", "--pure"}, modelFlag: "-m"},
-	"cursor":      {bin: "cursor-agent", staticArgs: []string{"-p"}, modelFlag: "--model"},
 	"antigravity": {bin: "agy", staticArgs: []string{"-p"}, modelFlag: "--model"},
 }
 
 // summarizerCommand builds the exec.Cmd that runs the given CLI
 // non-interactively with prompt as its single instruction. Recursion into
-// our own hooks is not a concern for claude/codex/cursor/antigravity here
+// our own hooks is not a concern for claude/codex/antigravity here
 // because their hooks only fire on tool calls, and a plain "-p"/"exec" run
 // with no tools available makes no tool calls; opencode is the exception
 // (its plugin hook fires on tool.execute.after), so it keeps --pure.
@@ -98,13 +97,13 @@ func summarizerCommand(ctx context.Context, cliName, model, prompt string) (*exe
 	return exec.CommandContext(ctx, cli.bin, args...), nil
 }
 
-// runSummarize asks the CLI that owns the session (claude, codex, opencode,
-// cursor or antigravity — whichever hook triggered this session) to generate
+// runSummarize asks the CLI that owns the session (claude, codex, opencode
+// or antigravity — whichever hook triggered this session) to generate
 // a summary via the same LLM/subscription the user is already running.
 func runSummarize(args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("summarize", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	cliFlag := fs.String("cli", "", "CLI to run the summary through: claude, codex, opencode, cursor, antigravity (default: session's cli_name)")
+	cliFlag := fs.String("cli", "", "CLI to run the summary through: claude, codex, opencode, antigravity (default: session's cli_name)")
 	model := fs.String("model", "", "model to request from the CLI (default: CLI's own default, or $AGENT_SYNC_CTX_MODEL)")
 	timeout := fs.Duration("timeout", 60*time.Second, "timeout for the CLI call")
 	if err := fs.Parse(args); err != nil {
@@ -156,7 +155,7 @@ func runSummarize(args []string, stdout, stderr io.Writer) error {
 		cliName = strings.TrimSpace(s.CLIName)
 	}
 	if cliName == "" {
-		return errors.New("no CLI known for this session — pass --cli (claude, codex, opencode, cursor, antigravity) or ensure the hook records cli_name")
+		return errors.New("no CLI known for this session — pass --cli (claude, codex, opencode, antigravity) or ensure the hook records cli_name")
 	}
 	promptModel := *model
 	if promptModel == "" {
@@ -297,7 +296,7 @@ func runOnToolCallLLM(args []string, stdout, stderr io.Writer) error {
 	fs.SetOutput(stderr)
 	tool := fs.String("tool", "", "tool name (required)")
 	input := fs.String("input", "", "truncated tool input (optional)")
-	cliFlag := fs.String("cli", "", "CLI that owns this session: claude, codex, opencode, cursor, antigravity")
+	cliFlag := fs.String("cli", "", "CLI that owns this session: claude, codex, opencode, antigravity")
 	projectFlag := fs.String("project", "", "project working directory")
 	if err := fs.Parse(args[1:]); err != nil {
 		return err

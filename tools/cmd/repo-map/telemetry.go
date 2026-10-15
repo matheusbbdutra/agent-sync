@@ -57,9 +57,6 @@ func detectCLI() string {
 	if os.Getenv("CLAUDE_CODE_ENTRYPOINT") != "" || os.Getenv("CLAUDE_PROJECT_DIR") != "" {
 		return "claude"
 	}
-	if os.Getenv("CURSOR_PROJECT_DIR") != "" || os.Getenv("CURSOR_AGENT") != "" {
-		return "cursor"
-	}
 	if os.Getenv("OPENCODE_VERSION") != "" || os.Getenv("OPENCODE_ROOT") != "" {
 		return "opencode"
 	}
