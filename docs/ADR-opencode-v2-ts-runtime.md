@@ -1,7 +1,8 @@
 # ADR: Runtime TS dos plugins OpenCode v2 — contrato de pré-requisitos
 
-**Status**: Aceito
-**Data**: 2026-09-21
+**Status**: Aceito (rev. 2 — 2026-10-15: linha **OpenCode v1 aposentada**; installer é v2-only com
+fail-fast — `6740248`. A linha "OpenCode v1" da matriz de comportamento abaixo é histórica.)
+**Data**: 2026-09-21 (rev. 2026-10-15)
 **Decisor**: Matheus Dutra
 **Tags**: ai-agent, opencode, runtime, typescript, scripts, apply
 

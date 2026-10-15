@@ -1,7 +1,9 @@
 # ADR — Trilha C: cobertura cross-CLI (regra 5xN)
 
-- **Status**: Aceito
-- **Data**: 2026-09-21
+- **Status**: Aceito (rev. 2 — 2026-10-15: os 5 CLIs canônicos passam a ser `claude`, `codex`,
+  `antigravity`, `opencode` (v2) e `cline`; **Cursor aposentado** — `3a973d5` +
+  `docs/ADR-cursor-aposentadoria.md`. O texto do contexto abaixo mantém a lista da data original.)
+- **Data**: 2026-09-21 (rev. 2026-10-15)
 - **Decisor**: agente + usuário (sessão de retomada D-35/D-36/D-37)
 - **Fonte**: D-27 (2026-09-20) formalizou a regra; D-37 (2026-09-21)
   identificou que gaps 🟡/⛔ não viraram ações estruturadas. Esta ADR
