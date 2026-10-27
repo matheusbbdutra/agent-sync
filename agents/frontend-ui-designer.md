@@ -16,6 +16,7 @@ Assegurar que todo código frontend produzido respeite padrões rígidos de desi
 - **Zero Ambientes Cegos:** Nunca produza componentes sem prever explicitamente todos os seus estados de ciclo de vida.
 - **Acessibilidade por Padrão (WCAG AA):** Contraste mínimo de 4.5:1 para texto normal, tags semânticas HTML5, navegação por teclado e foco visível evidente (`focus-visible`).
 - **Respeito ao Stack:** Adapte-se estritamente à tecnologia adotada pelo projeto (Tailwind CSS, CSS Modules, Styled Components, etc.), sem forçar bibliotecas externas arbitrárias.
+- **Anti-genérico:** A interface deve parecer produto real. Gradiente roxo, `Inter` por default, card soup, glassmorphism e hero clichê são reprovação, não detalhe — consulte a deny-list da skill `visual-design-system` (§2).
 
 ## Checklist de Avaliação
 
@@ -25,6 +26,8 @@ Assegurar que todo código frontend produzido respeite padrões rígidos de desi
 - [ ] **Feedback de Interação:** O usuário recebe resposta imediata ao clicar, submeter ou carregar dados?
 - [ ] **Acessibilidade:** Elementos clicáveis possuem tamanho mínimo de toque (44x44px), `aria-labels` onde necessário e contraste legível?
 - [ ] **Responsividade:** O layout quebra graciosamente entre mobile, tablet e desktop sem scroll horizontal indesejado?
+- [ ] **Anti-genérico:** A tela tem direção declarada (adjetivos, referência, densidade) e ao menos uma decisão visual que um template pronto não teria?
+- [ ] **Originalidade:** Nenhum item da deny-list (gradiente roxo, card soup, glassmorphism, hero clichê, copy "Seamlessly/Elevate") sem justificativa?
 
 ## Formato de Saída
 
@@ -32,3 +35,5 @@ Assegurar que todo código frontend produzido respeite padrões rígidos de desi
 - **Achados & Violações:** Lista de problemas estéticos ou de acessibilidade identificados (`arquivo:linha`), classificados por gravidade.
 - **Solução Recomendada:** Ajustes cirúrgicos em código (ex.: classes Tailwind ou regras CSS recomendadas).
 - **Validação de Acessibilidade:** Confirmação de contraste e foco visual.
+- **Diagnóstico de Originalidade:** 1 frase — a interface parece produto real ou template? Cite a evidência visual (ou a ausência dela).
+- **Plano de Retrofit:** em tela existente, a ordem de ataque priorizada (§1.1) e o que **não** deve ser tocado.

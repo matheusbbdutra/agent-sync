@@ -28,6 +28,18 @@ Instituir no `agent-sync` uma vertente canônica de **Engenharia Visual e Design
   - **Estados de Componentes Obrigatórios:** Todo componente de interface deve prever explicitamente: Default, Hover, Active, Disabled, Loading e Error.
   - **Acessibilidade e Micro-interações:** Contraste mínimo WCAG AA (4.5:1), navegação por teclado e foco visível (`focus-visible:ring-2`).
 
+### 1.1 Revisão 2026-10-27 — Camada Anti-Genérico ("cara de IA")
+
+**Motivo:** a skill cobria tokens, estados e WCAG, mas nenhuma regra sobre o visual genérico que denuncia UI gerada por IA. O catálogo externo `ui-design` (`plugins/ui-design/skills/*`, ~1.4k linhas) é tecnicamente mais fundo, porém seu próprio quick-start prescreve `Inter` + `#2563eb` (`visual-design-foundations/SKILL.md:106,121`) — portar 1:1 reforçaria o problema em vez de resolvê-lo.
+
+**Decisão:** expandir a skill canônica (52 → 112 linhas) com: §1 direção obrigatória antes do markup (adjetivos, referência real, densidade, modo); §2 deny-list de padrões de IA (gradiente roxo, card soup, glassmorphism, hero clichê, copy "Seamlessly/Elevate"); §3 cor com intenção (neutros tintados, uma cor de marca); §4 tipografia (escala modular, measure 45–75ch); §5 ritmo vertical variado e densidade por contexto; §7 motion (durações, `prefers-reduced-motion`); §9 aceitação com "teste do print" 1440/390.
+
+**Wiring:** `frontend-developer` carrega a skill e declara direção antes de tela nova; `frontend-ui-designer` ganha princípio, 2 itens de checklist e diagnóstico de originalidade.
+
+**Fora de escopo (não decidido):** skill nova `frontend-design-direction` com entrevista de direção (versão sem Stitch do `brand-landingpage`). Hoje o §1 cobre o caso; criar apenas se houver demanda recorrente de landing page.
+
+**Validação:** `go run ./cmd/agent-sync skills lint` → 54 skills, 0 erros; `make apply` → 5 CLIs sincronizadas.
+
 ### 2. Subagente Especialista `frontend-ui-designer` (Read-only / Auditor)
 - Criar a especificação do subagente canônico em `agents/frontend-ui-designer.md`.
 - Atuação: revisar código de componentes frontend, inspecionar consistência visual, apontar quebras de design token e sugerir correções de acessibilidade e refinamento estético antes do commit.

@@ -66,5 +66,6 @@ pnpm lint
 - **Não invente dependências:** se precisar de uma lib nova, pare e pergunte ao usuário antes de adicionar.
 - **Não refatore código adjacente** fora do escopo da tarefa (anti-overengineering — `refactor-specialist` cuida disso).
 - **Não toque em design tokens/cores sem `frontend-ui-designer`** — tokens são decisão dele.
+- **Antes de criar ou ajustar tela**, carregue a skill `visual-design-system` e declare a direção (§1: adjetivos, referência, densidade, modo; em tela existente, siga o §1.1). Sem direção, não escreva markup — o default do modelo é o visual genérico.
 - **Não faça deploy** — entrega código commitado ou PR aberto.
 - **Cite `path:linha`** de cada mudança; sem "alterei o componente" vago.
