@@ -128,5 +128,17 @@ func syncOpenCodeMemoryPipelinePlugin(baseDir string, target TargetCLI) error {
 // (padrao repo-map-warmup v2). Plugin v2-only
 // (hooks/memory-prune-session-start.opencode.v2.ts).
 func syncOpenCodeMemoryPruneSessionStartPlugin(baseDir string, target TargetCLI) error {
-	return syncOpenCodePluginVersioned(baseDir, target, "memory-prune-session-start", "memory-prune-session-start.ts", false)
+	if err := syncOpenCodePluginVersioned(baseDir, target, "memory-prune-session-start", "memory-prune-session-start.ts", false); err != nil {
+		return err
+	}
+	if target.OpenCodePluginDir == "" {
+		return nil
+	}
+	// O plugin resolve o bash por import.meta.dirname; copia o script junto
+	// para o path default funcionar sem depender de AGENT_SYNC_MEMORY_PRUNE_SH.
+	scriptSrc := filepath.Join(baseDir, "hooks", "memory-prune-session-start.sh")
+	if _, err := os.Stat(scriptSrc); err != nil {
+		return nil
+	}
+	return copyFile(scriptSrc, filepath.Join(target.OpenCodePluginDir, "memory-prune-session-start.sh"))
 }

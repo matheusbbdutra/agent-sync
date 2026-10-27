@@ -159,3 +159,34 @@ func TestSyncOpenCodeNewPluginOnlyV2(t *testing.T) {
 		t.Errorf("v2 deve instalar, got %q", raw)
 	}
 }
+
+func TestSyncOpenCodeMemoryPruneCopiesScript(t *testing.T) {
+	base := t.TempDir()
+	hooks := filepath.Join(base, "hooks")
+	if err := os.MkdirAll(hooks, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(hooks, "memory-prune-session-start.opencode.v2.ts"), []byte("// v2"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(hooks, "memory-prune-session-start.sh"), []byte("#!/usr/bin/env bash\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dest := t.TempDir()
+
+	t.Setenv("AGENT_SYNC_OPENCODE_VERSION", "2")
+	tgt := TargetCLI{AgentKind: "opencode", OpenCodePluginDir: dest}
+	if err := syncOpenCodeMemoryPruneSessionStartPlugin(base, tgt); err != nil {
+		t.Fatal(err)
+	}
+
+	// O plugin resolve o bash por import.meta.dirname; o sync deve copiar ambos.
+	ts, err := os.ReadFile(filepath.Join(dest, "memory-prune-session-start.ts"))
+	if err != nil || string(ts) != "// v2" {
+		t.Errorf("plugin TS nao copiado corretamente: %q, err=%v", ts, err)
+	}
+	sh, err := os.ReadFile(filepath.Join(dest, "memory-prune-session-start.sh"))
+	if err != nil || string(sh) != "#!/usr/bin/env bash\n" {
+		t.Errorf("script bash nao copiado corretamente: %q, err=%v", sh, err)
+	}
+}
