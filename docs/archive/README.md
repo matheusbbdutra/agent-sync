@@ -9,12 +9,13 @@ docs/archive/
 ├── adrs-descartadas/                     ADRs re-Proposto→Descartado por decisão posterior
 │   └── ADR-code-graph-bounded-context.md subsumido por D-49/D-53/D-54/D-57; D-64 em 2026-09-23
 └── sessoes/                              Documentos de trabalho efêmeros de sessões fechadas
-    └── 2026-09-22-cruzamento-5-repos/    análise de 5 repos × agent-sync (ses_atual fechada 2026-09-22)
-        ├── SESSION-2026-09-22-skill-lint-and-repos-analysis.md
-        ├── repos-cruzamento.md
-        ├── A-N-cruzamento-escopo.md
-        ├── A-N-cruzamento-preaudits.md
-        └── A-N-cruzamento-preaudits-2.md
+    ├── 2026-09-22-cruzamento-5-repos/    análise de 5 repos × agent-sync (ses_atual fechada 2026-09-22)
+    │   ├── SESSION-2026-09-22-skill-lint-and-repos-analysis.md
+    │   ├── repos-cruzamento.md
+    │   ├── A-N-cruzamento-escopo.md
+    │   ├── A-N-cruzamento-preaudits.md
+    │   └── A-N-cruzamento-preaudits-2.md
+    └── 2026-09-26-handoff-cline/         handoff A-80/A-87 (bloco manual retirado do STATE.md em 2026-10-27, D-139)
 ```
 
 ## Política de promoção (anti-overengineering)
