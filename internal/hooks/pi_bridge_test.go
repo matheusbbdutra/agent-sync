@@ -110,6 +110,7 @@ func TestPiDispatchToolResultRedacao(t *testing.T) {
 }
 
 func TestPiTokenNudgeAcimaDoThreshold(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir()) // isola o marker de nudge por sessao
 	got := piTokenNudge(piHookPayload{
 		SessionID:     "s4",
 		Model:         "claude-sonnet-4-5",

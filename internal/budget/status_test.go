@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestContextWindowLookup_ModelosConhecidos(t *testing.T) {
@@ -31,6 +32,55 @@ func TestContextWindowLookup_DesconhecidoDefault200k(t *testing.T) {
 	got := ContextWindowLookup("modelo-futuro-desconhecido")
 	if got != 200000 {
 		t.Errorf("modelo desconhecido esperava default 200000, veio %d", got)
+	}
+}
+
+func TestNudgeMessage_ReportaGatilhoReal(t *testing.T) {
+	stale := filepath.Join(t.TempDir(), "summary.md")
+	if err := os.WriteFile(stale, []byte("# handoff\n"), 0o644); err != nil {
+		t.Fatalf("summary: %v", err)
+	}
+	old := time.Now().Add(-6 * time.Hour)
+	if err := os.Chtimes(stale, old, old); err != nil {
+		t.Fatalf("chtimes: %v", err)
+	}
+
+	// Gatilho de tokens: unico caso em que o percentual aparece.
+	s, err := BuildTokenBudgetStatus("claude", "s", "m", 1000000,
+		900000, 0, 0, stale, 80, nil)
+	if err != nil {
+		t.Fatalf("build tokens: %v", err)
+	}
+	if msg := NudgeMessage(s); !strings.Contains(msg, "90% da janela") || strings.Contains(msg, "Handoff") {
+		t.Errorf("gatilho de tokens deveria mostrar percentual, veio %q", msg)
+	}
+
+	// Gatilho de summary velho: sem percentual, com idade real.
+	s, err = BuildTokenBudgetStatus("claude", "s", "m", 1000000,
+		1000, 0, 0, stale, 80, nil)
+	if err != nil {
+		t.Fatalf("build summary: %v", err)
+	}
+	msg := NudgeMessage(s)
+	if !strings.Contains(msg, "Handoff desatualizado") || strings.Contains(msg, "de utilizacao") {
+		t.Errorf("gatilho de summary deveria reportar handoff, veio %q", msg)
+	}
+	if !strings.Contains(msg, "com 6h") {
+		t.Errorf("idade do summary ausente em %q", msg)
+	}
+
+	// Sem nudge: mensagem vazia (o shell nao emite nada).
+	s, err = BuildTokenBudgetStatus("claude", "s", "m", 1000000,
+		1000, 0, 0, "", 80, nil)
+	if err != nil {
+		t.Fatalf("build missing: %v", err)
+	}
+	if msg := NudgeMessage(s); !strings.Contains(msg, "Handoff ausente") {
+		t.Errorf("esperava aviso de handoff ausente, veio %q", msg)
+	}
+	s.ShouldNudge = false
+	if msg := NudgeMessage(s); msg != "" {
+		t.Errorf("sem nudge a mensagem deveria ser vazia, veio %q", msg)
 	}
 }
 

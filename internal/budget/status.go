@@ -152,6 +152,30 @@ func BuildTokenBudgetStatus(actor, sessionID, model string, contextWindow, token
 	return s, nil
 }
 
+// NudgeMessage descreve o motivo real do gatilho para os hosts que nao tem
+// canal estruturado (Claude/Codex/Antigravity/Cursor). O percentual de janela
+// so aparece quando a pressao de tokens foi o gatilho; nos demais casos o
+// aviso e sobre o handoff (summary velho/ausente).
+func NudgeMessage(s TokenBudgetStatus) string {
+	if !s.ShouldNudge {
+		return ""
+	}
+	const hint = "Rode 'ctx-window summarize' para manter o handoff atualizado."
+	switch s.Trigger {
+	case "tokens_in>=threshold":
+		return fmt.Sprintf("[agent-sync] Contexto em %d%% da janela de %d tokens (trigger=%s). %s",
+			s.UtilizationPct, s.ContextWindow, s.Trigger, hint)
+	case "summary_age>=max":
+		age, _ := s.Details["summary_age_hours"].(int)
+		return fmt.Sprintf("[agent-sync] Handoff desatualizado: .agent-sync/summary.md com %dh (limite %dh). %s",
+			age, TokenNudgeDefaultMaxAgeHours, hint)
+	case "summary_missing":
+		return "[agent-sync] Handoff ausente: crie .agent-sync/summary.md. " + hint
+	default:
+		return fmt.Sprintf("[agent-sync] Handoff pendente (trigger=%s). %s", s.Trigger, hint)
+	}
+}
+
 // decideNudge devolve tambem a idade do summary em horas quando esse foi o
 // gatilho, para o host reportar o motivo real em vez de um percentual falso.
 func decideNudge(total, utilPct, thresholdPct, toolCalls int, summaryPath string) (should bool, trigger string, summaryAgeHours int) {
@@ -186,6 +210,7 @@ type budgetNudgeFlags struct {
 	toolCalls   int
 	threshold   int
 	summaryPath string
+	messageOnly bool
 }
 
 func newBudgetNudgeFlags(name string) *budgetNudgeFlags {
@@ -201,6 +226,7 @@ func newBudgetNudgeFlags(name string) *budgetNudgeFlags {
 	f.fs.IntVar(&f.toolCalls, "tool-calls", 0, "Contador de tool calls para heuristica legada")
 	f.fs.IntVar(&f.threshold, "threshold", TokenNudgeDefaultThresholdPct, "Threshold % para nudge")
 	f.fs.StringVar(&f.summaryPath, "summary", ".agent-sync/summary.md", "Caminho do summary.md (vazio = desativa heuristica)")
+	f.fs.BoolVar(&f.messageOnly, "message", false, "Imprime so a mensagem de nudge (vazio = sem nudge)")
 	return f
 }
 
@@ -246,6 +272,12 @@ func runBudgetNudge(args []string) error {
 		tokensIn, tokensOut, f.toolCalls, summaryPath, f.threshold, details)
 	if err != nil {
 		return err
+	}
+	if f.messageOnly {
+		if msg := NudgeMessage(status); msg != "" {
+			fmt.Println(msg)
+		}
+		return nil
 	}
 	data, err := json.MarshalIndent(&status, "", "  ")
 	if err != nil {

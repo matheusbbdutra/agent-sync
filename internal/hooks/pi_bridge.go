@@ -25,7 +25,6 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -370,27 +369,7 @@ func piTokenNudge(p piHookPayload) string {
 	if !piNudgeOnce(status.SessionID, status.Trigger) {
 		return ""
 	}
-	return piNudgeMessage(status)
-}
-
-// piNudgeMessage reporta o motivo real do gatilho. O percentual de contexto so
-// aparece quando a pressao de tokens foi o gatilho; nos demais casos o aviso e
-// sobre o handoff (summary velho/ausente), nao sobre janela.
-func piNudgeMessage(s budget.TokenBudgetStatus) string {
-	const hint = "Rode 'ctx-window summarize' para manter o handoff atualizado."
-	switch s.Trigger {
-	case "tokens_in>=threshold":
-		return fmt.Sprintf("[agent-sync] Contexto em %d%% da janela de %d tokens (trigger=%s). %s",
-			s.UtilizationPct, s.ContextWindow, s.Trigger, hint)
-	case "summary_age>=max":
-		age, _ := s.Details["summary_age_hours"].(int)
-		return fmt.Sprintf("[agent-sync] Handoff desatualizado: .agent-sync/summary.md com %dh (limite %dh). %s",
-			age, budget.TokenNudgeDefaultMaxAgeHours, hint)
-	case "summary_missing":
-		return fmt.Sprintf("[agent-sync] Handoff ausente: crie .agent-sync/summary.md. %s", hint)
-	default:
-		return fmt.Sprintf("[agent-sync] Handoff pendente (trigger=%s). %s", s.Trigger, hint)
-	}
+	return budget.NudgeMessage(status)
 }
 
 // piNudgeOnce garante um aviso por sessao+gatilho: o nudge roda a cada tool

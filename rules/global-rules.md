@@ -27,6 +27,7 @@
 - **TS só na borda onde a API obriga** (OpenCode v2 `hooks/*.v2.ts` + Cline `cline-plugin/src/hooks/`): adapter fino (≤150 LOC), sem lógica — delega via `bridge.ts`/`execFile` (`~/.local/bin/<bin>`). TS nunca reimplementa deny-list nem lógica do Go.
 - **Python = zero**: proibido criar `.py` novo. Reaproveitamento de código Python externo (ex.: `governance-gate.py`, cache TTL, `overwrite`) deve ser portado para Go, nunca copiado como `.py`.
 - **1 fonte de verdade por função**: 1 core Go + adapters finos por host. Proibido duplicar a mesma regra em `.sh` + `.ts` com lógicas divergentes.
+- **Janela de contexto vem do host**: percentual de utilização usa o `context_window` nativo do runtime; tabela hardcoded de modelos é só fallback e nunca sobrepõe o dado real (bug 2026-11-11: aviso dizia 81% com 17% real — modelo de 1M caindo no default de 200k).
 
 ## 5. Persistência de Erros & Verificação
 - Trate sempre a causa raiz comprovada, nunca apenas paliativos.

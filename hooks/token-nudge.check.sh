@@ -68,29 +68,12 @@ if [ -n "$transcript_path" ]; then
   args+=("-transcript" "$transcript_path")
 fi
 
-# Chama CLI e captura decisao.
-status_json="$("$BIN" budget nudge "${args[@]}" 2>/dev/null || true)"
+# Mensagem vem do Go (fonte unica, -message): vazia = sem nudge.
+message="$("$BIN" budget nudge "${args[@]}" -message 2>/dev/null || true)"
 
-# Se vazio ou erro: silent no-op.
-if [ -z "$status_json" ]; then
+if [ -z "$message" ]; then
   exit 0
 fi
-
-# Decidir com base em should_nudge (extraido via grep simples).
-should_nudge="$(printf '%s' "$status_json" \
-  | { grep -o '"should_nudge"[[:space:]]*:[[:space:]]*true' || true; } | head -n1)"
-
-if [ -z "$should_nudge" ]; then
-  exit 0
-fi
-
-# Extrair utilization_pct e trigger para mensagem.
-util_pct="$(printf '%s' "$status_json" \
-  | { grep -o '"utilization_pct"[[:space:]]*:[[:space:]]*[0-9]*' || true; } \
-  | head -n1 | grep -oE '[0-9]+$' || echo '?')"
-trigger="$(printf '%s' "$status_json" \
-  | { grep -o '"trigger"[[:space:]]*:[[:space:]]*"[^"]*"' || true; } \
-  | head -n1 | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/' || echo 'unknown')"
 
 # Contrato por CLI (verificado em runtime 2026-09-22 no antigravity-cli):
 # - Claude/Codex/Cursor: additionalContext e injetado na conversa.
@@ -104,7 +87,7 @@ case "$input" in
     ;;
   *)
     cat <<EOF
-{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"[agent-sync] Contexto em ${util_pct}% de utilizacao (trigger=$trigger). Considere rodar 'ctx-window summarize' para manter handoff atualizado."}}
+{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"${message}"}}
 EOF
     ;;
 esac
