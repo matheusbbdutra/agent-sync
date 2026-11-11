@@ -49,6 +49,7 @@ func TestStandardHooksHasExpectedEntries(t *testing.T) {
 		"opencode-ctx-compact":     false,
 		"opencode-docs-cache":      false,
 		"opencode-repo-map-warmup": false,
+		"opencode-secret-guard":    false,
 		"bash-guardian":            false,
 	}
 	for _, name := range StandardHookNames() {

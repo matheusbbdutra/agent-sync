@@ -13,6 +13,32 @@ import (
 	"github.com/matheusdutra/token-tools/internal/agentmemory"
 )
 
+func TestBufferRecordRedactsSecrets(t *testing.T) {
+	sessionID := "test-secret-buffer"
+	bPath := bufferFilePath(sessionID)
+	_ = os.Remove(bPath)
+	defer os.Remove(bPath)
+
+	const secret = "sk-cp-JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ"
+	if err := runBufferRecord([]string{
+		"-session", sessionID,
+		"-tool", "bash",
+		"-note", "export MINIMAX_API_KEY=" + secret,
+	}); err != nil {
+		t.Fatalf("buffer-record falhou: %v", err)
+	}
+	body, err := os.ReadFile(bPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body), secret) {
+		t.Fatal("buffer em disco contém o segredo")
+	}
+	if !strings.Contains(string(body), "[REDACTED:") {
+		t.Fatalf("esperava marcador no buffer, got %s", body)
+	}
+}
+
 func TestBufferRecordAndConsolidate(t *testing.T) {
 	sessionID := "test-sess-12345"
 	bPath := bufferFilePath(sessionID)

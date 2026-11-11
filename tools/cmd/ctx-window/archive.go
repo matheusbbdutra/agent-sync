@@ -74,6 +74,9 @@ func ArchiveResult(sessionID, tool, content string) (*ArchiveEntry, error) {
 	if strings.TrimSpace(sessionID) == "" || strings.ContainsAny(sessionID, "/\\\x00\r\n") {
 		return nil, errors.New("ctx-window: invalid session id")
 	}
+	// O archive guarda output bruto de tool call; redige antes de persistir
+	// para não virar um segundo cofre de segredos em disco.
+	content = redactSecrets(content)
 	if len(content) < archiveThreshold() {
 		return nil, nil // abaixo do threshold: nada a fazer
 	}
@@ -249,7 +252,7 @@ func ExpandByID(sessionID, id string) (string, *ArchiveEntry, error) {
 			if err != nil {
 				return "", nil, fmt.Errorf("ctx-window: read archive %s: %w", id, err)
 			}
-			return string(body), &idx[i], nil
+			return redactSecrets(string(body)), &idx[i], nil
 		}
 	}
 	return "", nil, fmt.Errorf("ctx-window: archive id %q not found in session %q", id, sessionID)

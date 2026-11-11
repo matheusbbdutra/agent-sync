@@ -2,7 +2,7 @@
 
 > [English](README.md) · [Português](README.pt-BR.md)
 
-Versiona, mantém, e sincroniza **Global Rules**, **Skills**, **Agents** e **Tools** entre 5 CLIs:
+Versiona, mantém, e sincroniza **Global Rules**, **Skills**, **Agents** e **Tools** entre 6 CLIs:
 - **Claude Code** (`~/.claude`)
 - **Codex / OpenAI** (`~/.codex`)
 - **Google Antigravity CLI** (`~/.gemini`) — successor to the now-deprecated standalone Gemini CLI (retired 2026-06-18 for non-enterprise accounts)
@@ -10,6 +10,9 @@ Versiona, mantém, e sincroniza **Global Rules**, **Skills**, **Agents** e **Too
 - **Cline** (`~/.cline`) — CLI + IDE extension; hooks wired via a Cline Plugin
   (`~/.cline/plugins/_installed/local/agent-sync-hooks-<hash>/`) that bridges to
   `agent-sync hook cline` (file hooks in `~/.cline/hooks` are inert in CLI v3)
+- **Pi** (`~/.pi/agent`, or `PI_CODING_AGENT_DIR`) — rules/skills/subagents plus a thin
+  TypeScript extension (`~/.pi/agent/extensions/agent-sync.ts`) that delegates every
+  event to `agent-sync hook pi`; MCP servers live in `~/.pi/agent/mcp.json`
 
 ---
 
@@ -79,7 +82,7 @@ relacionados. → Detalhes em [`docs/guides/memory-cross-cli.md`](docs/guides/me
 
 - **`docs-research`** (skill): standard para pesquisar docs oficiais com citações.
 - **`docs-fetch`** (tool): baixa + cachea docs; offline após `make mirror`. ~65 fontes curadas em `mirror/sources.json` (Symfony, Doctrine, PHP, Go, JS/TS, Java, Rust, Python, Docker, K8s, Terraform, PostgreSQL, etc).
-- **MCPs** wirados em todas as 5 CLIs:
+- **MCPs** wirados em todas as 6 CLIs:
   - **`context7`** — docs atualizados de libs. Remote por default; local/stdio com `CONTEXT7_LOCAL=1` (mas ainda chama API context7.com, não offline).
   - **`docs`** — local/offline, busca no cache do `docs-fetch`.
   - **`memory`** — memória compartilhada (`memory-mcp`). Detalhes em `docs/guides/memory-cross-cli.md`.

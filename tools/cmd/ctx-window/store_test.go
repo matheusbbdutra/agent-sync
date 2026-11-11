@@ -19,6 +19,98 @@ func withTempCache(t *testing.T) string {
 	return dir
 }
 
+func TestLoadRedactsLegacySecrets(t *testing.T) {
+	withTempCache(t)
+	const secret = "sk-cp-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+	dir, err := EnsureSessionDir("legacy-secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := `{"role":"tool","content":"cat config: MINIMAX_API_KEY=` + secret + `","at":"2026-09-18T00:00:00Z"}` + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "turns.jsonl"), []byte(raw), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := Load("legacy-secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Turns) != 1 {
+		t.Fatalf("expected 1 turn, got %d", len(s.Turns))
+	}
+	if strings.Contains(s.Turns[0].Content, secret) {
+		t.Fatal("Load devolveu segredo não redigido")
+	}
+	if !strings.Contains(s.Turns[0].Content, "[REDACTED:") {
+		t.Fatalf("esperava marcador de redação, got %q", s.Turns[0].Content)
+	}
+
+	// Save deve sanear também o arquivo legado em disco.
+	if err := s.Save(); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(filepath.Join(dir, "turns.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body), secret) {
+		t.Fatal("turns.jsonl em disco ainda contém o segredo")
+	}
+}
+
+func TestAddTurnRedactsSecrets(t *testing.T) {
+	withTempCache(t)
+	const secret = "sk-cp-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+	s, err := Load("new-secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddTurn(Turn{Content: "export MINIMAX_API_KEY=" + secret}); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(filepath.Join(mustSessionDir(t, "new-secret"), "turns.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body), secret) {
+		t.Fatal("AddTurn persistiu o segredo")
+	}
+	if !strings.Contains(string(body), "[REDACTED:") {
+		t.Fatalf("esperava marcador no turns.jsonl, got %s", body)
+	}
+}
+
+func TestSaveProjectSummaryRedacts(t *testing.T) {
+	const secret = "sk-cp-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+	dir := t.TempDir()
+	if err := SaveProjectSummary(dir, "artifacts:\n  - path: "+secret+"\n"); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(filepath.Join(dir, ".agent-sync", "summary.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body), secret) {
+		t.Fatal("SaveProjectSummary persistiu o segredo")
+	}
+	loaded, err := LoadProjectSummary(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(loaded, secret) {
+		t.Fatal("LoadProjectSummary devolveu o segredo")
+	}
+}
+
+func mustSessionDir(t *testing.T, id string) string {
+	t.Helper()
+	dir, err := SessionDir(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
 func TestSessionLoadCreatesNew(t *testing.T) {
 	withTempCache(t)
 	s, err := Load("test-session")

@@ -190,3 +190,24 @@ func TestSyncOpenCodeMemoryPruneCopiesScript(t *testing.T) {
 		t.Errorf("script bash nao copiado corretamente: %q, err=%v", sh, err)
 	}
 }
+
+func TestSyncOpenCodeSecretGuardPlugin(t *testing.T) {
+	base := t.TempDir()
+	hooks := filepath.Join(base, "hooks")
+	if err := os.MkdirAll(hooks, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(hooks, "secret-guard.v2.ts"), []byte("// secret-guard"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dest := t.TempDir()
+	t.Setenv("AGENT_SYNC_OPENCODE_VERSION", "2")
+	tgt := TargetCLI{AgentKind: "opencode", OpenCodePluginDir: dest}
+	if err := syncOpenCodeSecretGuardPlugin(base, tgt); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dest, "secret-guard.ts"))
+	if err != nil || string(raw) != "// secret-guard" {
+		t.Errorf("plugin secret-guard nao copiado: %q, err=%v", raw, err)
+	}
+}

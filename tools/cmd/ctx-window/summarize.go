@@ -219,7 +219,9 @@ func chooseHeuristic(mode string, s *Session) bool {
 // o resumo de comando e dispara o remember opt-in. Compartilhado entre o
 // caminho heurístico e o LLM para não duplicar o tail.
 func persistSummary(s *Session, cliName, summarizer, model, yaml string, stdout, stderr io.Writer) error {
-	yaml = ensureHypothesesGuard(yaml)
+	// Redige antes de qualquer escrita: summary local, projeto e memória
+	// compartilhada. O LLM pode repetir um segredo que viu no histórico.
+	yaml = redactSecrets(ensureHypothesesGuard(yaml))
 	prev := s.Version
 	if err := s.AppendVersionedSummary(yaml); err != nil {
 		return err
@@ -287,7 +289,7 @@ func rememberSummary(sessionID, cliName, yaml string, stderr io.Writer) (int, er
 
 // runOnToolCallLLM records tool calls without starting a nested LLM request.
 // Summarization is only triggered explicitly by the summarize subcommand.
-func runOnToolCallLLM(args []string, stdout, stderr io.Writer) error {
+func runOnToolCallLLM(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if len(args) < 1 {
 		return errors.New("on-tool-call-llm requires <session>")
 	}
@@ -296,6 +298,7 @@ func runOnToolCallLLM(args []string, stdout, stderr io.Writer) error {
 	fs.SetOutput(stderr)
 	tool := fs.String("tool", "", "tool name (required)")
 	input := fs.String("input", "", "truncated tool input (optional)")
+	inputStdin := fs.Bool("input-stdin", false, "read tool input from stdin instead of --input (keeps it out of argv)")
 	cliFlag := fs.String("cli", "", "CLI that owns this session: claude, codex, opencode, antigravity")
 	projectFlag := fs.String("project", "", "project working directory")
 	if err := fs.Parse(args[1:]); err != nil {
@@ -303,6 +306,14 @@ func runOnToolCallLLM(args []string, stdout, stderr io.Writer) error {
 	}
 	if strings.TrimSpace(*tool) == "" {
 		return errors.New("--tool is required")
+	}
+	inputText := *input
+	if *inputStdin {
+		b, err := io.ReadAll(stdin)
+		if err != nil {
+			return fmt.Errorf("ctx-window: read stdin input: %w", err)
+		}
+		inputText = string(b)
 	}
 	s, err := Load(session)
 	if err != nil {
@@ -315,9 +326,11 @@ func runOnToolCallLLM(args []string, stdout, stderr io.Writer) error {
 		s.ProjectPath = project
 	}
 	content := *tool
-	if *input != "" {
+	if inputText != "" {
 		const maxInput = 16000
-		inputText := *input
+		// Redige antes do corte: um segredo partido no limite da truncagem
+		// deixaria de casar com a regex e vazaria pela metade.
+		inputText = redactSecrets(inputText)
 		if len(inputText) > maxInput {
 			inputText = inputText[:maxInput] + "..."
 		}
@@ -338,9 +351,9 @@ func formatHistoryForPrompt(turns []Turn) string {
 	var b strings.Builder
 	for i, t := range turns {
 		fmt.Fprintf(&b, "[%d] (%s @ %s)\n%s\n\n",
-			i+1, t.Role, t.At.Format(time.RFC3339), t.Content)
+			i+1, t.Role, t.At.Format(time.RFC3339), redactSecrets(t.Content))
 	}
-	return b.String()
+	return redactSecrets(b.String())
 }
 
 func extractYAML(s string) string {

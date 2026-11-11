@@ -11,7 +11,17 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/matheusdutra/token-tools/internal/secretscan"
 )
+
+// redactSecrets remove padrões conhecidos de segredo antes de qualquer
+// persistência ou envio ao LLM. A regex vive em internal/secretscan
+// (fonte única) — aqui só aplicamos o filtro nas fronteiras do ctx-window.
+func redactSecrets(text string) string {
+	redacted, _ := secretscan.Redact(text)
+	return redacted
+}
 
 // Session represents the state of a session: working memory (last K
 // tool calls) + incremental summary + metadata.
@@ -199,7 +209,16 @@ func Load(id string) (*Session, error) {
 		return nil, err
 	}
 	s.Turns = turns
+	redactTurns(s.Turns)
 	return s, nil
+}
+
+// redactTurns aplica o filtro de segredos em todos os conteúdos da working
+// memory. Cobre sessões antigas, gravadas antes do filtro existir.
+func redactTurns(turns []Turn) {
+	for i := range turns {
+		turns[i].Content = redactSecrets(turns[i].Content)
+	}
 }
 
 // Save persiste os metadados da sessão E regrava turns.jsonl (idempotente).
@@ -210,6 +229,7 @@ func (s *Session) Save() error {
 		return err
 	}
 	s.UpdatedAt = time.Now().UTC()
+	redactTurns(s.Turns)
 	meta, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return fmt.Errorf("ctx-window: serializar meta: %w", err)
@@ -235,6 +255,7 @@ func writeTurns(path string, turns []Turn) error {
 	}
 	defer f.Close()
 	for _, tn := range turns {
+		tn.Content = redactSecrets(tn.Content)
 		line, err := json.Marshal(tn)
 		if err != nil {
 			return fmt.Errorf("ctx-window: serializar turn: %w", err)
@@ -255,6 +276,7 @@ func (s *Session) AddTurn(turn Turn) error {
 	if turn.At.IsZero() {
 		turn.At = time.Now().UTC()
 	}
+	turn.Content = redactSecrets(turn.Content)
 	s.Turns = append(s.Turns, turn)
 	s.TrimTurns()
 	dir, err := EnsureSessionDir(s.ID)
@@ -281,6 +303,7 @@ func (s *Session) AppendVersionedSummary(yaml string) error {
 	if err != nil {
 		return err
 	}
+	yaml = redactSecrets(yaml)
 	s.Version++
 	if err := os.WriteFile(summaryPath(dir), []byte(yaml), 0o600); err != nil {
 		return fmt.Errorf("ctx-window: gravar summary.md: %w", err)
@@ -325,7 +348,7 @@ func (s *Session) WriteReport(w io.Writer) error {
 	fmt.Fprintf(w, "- atualizada em %s\n", s.UpdatedAt.Format(time.RFC3339))
 	fmt.Fprintf(w, "\n## Current summary\n\n")
 	if body, err := os.ReadFile(summaryPath(dir)); err == nil {
-		w.Write(body)
+		_, _ = io.WriteString(w, redactSecrets(string(body)))
 	} else if os.IsNotExist(err) {
 		fmt.Fprintln(w, "(no summary yet — run `ctx-window compact` to generate one)")
 	} else {
@@ -333,7 +356,7 @@ func (s *Session) WriteReport(w io.Writer) error {
 	}
 	fmt.Fprintf(w, "\n## Working memory (%d/%d)\n\n", len(s.Turns), s.K)
 	for _, tn := range s.Turns {
-		fmt.Fprintf(w, "- [%s] %s\n", tn.At.Format(time.RFC3339), oneLine(tn.Content))
+		fmt.Fprintf(w, "- [%s] %s\n", tn.At.Format(time.RFC3339), oneLine(redactSecrets(tn.Content)))
 	}
 	versions, err := s.ListVersions()
 	if err != nil {
@@ -544,7 +567,12 @@ func SaveProjectSummary(projectPath, yaml string) error {
 	if _, err := os.Stat(gitignore); os.IsNotExist(err) {
 		_ = os.WriteFile(gitignore, []byte("*\n"), 0o644)
 	}
-	return os.WriteFile(filepath.Join(agentSyncDir, "summary.md"), []byte(yaml), 0o644)
+	summaryFile := filepath.Join(agentSyncDir, "summary.md")
+	if err := os.WriteFile(summaryFile, []byte(redactSecrets(yaml)), 0o600); err != nil {
+		return err
+	}
+	// Tighten perms mesmo em arquivo pré-existente criado como 0644.
+	return os.Chmod(summaryFile, 0o600)
 }
 
 // LoadProjectSummary reads <projectRoot>/.agent-sync/summary.md if it exists.
@@ -560,5 +588,5 @@ func LoadProjectSummary(projectPath string) (string, error) {
 		}
 		return "", err
 	}
-	return strings.TrimSpace(string(data)), nil
+	return strings.TrimSpace(redactSecrets(string(data))), nil
 }

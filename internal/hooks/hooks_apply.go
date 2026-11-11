@@ -87,6 +87,13 @@ func syncHookCommandAtEvent(baseDir string, target TargetCLI, hookName, command,
 		// Wiramento real do Cline é o plugin TS em cline-plugin/ (A-90).
 		return nil
 	}
+	if target.HooksFormat == "pi" {
+		// Pi não tem hooks em JSON: o wiramento inteiro é a extensão TS
+		// (hooks/pi-extension.ts) somada ao `agent-sync hook pi`. Hooks
+		// genericos não devem tentar ler HookSettingsPath (vazio no target) nem
+		// o diretório de extensões como arquivo JSON.
+		return nil
+	}
 	settings, err := readJSONObject(target.HooksSettingsPath)
 	if err != nil {
 		return err

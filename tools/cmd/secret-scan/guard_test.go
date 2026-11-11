@@ -55,6 +55,49 @@ func TestGuardParityWithLegacyShell(t *testing.T) {
 	}
 }
 
+func TestGuardProviderConfigsAndMultiPath(t *testing.T) {
+	cases := []struct {
+		name    string
+		payload string
+	}{
+		{"read_grok_config", `{"tool_name":"Read","tool_input":{"file_path":"/home/u/.grok/config.toml"}}`},
+		{"bash_grok_second_path", `{"tool_name":"Bash","tool_input":{"command":"cat /tmp/ok.txt ~/.grok/config.toml"}}`},
+		{"read_agent_sync_config", `{"tool_name":"Read","tool_input":{"file_path":"/home/u/.config/agent-sync/config.json"}}`},
+		{"read_opencode_auth", `{"tool_name":"Read","tool_input":{"file_path":"/home/u/.local/share/opencode/auth.json"}}`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			deny, reason := Check([]byte(c.payload))
+			if !deny {
+				t.Fatalf("esperava deny, payload=%s", c.payload)
+			}
+			if !strings.Contains(reason, "denylist") {
+				t.Fatalf("reason inesperada: %q", reason)
+			}
+		})
+	}
+}
+
+func TestGuardDetectsMinimaxKey(t *testing.T) {
+	const key = "sk-cp-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+	payload := `{"tool_name":"Bash","tool_input":{"command":"export MINIMAX_API_KEY=` + key + `"}}`
+	deny, reason := Check([]byte(payload))
+	if !deny {
+		t.Fatal("esperava deny para chave sk-cp-*")
+	}
+	if !strings.Contains(reason, "generic-api-key") {
+		t.Fatalf("reason deveria citar generic-api-key, got %q", reason)
+	}
+
+	res := Redact([]byte(`{"tool_name":"Bash","tool_output":"API_KEY=` + key + `"}`))
+	if res.Action != "redact-inline" {
+		t.Fatalf("esperava redact-inline, got %q", res.Action)
+	}
+	if strings.Contains(res.Text, key) {
+		t.Fatal("texto redigido ainda contem a chave")
+	}
+}
+
 func TestGuardInlineLiterals(t *testing.T) {
 	readLit := func(name string) string {
 		b, err := os.ReadFile("testdata/" + name + ".txt")

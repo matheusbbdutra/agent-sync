@@ -18,7 +18,7 @@ done
 
 if [ -n "$repo_root" ] && command -v agent-sync >/dev/null 2>&1; then
   cd "$repo_root"
-  agent-sync state snapshot -actor agy
+  agent-sync state snapshot -actor "${AGENT_SYNC_ACTOR:-agy}"
 else
   # Fallback silencioso: nao bloqueia, emite {}.
   printf '{}'

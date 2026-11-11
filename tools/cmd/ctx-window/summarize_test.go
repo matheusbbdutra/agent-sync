@@ -378,3 +378,17 @@ next_steps:
 		t.Fatalf("expected exactly 1 blocker occurrence for multiple hypotheses, got %d. Output:\n%s", count, got)
 	}
 }
+
+func TestFormatHistoryForPromptRedactsSecrets(t *testing.T) {
+	const secret = "sk-cp-DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"
+	history := formatHistoryForPrompt([]Turn{{
+		Role:    "tool",
+		Content: "Bash: cat ~/.grok/config.toml | api_key = " + secret,
+	}})
+	if strings.Contains(history, secret) {
+		t.Fatal("histórico enviado ao LLM ainda contém o segredo")
+	}
+	if !strings.Contains(history, "[REDACTED:") {
+		t.Fatalf("esperava marcador de redação, got %q", history)
+	}
+}

@@ -55,8 +55,9 @@ Fail-open obrigatório: binário ausente = `{}` + exit 0, nunca derrubar o turno
 
 ### §3. TypeScript só na borda onde o SDK obriga (≤150 LOC)
 
-Cline (`cline-plugin/src/hooks/`) e OpenCode v2 (`hooks/*.v2.ts`) são os únicos hosts com SDK TS
-nativo — ali o adapter é TS, mas **sem lógica**: delega via bridge/`execFile` para o binário Go.
+Cline (`cline-plugin/src/hooks/`), OpenCode v2 (`hooks/*.v2.ts`) e Pi (`hooks/pi-extension.ts`)
+são os hosts cujo ponto de extensão é TS — ali o adapter é TS, mas **sem lógica**: delega via
+bridge/`execFile` para o binário Go (`agent-sync hook pi` no caso do Pi).
 Nenhum `*.ts` reimplementa deny-list, deny-list de path, contador de nudge ou parsing de
 transcript.
 

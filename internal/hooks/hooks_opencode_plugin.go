@@ -123,6 +123,14 @@ func syncOpenCodeMemoryPipelinePlugin(baseDir string, target TargetCLI) error {
 	return syncOpenCodePluginVersioned(baseDir, target, "memory-pipeline", "memory-pipeline.ts", false)
 }
 
+// syncOpenCodeSecretGuardPlugin instala o plugin v2 que usa
+// ctx.permission.hook("evaluate") para negar a tool call antes dela executar
+// quando o path/comando casa a deny-list ou contém segredo literal. O plugin
+// delega a decisão ao binário Go `secret-scan` (fonte única da deny-list).
+func syncOpenCodeSecretGuardPlugin(baseDir string, target TargetCLI) error {
+	return syncOpenCodePluginVersioned(baseDir, target, "secret-guard", "secret-guard.ts", true)
+}
+
 // syncOpenCodeMemoryPruneSessionStartPlugin: OpenCode plugin memory-prune (A-69)
 // Wirar auto-prune SessionStart via proxy tool.execute.after com flag armed
 // (padrao repo-map-warmup v2). Plugin v2-only

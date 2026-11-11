@@ -97,9 +97,9 @@ import { execFileSync } from "node:child_process"
 
 const MAX_CONTENT_CHARS = 16000
 
-function safeExec(args: string[]): string {
+function safeExec(args: string[], input?: string): string {
   try {
-    return execFileSync("ctx-window", args, { encoding: "utf8", timeout: 10000 }).slice(0, MAX_CONTENT_CHARS)
+    return execFileSync("ctx-window", args, { encoding: "utf8", timeout: 10000, input }).slice(0, MAX_CONTENT_CHARS)
   } catch {
     return ""
   }
@@ -142,8 +142,13 @@ const PluginModule: AnyPlugin = {
         "--project",
         projectDir,
       ]
-      if (parts.length > 0) commandArgs.push("--input", parts.join(" | "))
-      const stdout = safeExec(commandArgs)
+      // Segredo em argv fica visível em `ps /proc/<pid>/cmdline`. Passa o
+      // conteúdo por stdin; o binário redige antes de persistir.
+      const payload = parts.join(" | ")
+      if (payload.length > 0) {
+        commandArgs.push("--input-stdin")
+      }
+      const stdout = safeExec(commandArgs, payload)
       if (!stdout.includes("[AVISO agent-sync]")) return
       const nudge = stdout.split("\n").find((l) => l.includes("[AVISO agent-sync]"))
       if (!nudge) return

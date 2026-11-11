@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // TargetCLI descreve o schema de instalacao de um CLI alvo (Claude Code,
@@ -18,8 +19,23 @@ type TargetCLI struct {
 	PluginDir         string
 	HooksSettingsPath string
 	HooksEvent        string
-	HooksFormat       string // "" (padrao Claude/Codex), "antigravity" ou "cline"
+	HooksFormat       string // "" (padrao Claude/Codex), "antigravity", "cline" ou "pi"
 	OpenCodePluginDir string
+	// HookExtensionDir aponta para o diretorio de extensoes nativas usado por
+	// hosts que nao tem hooks declarativos em JSON (hoje: Pi). Fica separado
+	// de HooksSettingsPath de proposito: HooksSettingsPath vazio faz todos os
+	// hooks genericos darem early-return, evitando que o apply tente ler o
+	// diretorio de extensoes como se fosse um arquivo JSON.
+	HookExtensionDir string
+}
+
+// PiAgentDir devolve o agent dir do Pi. Respeita PI_CODING_AGENT_DIR, que e
+// o mesmo override lido pelo proprio Pi (default: ~/.pi/agent).
+func PiAgentDir(home string) string {
+	if v := strings.TrimSpace(os.Getenv("PI_CODING_AGENT_DIR")); v != "" {
+		return v
+	}
+	return filepath.Join(home, ".pi", "agent")
 }
 
 // Target é um alias para TargetCLI.
@@ -35,13 +51,14 @@ func GetHome() string {
 	return home
 }
 
-// GetTargets retorna os 5 CLI targets wiraveis pelo agent-sync.
+// GetTargets retorna os 6 CLI targets wiraveis pelo agent-sync.
 func GetTargets() []TargetCLI {
 	return GetTargetsForHome(GetHome())
 }
 
-// GetTargetsForHome retorna os 5 CLI targets usando o home directory fornecido.
+// GetTargetsForHome retorna os 6 CLI targets usando o home directory fornecido.
 func GetTargetsForHome(home string) []TargetCLI {
+	piDir := PiAgentDir(home)
 	return []TargetCLI{
 		{
 			Name:              "claude",
@@ -79,6 +96,19 @@ func GetTargetsForHome(home string) []TargetCLI {
 			AgentsDir:         filepath.Join(home, ".config", "opencode", "agents"),
 			AgentKind:         "opencode",
 			OpenCodePluginDir: filepath.Join(home, ".config", "opencode", "plugins"),
+		},
+		{
+			// Pi (coding agent harness): regras em AGENTS.md do agent dir, skills
+			// em skills/, subagentes em agents/ (lidos pelo pacote pi-sub-agent) e
+			// hooks em extensions/*.ts (Pi nao tem hooks declarativos). O MCP e
+			// wirado a parte por scripts/setup-mcp.sh em mcp.json.
+			Name:             "pi",
+			RulesPath:        filepath.Join(piDir, "AGENTS.md"),
+			SkillsDir:        filepath.Join(piDir, "skills"),
+			AgentsDir:        filepath.Join(piDir, "agents"),
+			AgentKind:        "pi",
+			HooksFormat:      "pi",
+			HookExtensionDir: filepath.Join(piDir, "extensions"),
 		},
 		{
 			Name:      "cline",

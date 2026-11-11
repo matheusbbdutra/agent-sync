@@ -2,7 +2,7 @@
 
 > [English](README.md) · [Português](README.pt-BR.md)
 
-Versiona, mantém e sincroniza **Regras Globais**, **Skills**, **Agentes Especialistas** e **Ferramentas de Baixo Consumo de Tokens** entre 5 CLIs:
+Versiona, mantém e sincroniza **Regras Globais**, **Skills**, **Agentes Especialistas** e **Ferramentas de Baixo Consumo de Tokens** entre 6 CLIs:
 - **Claude Code** (`~/.claude`)
 - **Codex / OpenAI** (`~/.codex`)
 - **Google Antigravity CLI** (`~/.gemini`) — sucessora da Gemini CLI standalone (encerrada em 18/06/2026 para contas não-enterprise)
@@ -10,6 +10,9 @@ Versiona, mantém e sincroniza **Regras Globais**, **Skills**, **Agentes Especia
 - **Cline** (`~/.cline`) — CLI + extensão de IDE; hooks wirados via Cline Plugin
   (`~/.cline/plugins/_installed/local/agent-sync-hooks-<hash>/`) que faz ponte para
   `agent-sync hook cline` (hooks por arquivo em `~/.cline/hooks` são inertes na CLI v3)
+- **Pi** (`~/.pi/agent`, ou `PI_CODING_AGENT_DIR`) — regras/skills/subagentes + extensão
+  TypeScript fina (`~/.pi/agent/extensions/agent-sync.ts`) que delega cada evento ao
+  `agent-sync hook pi`; MCPs em `~/.pi/agent/mcp.json`
 
 ---
 
@@ -78,7 +81,7 @@ Total: **51 skills** wiradas via `agent-sync -vendor` + `-apply`.
 - **`docs-research`** (skill): padrão para pesquisar documentações oficiais com citações.
 - **`docs-fetch`** (tool): baixa + cacheia docs; offline após `make mirror`. ~65 fontes curadas em `mirror/sources.json`.
 - **`repo-map`** (tool): extrai blast radius, chamadas reversas de símbolos, tabelas de banco e comandos de testes cirúrgicos.
-- **MCPs** wirados nas 5 CLIs:
+- **MCPs** wirados nas 6 CLIs:
   - **`context7`** — documentação atualizada de bibliotecas (remoto por padrão).
   - **`docs`** — local/offline, busca no cache do `docs-fetch`.
   - **`memory`** — memória contínua compartilhada (`memory-mcp`). Detalhes em `docs/guides/memory-cross-cli.md`.
@@ -102,7 +105,7 @@ Total: **51 skills** wiradas via `agent-sync -vendor` + `-apply`.
 git clone <repo> ~/Projects/agent-sync && cd ~/Projects/agent-sync
 make setup    # instala Go >= 1.24 e pre-requisitos de runtime
 make install  # compila e instala binários em ~/.local/bin
-make sync     # aplica regras, skills, agentes e hooks nas 5 CLIs (alias de agent-sync -apply)
+make sync     # aplica regras, skills, agentes e hooks nas 6 CLIs (alias de agent-sync -apply)
 ```
 
 `mr-review-local` em qualquer CLI após `make sync`:

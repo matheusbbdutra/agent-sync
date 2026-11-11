@@ -20,6 +20,7 @@ import (
 
 	"github.com/matheusdutra/token-tools/actorvocab"
 	"github.com/matheusdutra/token-tools/internal/agentmemory"
+	"github.com/matheusdutra/token-tools/internal/secretscan"
 )
 
 const (
@@ -867,7 +868,7 @@ func bufferFilePath(sessionID string) string {
 		return '_'
 	}, sessionID)
 	dir := filepath.Join(os.TempDir(), "agent-sync-memory-buffer")
-	_ = os.MkdirAll(dir, 0o755)
+	_ = os.MkdirAll(dir, 0o700)
 	return filepath.Join(dir, safe+".jsonl")
 }
 
@@ -887,19 +888,22 @@ func runBufferRecord(args []string) error {
 	if *note == "" && *tool == "" {
 		return fmt.Errorf("campos mínimos ausentes: -tool ou -note")
 	}
+	// Buffer efêmero também é disco: redige antes de gravar para que um
+	// segredo capturado de output de tool não fique esperando consolidação.
+	noteText, _ := secretscan.Redact(*note)
 	obs := BufferObservation{
 		Timestamp: time.Now().UTC(),
 		SessionID: *session,
 		Tool:      *tool,
 		Status:    *status,
-		Note:      *note,
+		Note:      noteText,
 		Source:    *source,
 		Kind:      *kind,
 		Retention: *retention,
 		Path:      *path,
 	}
 	bPath := bufferFilePath(*session)
-	f, err := os.OpenFile(bPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	f, err := os.OpenFile(bPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return err
 	}

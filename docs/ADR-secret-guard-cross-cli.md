@@ -208,3 +208,19 @@ Quando 4/5 critérios passarem em 2/2 smoke sessions → Proposto vira
 **Aceito**. (Já cumprido: 5/5 critérios + 1 smoke session documentada;
 segunda smoke session fica como follow-up opcional para audit trail
 completo.)
+
+## Revisão 2026-11-10 — OpenCode v2 atendido
+
+- OpenCode **v2.2.0** e `@opencode/plugin` **2.0.11** (instalado) / **2.2.6**
+  (latest) expõem `ctx.permission.hook("evaluate")` com `effect` mutável
+  (`allow|deny|ask`) — verificado nos `.d.ts` de `dist/promise/permission.d.ts`.
+- Novo plugin `hooks/secret-guard.v2.ts`, instalado como
+  `secret-guard.ts` por `syncOpenCodeSecretGuardPlugin` (entrada
+  `opencode-secret-guard` em `internal/hooks/apply_table.go`). Ele delega a
+  decisão ao binário Go `secret-scan check --format decision` (fonte única da
+  deny-list) e marca `evaluation.effect = "deny"` antes da tool executar.
+- **Pre-ToolUse OpenCode: 🟡 → ✅.**
+- **Post-ToolUse OpenCode permanece 🟡**: `ctx.tool.hook("execute.after")` é
+  observacional e não substitui o output da tool; a mitigação de persistência
+  fica no `ctx-window` (redação no ingest/summarizer).
+- Cursor foi aposentado como target (D-128) e não faz parte da matriz atual.

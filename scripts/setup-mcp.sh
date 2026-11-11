@@ -50,6 +50,27 @@ with open(path, "w") as fh:
 PY
 }
 
+upsert_pi() {
+  # Pi le ~/.pi/agent/mcp.json no formato {"mcpServers":{...}} (mesmo schema
+  # de Claude/Cursor). Usa jq (mesma dependencia ja usada por hooks) para
+  # upsert idempotente. Respeita PI_CODING_AGENT_DIR quando definido.
+  local name="$1" spec="$2"
+  command -v jq >/dev/null 2>&1 || { echo "⚠️  jq ausente; pulando pi"; return 0; }
+  local agent_dir="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
+  local path="$agent_dir/mcp.json"
+  mkdir -p "$agent_dir"
+  [ -s "$path" ] || printf '{"mcpServers":{}}\n' > "$path"
+  local tmp
+  tmp="$(mktemp)"
+  if jq --arg n "$name" --argjson s "$spec" \
+      '.mcpServers = (.mcpServers // {}) | .mcpServers[$n] = $s' "$path" > "$tmp"; then
+    mv "$tmp" "$path"
+  else
+    rm -f "$tmp"
+    echo "⚠️  falha ao atualizar $path (JSON invalido?); pulando pi"
+  fi
+}
+
 upsert_cline() {
   # Cline v3: a CLI é dona do schema de ~/.cline/data/settings/cline_mcp_settings.json
   # ({"mcpServers":{"<nome>":{"transport":{"type":"stdio","command":...,"args":[...]}}}}),
@@ -137,6 +158,15 @@ setup_context7() {
       fi
     fi
   fi
+  if command -v pi >/dev/null 2>&1; then
+    if [ "$local_mode" = "1" ]; then
+      upsert_pi "$CONTEXT7_NAME" '{"command":"npx","args":["-y","@upstash/context7-mcp"],"exposure":"direct"}'
+    elif [ -n "${CONTEXT7_API_KEY:-}" ]; then
+      upsert_pi "$CONTEXT7_NAME" '{"url":"'"$CONTEXT7_URL"'","headers":{"Authorization":"Bearer '"${CONTEXT7_API_KEY}"'"},"exposure":"direct"}'
+    else
+      upsert_pi "$CONTEXT7_NAME" '{"url":"'$CONTEXT7_URL'","exposure":"direct"}'
+    fi
+  fi
   echo "✅ context7 configurado"
 }
 
@@ -165,6 +195,9 @@ setup_docs() {
   if command -v cline >/dev/null 2>&1; then
     upsert_cline "$DOCS_NAME" "$DOCS_BIN"
   fi
+  if command -v pi >/dev/null 2>&1; then
+    upsert_pi "$DOCS_NAME" '{"command":"'"$DOCS_BIN"'","exposure":"direct"}'
+  fi
   echo "✅ docs configurado (offline)"
 }
 
@@ -192,6 +225,9 @@ setup_memory() {
   fi
   if command -v cline >/dev/null 2>&1; then
     upsert_cline "$MEMORY_NAME" "$MEMORY_BIN"
+  fi
+  if command -v pi >/dev/null 2>&1; then
+    upsert_pi "$MEMORY_NAME" '{"command":"'"$MEMORY_BIN"'","exposure":"direct"}'
   fi
   echo "✅ memory configurado (compartilhado entre CLIs)"
 }
@@ -225,6 +261,9 @@ setup_code_graph() {
   if command -v cline >/dev/null 2>&1; then
     upsert_cline "$name" "$code_graph_bin" --mcp
   fi
+  if command -v pi >/dev/null 2>&1; then
+    upsert_pi "$name" '{"command":"'"$code_graph_bin"'","args":["--mcp"],"exposure":"direct"}'
+  fi
   echo "✅ code-graph configurado"
 }
 
@@ -254,6 +293,9 @@ setup_sentry() {
   fi
   if command -v cline >/dev/null 2>&1; then
     upsert_cline_http "$name" "$url"
+  fi
+  if command -v pi >/dev/null 2>&1; then
+    upsert_pi "$name" '{"url":"'"$url"'","exposure":"direct"}'
   fi
   echo "✅ sentry configurado (OAuth no primeiro uso)"
 }

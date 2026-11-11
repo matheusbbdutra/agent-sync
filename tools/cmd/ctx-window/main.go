@@ -94,7 +94,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 	case "on-tool-call":
 		return runOnToolCall(rest, stdout, stderr)
 	case "on-tool-call-llm":
-		return runOnToolCallLLM(rest, stdout, stderr)
+		return runOnToolCallLLM(rest, os.Stdin, stdout, stderr)
 	case "hook":
 		return runHook(rest, os.Stdin, stdout, stderr)
 	case "handoff":
@@ -240,10 +240,11 @@ func runOnToolCall(args []string, stdout, stderr io.Writer) error {
 	if *input != "" {
 		// cap input to avoid bloat in working memory
 		const maxInput = 16000
-		if len(*input) > maxInput {
-			content = *tool + ": " + (*input)[:maxInput] + "..."
+		inputText := redactSecrets(*input)
+		if len(inputText) > maxInput {
+			content = *tool + ": " + inputText[:maxInput] + "..."
 		} else {
-			content = *tool + ": " + *input
+			content = *tool + ": " + inputText
 		}
 	}
 	if err := s.AddTurn(Turn{Role: "tool", Content: content}); err != nil {

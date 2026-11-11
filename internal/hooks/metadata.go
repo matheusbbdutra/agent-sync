@@ -40,3 +40,12 @@ func openCodePluginDetail(t TargetCLI) string {
 	}
 	return "em " + t.OpenCodePluginDir + " (best-effort)"
 }
+
+// piExtensionDetail imprime o destino da extensao TS do Pi (HooksSettingsPath
+// fica vazio de proposito nesse target).
+func piExtensionDetail(t TargetCLI) string {
+	if t.HookExtensionDir == "" {
+		return ""
+	}
+	return "em " + t.HookExtensionDir + " (extension TS + `agent-sync hook pi`)"
+}

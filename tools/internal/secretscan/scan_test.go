@@ -45,3 +45,50 @@ func TestRedactLeavesCleanTextUntouched(t *testing.T) {
 		t.Fatalf("texto limpo foi alterado: %q", redacted)
 	}
 }
+
+func TestRedactProviderFormats(t *testing.T) {
+	const minimax = "MINIMAX_API_KEY=sk-cp-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+	cases := []struct {
+		name string
+		text string
+		want string
+	}{
+		{"minimax-sk-cp", minimax, "generic-api-key"},
+		{"env-uppercase", "OPENAI_API_KEY=abcdefghijklmnop1234", "env-secret"},
+		{"yaml-lowercase", `api_key = "abcdefghijklmnop1234"`, "yaml-secret"},
+		{"auth-header", "Authorization: Bearer abcdefghijklmnop", "auth-header"},
+		{"google", "key AIzaABCDEFGHIJKLMNOPQRSTUVWXYZ012345678", "google-api-key"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			redacted, found := Redact(c.text)
+			if len(found) == 0 {
+				t.Fatalf("esperava detectar %q em %q", c.want, c.text)
+			}
+			if found[0] != c.want {
+				t.Fatalf("got %v, want %s", found, c.want)
+			}
+			if strings.Contains(redacted, c.text) {
+				t.Fatalf("texto original não foi redigido: %s", redacted)
+			}
+		})
+	}
+}
+
+func TestRedactIsIdempotent(t *testing.T) {
+	text := "token: [REDACTED:generic-api-key]"
+	redacted, found := Redact(text)
+	if len(found) != 0 {
+		t.Fatalf("não esperava achados, got %v", found)
+	}
+	if redacted != text {
+		t.Fatalf("marcador foi alterado: %q", redacted)
+	}
+}
+
+func TestRedactDoesNotFlagProse(t *testing.T) {
+	text := "token: authentication; password: implementation; MAX_TOKENS=128000"
+	if _, found := Redact(text); len(found) != 0 {
+		t.Fatalf("prosa/config não deveria ser redigida, got %v", found)
+	}
+}

@@ -8,10 +8,12 @@ import (
 	"encoding/json"
 	"regexp"
 	"strings"
+
+	"github.com/matheusdutra/token-tools/internal/secretscan"
 )
 
 // denyPattern: Camada 1, mesma do shell (case-insensitive).
-var denyPattern = regexp.MustCompile(`(?i)(/\.env($|\.)|/\.envrc$|\.pem$|\.key$|\.p12$|\.pfx$|/id_rsa|/id_ed25519|/id_ecdsa|/id_dsa|/\.ssh($|/)|/\.aws($|/)|/\.gnupg($|/)|/\.config/gh($|/)|/\.docker($|/)|/\.kube($|/)|\.netrc|\.npmrc|\.pypirc|\.pgpass|/\.aws/credentials|/\.aws/config|/hosts\.yml|/kube/config|\.terraformrc|/\.zshrc$|/\.bashrc$|/\.bash_profile$|/\.profile$|/\.zprofile$|/\.zshenv$|/\.bash_env$|credentials\.json|credentials\.yaml|/secrets($|/)|\.secret\.json|\.secret\.yaml|/\.env\.local$|/\.env\.production$|/\.env\.staging$|zscaler($|/))`)
+var denyPattern = regexp.MustCompile(`(?i)(/\.grok($|/)|/\.minimax($|/)|/\.config/minimax($|/)|/\.config/agent-sync($|/)|/\.claude/\.credentials\.json$|/\.codex/auth\.json$|/\.gemini/oauth_creds\.json$|/\.local/share/opencode/auth\.json$|/\.config/opencode/auth\.json$)|(/\.env($|\.)|/\.envrc$|\.pem$|\.key$|\.p12$|\.pfx$|/id_rsa|/id_ed25519|/id_ecdsa|/id_dsa|/\.ssh($|/)|/\.aws($|/)|/\.gnupg($|/)|/\.config/gh($|/)|/\.docker($|/)|/\.kube($|/)|\.netrc|\.npmrc|\.pypirc|\.pgpass|/\.aws/credentials|/\.aws/config|/hosts\.yml|/kube/config|\.terraformrc|/\.zshrc$|/\.bashrc$|/\.bash_profile$|/\.profile$|/\.zprofile$|/\.zshenv$|/\.bash_env$|credentials\.json|credentials\.yaml|/secrets($|/)|\.secret\.json|\.secret\.yaml|/\.env\.local$|/\.env\.production$|/\.env\.staging$|zscaler($|/))`)
 
 // literalPattern: Camada 2, mesma do shell.
 var literalPattern = regexp.MustCompile(`eyJ[A-Za-z0-9_=]+\.eyJ[A-Za-z0-9_=]+\.[A-Za-z0-9_-]+|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36,255}`)
@@ -68,9 +70,9 @@ func extractCandidates(raw []byte, antigravity bool) (toolName string, candidate
 			candidates = append(candidates, s)
 		}
 	case "Bash":
-		if m := pathWordRe.FindString(string(toolInput)); m != "" {
-			candidates = append(candidates, m)
-		}
+		// Antes só o primeiro path era avaliado; `cat ok.txt ~/.grok/config.toml`
+		// passava batido. Coletamos todos os paths do comando.
+		candidates = append(candidates, pathWordRe.FindAllString(string(toolInput), -1)...)
 	}
 	return toolName, candidates
 }
@@ -126,6 +128,11 @@ func Check(raw []byte) (bool, string) {
 			kind = "GITHUB_PAT"
 		}
 		return true, "detectei " + kind + " literal nos args; use env var ou arquivo chmod 600 - nunca passe secrets inline"
+	}
+	// Fonte única: qualquer formato coberto por internal/secretscan também
+	// bloqueia a tool call antes do conteúdo chegar ao modelo.
+	if _, found := secretscan.Redact(string(raw)); len(found) > 0 {
+		return true, "detectei segredo literal nos args (" + strings.Join(found, ", ") + "); use env var ou arquivo chmod 600 - nunca passe secrets inline"
 	}
 	return false, ""
 }
@@ -201,16 +208,6 @@ func hookStringIn(raw []byte, obj string, keys ...string) string {
 }
 
 func redactInline(s string) string {
-	return literalPattern.ReplaceAllStringFunc(s, func(m string) string {
-		switch {
-		case strings.HasPrefix(m, "eyJ"):
-			return "<REDACTED:JWT>"
-		case strings.HasPrefix(m, "AKIA"):
-			return "<REDACTED:AWS_ACCESS_KEY>"
-		case strings.HasPrefix(m, "gh"):
-			return "<REDACTED:GITHUB_PAT>"
-		default:
-			return m
-		}
-	})
+	redacted, _ := secretscan.Redact(s)
+	return redacted
 }

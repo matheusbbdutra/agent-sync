@@ -21,6 +21,10 @@ func RunCommand(args []string) error {
 	switch args[0] {
 	case "help", "-h", "--help":
 		return hookUsage(os.Stdout)
+	case "impeccable":
+		return runImpeccableHook(args[1:])
+	case "pi":
+		return runPiBridge(args[1:])
 	default:
 		// A-90: o subcomando `hook cline` foi removido. O plugin Cline agora é
 		// TS autocontido (`cline-plugin/src/plugin.ts`) e chama os binários
@@ -32,7 +36,9 @@ func RunCommand(args []string) error {
 
 func hookUsage(w io.Writer) error {
 	fmt.Fprintf(w, "Uso: agent-sync hook <subcomando> [flags]\n\n")
-	fmt.Fprintf(w, "Estado atual (A-90): nenhum subcomando ativo.\n")
+	fmt.Fprintf(w, "Subcomandos:\n")
+	fmt.Fprintf(w, "  impeccable --host=opencode|antigravity  bridge de runtime do design hook\n")
+	fmt.Fprintf(w, "  pi --event=<evento>                     bridge do adapter TS do Pi (hooks/pi-extension.ts)\n\n")
 	fmt.Fprintf(w, "O wiramento de hooks Cline migrou para o plugin TS autocontido em\n")
 	fmt.Fprintf(w, "  cline-plugin/src/plugin.ts (entry: cline-plugin/scripts/install.ts).\n")
 	fmt.Fprintf(w, "Hooks Cline chamam binários core Go via execFile direto quando necessário.\n")

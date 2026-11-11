@@ -2,6 +2,7 @@ package agentmemory
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -15,6 +16,31 @@ func openTestStore(t *testing.T) *Store {
 	}
 	t.Cleanup(func() { s.Close() })
 	return s
+}
+
+func TestUpsertRedactsSecrets(t *testing.T) {
+	s := openTestStore(t)
+	const secret = "sk-cp-IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII"
+	if err := s.Upsert(Memory{
+		Agent: "opencode", Type: "project", Name: "secret-memory",
+		Description: "key",
+		Content:     "MINIMAX_API_KEY=" + secret,
+	}); err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+	got, err := s.Get("secret-memory")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got == nil {
+		t.Fatal("memória não encontrada")
+	}
+	if strings.Contains(got.Content, secret) {
+		t.Fatal("Upsert persistiu o segredo")
+	}
+	if !strings.Contains(got.Content, "[REDACTED:") {
+		t.Fatalf("esperava marcador, got %q", got.Content)
+	}
 }
 
 func TestUpsertGetList(t *testing.T) {

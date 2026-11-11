@@ -40,6 +40,24 @@ Instituir no `agent-sync` uma vertente canônica de **Engenharia Visual e Design
 
 **Validação:** `go run ./cmd/agent-sync skills lint` → 54 skills, 0 erros; `make apply` → 5 CLIs sincronizadas.
 
+### 1.2 Revisão 2026-11-10 — Cobertura mobile, UX writing e precisão WCAG
+
+**Motivo:** a skill era web-centric e a deny-list de primeira geração não cobria a estética "anti-IA" que substitui o gradiente roxo por creme + serifada + terracota. Além disso, o item 44x44 estava rotulado como AA, mas é AAA na WCAG 2.1 (2.5.5); o AA da WCAG 2.2 (2.5.8) é 24x24.
+
+**Decisão:**
+- §2: 12 itens, incluindo estética "anti-IA" e emoji como ícone.
+- §6: success state.
+- §8: 24x24 AA / 44x44 AAA na web; 48dp no Android / 44pt no iOS.
+- §9: seção mobile nativo (Compose/XML/iOS), sem duplicar implementação; skill de Compose dedicada fica fora de escopo até confirmação do stack.
+- §10: UX writing (CTA, erro, empty, success, consistência).
+- §11: aceitação com font scale, screenshot/emulador e "não verificado".
+- Precedência: design system/`DESIGN.md`/tokens do projeto > skill > skill externa.
+- Retrofit: preservar por padrão; substituir direção existente só com pedido explícito.
+
+**Fora de escopo (não decidido):** skill `android-compose-ui` dedicada. Criar apenas se o projeto confirmar Jetpack Compose (não XML) e houver demanda recorrente; `expo-native-ui` cobre React Native/Expo, não Kotlin.
+
+**Validação:** `go run ./cmd/agent-sync skills lint` → 54 skills, 0 erros; screenshots não executados (sem app alvo).
+
 ### 2. Subagente Especialista `frontend-ui-designer` (Read-only / Auditor)
 - Criar a especificação do subagente canônico em `agents/frontend-ui-designer.md`.
 - Atuação: revisar código de componentes frontend, inspecionar consistência visual, apontar quebras de design token e sugerir correções de acessibilidade e refinamento estético antes do commit.

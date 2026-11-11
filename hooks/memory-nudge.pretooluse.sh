@@ -17,7 +17,7 @@ mkdir -p "$STATE_DIR"
 input="$(cat)"
 invocation_num="$(printf '%s' "$input" | { grep -o '"invocationNum"[[:space:]]*:[[:space:]]*[0-9]*' || true; } | head -n1 | { grep -o '[0-9]*$' || true; })"
 
-agent="claude-code"
+agent="${AGENT_SYNC_ACTOR:-claude-code}"
 session_id=""
 if [ -n "$invocation_num" ]; then
   # Antigravity PreInvocation: contador nativo, sem estado proprio.

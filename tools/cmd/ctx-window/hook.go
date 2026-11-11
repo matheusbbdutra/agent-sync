@@ -71,6 +71,9 @@ func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("ctx-window: read hook payload: %w", err)
 	}
+	// Redige o payload inteiro antes de qualquer parsing: o output de uma
+	// tool call pode conter segredo e não deve nem entrar na working memory.
+	raw = []byte(redactSecrets(string(raw)))
 
 	if cli == "antigravity" && len(args) > 1 && args[1] == "preinvocation" {
 		return runAntigravityPreInvocationHook(raw, stdout, stderr)
@@ -85,6 +88,9 @@ func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	default:
 		return fmt.Errorf("ctx-window: unknown hook cli %q", cli)
 	}
+	// Cobre conteúdo lido de transcript (Antigravity) ou reconstruído pelo
+	// parser, que pode não ter passado pelo payload cru.
+	content = redactSecrets(content)
 	if sessionID == "" {
 		sessionID = "default"
 	}
@@ -123,7 +129,7 @@ func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if content != "" {
 		hookArgs = append(hookArgs, "--input", content)
 	}
-	if err := runOnToolCallLLM(hookArgs, io.Discard, stderr); err != nil {
+	if err := runOnToolCallLLM(hookArgs, strings.NewReader(""), io.Discard, stderr); err != nil {
 		fmt.Fprintf(stderr, "ctx-window: hook record: %v\n", err)
 		fmt.Fprint(stdout, "{}")
 		return nil

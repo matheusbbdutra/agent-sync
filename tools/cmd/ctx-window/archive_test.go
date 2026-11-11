@@ -36,6 +36,29 @@ func TestArchiveThresholdDefault(t *testing.T) {
 	}
 }
 
+func TestArchiveResultRedactsSecrets(t *testing.T) {
+	withTempCache(t)
+	const secret = "sk-cp-EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"
+	body := "prefix\nMINIMAX_API_KEY=" + secret + "\n" + strings.Repeat("x", archiveThreshold()+100)
+	entry, err := ArchiveResult("archive-secret", "Bash", body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry == nil {
+		t.Fatal("esperava entry arquivada")
+	}
+	stored, err := os.ReadFile(entry.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(stored), secret) {
+		t.Fatal("archive em disco contém o segredo")
+	}
+	if !strings.Contains(string(stored), "[REDACTED:") {
+		t.Fatalf("esperava marcador no archive, got %s", stored[:200])
+	}
+}
+
 func TestArchiveResultBelowThreshold(t *testing.T) {
 	withTempCache(t)
 	entry, err := ArchiveResult("small-sess", "Read", "tiny content")

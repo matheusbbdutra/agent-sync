@@ -204,6 +204,16 @@ func RenderAgent(kind string, agent Source) (string, string, error) {
 		return agent.Name + ".md", markdownAgent(agent, []string{"model: inherit", "subagent: true"}), nil
 	case "codex":
 		return agent.Name + ".toml", codexAgent(agent), nil
+	case "pi":
+		// Pi (pi-sub-agent) le frontmatter YAML: name, description, tools,
+		// model, thinking. Read-only vira allowlist de tools de leitura (o Pi
+		// nao tem sandbox_mode; restringir o conjunto de tools e o equivalente
+		// estrutural). Agentes de escrita herdam o conjunto default.
+		var extra []string
+		if agent.ReadOnly {
+			extra = append(extra, "tools: read, grep, find, ls")
+		}
+		return agent.Name + ".md", markdownAgent(agent, extra), nil
 	default:
 		return "", "", fmt.Errorf("tipo de agente desconhecido: %s", kind)
 	}

@@ -14,11 +14,11 @@ import (
 //   - Antigravity: mesmo formato nested de Claude/Codex (PreToolUse +
 //     PostToolUse com matcher "*") via syncAntigravityHookCommand
 //     (formato flat nested de hooks_antigravity_apply.go:54).
-//   - OpenCode v2: gap 🟡 aceito (A-64+ via permission.hook("evaluate")
-//     com effect mutation — investigacao 2026-09-25 confirmou que
-//     tool.hook("execute.before") e so observacional, mas permission.
-//     hook tem effect mutavel: schema @opencode/schema/dist/permission.
-//     d.ts Permission.Effect = "allow"|"deny"|"ask").
+//   - OpenCode v2: plugin TS secret-guard.v2.ts usa
+//     ctx.permission.hook("evaluate") (effect mutavel "deny") e delega a
+//     decisao ao binario Go secret-scan; instalado por
+//     syncOpenCodeSecretGuardPlugin. tool.hook("execute.before") continua
+//     observacional e nao e usado para bloquear.
 //
 // Camadas (ver §1 do ADR-secret-guard-cross-cli.md):
 //   Camada 1 (deny-list de path): bloqueia Read/Edit/Write/MultiEdit/Grep/

@@ -151,11 +151,39 @@ func TestMRReviewerRendersForAllCLIs(t *testing.T) {
 	if !agent.ReadOnly || !strings.Contains(agent.Body, "mr-review-local") {
 		t.Fatal("agente de MR deve ser somente leitura e usar o coletor comum")
 	}
-	for _, kind := range []string{"claude", "codex", "antigravity", "opencode"} {
+	for _, kind := range []string{"claude", "codex", "antigravity", "opencode", "pi"} {
 		name, content, err := RenderAgent(kind, agent)
 		if err != nil || !strings.Contains(name, "mr-reviewer") || !strings.Contains(content, "mr-review-local") {
 			t.Fatalf("renderização %s: %s, %v", kind, name, err)
 		}
+	}
+}
+
+func TestRenderPiReadonlyRestringeTools(t *testing.T) {
+	agent := Source{Name: "x", Description: "d", Body: "corpo", ReadOnly: true}
+	name, content, err := RenderAgent("pi", agent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if name != "x.md" {
+		t.Fatalf("filename = %q", name)
+	}
+	if !strings.Contains(content, "tools: read, grep, find, ls") {
+		t.Fatalf("readonly deveria restringir tools: %q", content)
+	}
+	if strings.Contains(content, "bash") {
+		t.Fatalf("readonly nao deveria incluir bash: %q", content)
+	}
+}
+
+func TestRenderPiWritableHerdaTools(t *testing.T) {
+	agent := Source{Name: "x", Description: "d", Body: "corpo"}
+	_, content, err := RenderAgent("pi", agent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(content, "tools:") {
+		t.Fatalf("agente de escrita nao deveria declarar tools: %q", content)
 	}
 }
 

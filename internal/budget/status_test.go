@@ -34,10 +34,33 @@ func TestContextWindowLookup_DesconhecidoDefault200k(t *testing.T) {
 	}
 }
 
+func TestBuildTokenBudgetStatus_ContextWindowNativoSobrepoeTabela(t *testing.T) {
+	// Modelo fora da tabela (janela nativa 1M) nao pode cair no default 200k:
+	// 45k tokens = 4% de 1M, nao 22% de 200k.
+	summary := filepath.Join(t.TempDir(), "summary.md")
+	if err := os.WriteFile(summary, []byte("# handoff\n"), 0o644); err != nil {
+		t.Fatalf("preparar summary: %v", err)
+	}
+	s, err := BuildTokenBudgetStatus("pi", "sess-pi", "deepseek-v4.1-flash", 1000000,
+		45525, 0, 0, summary, 80, nil)
+	if err != nil {
+		t.Fatalf("BuildTokenBudgetStatus: %v", err)
+	}
+	if s.ContextWindow != 1000000 {
+		t.Errorf("ContextWindow = %d, esperado 1000000", s.ContextWindow)
+	}
+	if s.UtilizationPct != 4 {
+		t.Errorf("UtilizationPct = %d, esperado 4", s.UtilizationPct)
+	}
+	if s.Trigger != "none" {
+		t.Errorf("4%% de 1M nao deveria disparar nudge, trigger=%q", s.Trigger)
+	}
+}
+
 func TestBuildTokenBudgetStatus_NormalizaActorAntigravity(t *testing.T) {
 	// D-116: wiramento Antigravity passa -actor antigravity; o schema exige o
 	// vocabulário de eventos ("agy"). Build deve normalizar, não falhar.
-	s, err := BuildTokenBudgetStatus("antigravity", "sess-agy", "",
+	s, err := BuildTokenBudgetStatus("antigravity", "sess-agy", "", 0,
 		900000, 5000, 0, "", 80, nil)
 	if err != nil {
 		t.Fatalf("BuildTokenBudgetStatus(actor=antigravity): %v", err)
@@ -51,7 +74,7 @@ func TestBuildTokenBudgetStatus_NormalizaActorAntigravity(t *testing.T) {
 }
 
 func TestBuildTokenBudgetStatus_HighUtilizationTriggersNudge(t *testing.T) {
-	s, err := BuildTokenBudgetStatus("claude", "sess-test", "claude-sonnet-4.5",
+	s, err := BuildTokenBudgetStatus("claude", "sess-test", "claude-sonnet-4.5", 0,
 		155000, 12000, 0, "", 80, nil)
 	if err != nil {
 		t.Fatalf("BuildTokenBudgetStatus: %v", err)
@@ -65,7 +88,7 @@ func TestBuildTokenBudgetStatus_HighUtilizationTriggersNudge(t *testing.T) {
 }
 
 func TestBuildTokenBudgetStatus_LowUtilizationNoNudge(t *testing.T) {
-	s, err := BuildTokenBudgetStatus("codex", "sess-2", "gpt-5",
+	s, err := BuildTokenBudgetStatus("codex", "sess-2", "gpt-5", 0,
 		1000, 200, 0, "/tmp/some/summary.md", 80, nil)
 	if err != nil {
 		t.Fatalf("BuildTokenBudgetStatus: %v", err)
@@ -80,7 +103,7 @@ func TestBuildTokenBudgetStatus_LowUtilizationNoNudge(t *testing.T) {
 
 func TestBuildTokenBudgetStatus_LegacyHeuristicToolCalls(t *testing.T) {
 	// tool_calls >= 80 sem tokens deve disparar heuristica legada.
-	s, err := BuildTokenBudgetStatus("agy", "sess-3", "",
+	s, err := BuildTokenBudgetStatus("agy", "sess-3", "", 0,
 		0, 0, 100, "/tmp/some/summary.md", 80, nil)
 	if err != nil {
 		t.Fatalf("BuildTokenBudgetStatus: %v", err)
@@ -94,7 +117,7 @@ func TestBuildTokenBudgetStatus_LegacyHeuristicToolCalls(t *testing.T) {
 }
 
 func TestBuildTokenBudgetStatus_LegacyHeuristicSummaryMissing(t *testing.T) {
-	s, err := BuildTokenBudgetStatus("cline", "sess-4", "",
+	s, err := BuildTokenBudgetStatus("cline", "sess-4", "", 0,
 		0, 0, 5, "", 80, nil) // summary vazio = missing
 	if err != nil {
 		t.Fatalf("BuildTokenBudgetStatus: %v", err)

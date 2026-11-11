@@ -45,7 +45,7 @@ const Namespace = "cli"
 // clis é a lista canônica das CLIs wiraveis pelo agent-sync (ordem estável:
 // a mesma ordem de internal/target.GetTargets, com "agy" no lugar de
 // "antigravity" porque este é o nome usado nos eventos).
-var clis = []string{"claude", "codex", "opencode", "agy", "cline"}
+var clis = []string{"claude", "codex", "opencode", "agy", "cline", "pi"}
 
 // nonCLI são os actors que não representam uma CLI.
 var nonCLI = []string{"user", "tool", "agent-sync"}
@@ -58,6 +58,7 @@ var mcpNames = map[string]string{
 	"opencode": "opencode",
 	"agy":      "antigravity",
 	"cline":    "cline",
+	"pi":       "pi",
 }
 
 // SlugPattern casa o slug de uma CLI dentro do namespace (`cli:<slug>`), em

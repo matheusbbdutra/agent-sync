@@ -86,8 +86,9 @@ type TokenBudgetStatus struct {
 // `actor` e a CLI origem; `tokensIn/Out` vir da fonte especifica (bash hook
 // le transcript; OpenCode v2 vem do SDK); `model` opcional; `sessionID`
 // obrigatorio; `summaryPath` e `toolCalls` sao insumos da heuristica
-// legada.
-func BuildTokenBudgetStatus(actor, sessionID, model string, tokensIn, tokensOut, toolCalls int, summaryPath string, thresholdPct int, details map[string]interface{}) (TokenBudgetStatus, error) {
+// legada. `contextWindow` > 0 sobrepoe ContextWindowLookup (hosts que
+// expoem a janela nativa, como o Pi, evitam o default de 200k).
+func BuildTokenBudgetStatus(actor, sessionID, model string, contextWindow, tokensIn, tokensOut, toolCalls int, summaryPath string, thresholdPct int, details map[string]interface{}) (TokenBudgetStatus, error) {
 	if actor == "" {
 		actor = "agent-sync"
 	}
@@ -112,14 +113,23 @@ func BuildTokenBudgetStatus(actor, sessionID, model string, tokensIn, tokensOut,
 	if effectiveModel == "" {
 		effectiveModel = "default"
 	}
-	cw = ContextWindowLookup(effectiveModel)
+	cw = contextWindow
+	if cw <= 0 {
+		cw = ContextWindowLookup(effectiveModel)
+	}
 	if cw > 0 && total > 0 {
 		utilPct = (total * 100) / cw
 		if utilPct > 100 {
 			utilPct = 100
 		}
 	}
-	should, trigger := decideNudge(total, utilPct, thresholdPct, toolCalls, summaryPath)
+	should, trigger, summaryAgeHours := decideNudge(total, utilPct, thresholdPct, toolCalls, summaryPath)
+	if summaryAgeHours > 0 {
+		if details == nil {
+			details = map[string]interface{}{}
+		}
+		details["summary_age_hours"] = summaryAgeHours
+	}
 	s := TokenBudgetStatus{
 		SchemaVersion:  TokenBudgetStatusSchemaVersion,
 		TS:             now,
@@ -142,24 +152,26 @@ func BuildTokenBudgetStatus(actor, sessionID, model string, tokensIn, tokensOut,
 	return s, nil
 }
 
-func decideNudge(total, utilPct, thresholdPct, toolCalls int, summaryPath string) (should bool, trigger string) {
+// decideNudge devolve tambem a idade do summary em horas quando esse foi o
+// gatilho, para o host reportar o motivo real em vez de um percentual falso.
+func decideNudge(total, utilPct, thresholdPct, toolCalls int, summaryPath string) (should bool, trigger string, summaryAgeHours int) {
 	if utilPct >= thresholdPct && total > 0 {
-		return true, "tokens_in>=threshold"
+		return true, "tokens_in>=threshold", 0
 	}
 	if toolCalls >= TokenNudgeDefaultMinToolCalls {
-		return true, "tool_calls>=min"
+		return true, "tool_calls>=min", 0
 	}
 	if summaryPath == "" {
-		return true, "summary_missing"
+		return true, "summary_missing", 0
 	}
 	info, err := os.Stat(summaryPath)
 	if err == nil {
 		ageHours := int(time.Since(info.ModTime()).Hours())
 		if ageHours >= TokenNudgeDefaultMaxAgeHours {
-			return true, "summary_age>=max"
+			return true, "summary_age>=max", ageHours
 		}
 	}
-	return false, "none"
+	return false, "none", 0
 }
 
 type budgetNudgeFlags struct {
@@ -230,7 +242,7 @@ func runBudgetNudge(args []string) error {
 	if summaryPath != "" && root != "" && !filepath.IsAbs(summaryPath) {
 		summaryPath = filepath.Join(root, summaryPath)
 	}
-	status, err := BuildTokenBudgetStatus(f.actor, f.sessionID, f.model,
+	status, err := BuildTokenBudgetStatus(f.actor, f.sessionID, f.model, 0,
 		tokensIn, tokensOut, f.toolCalls, summaryPath, f.threshold, details)
 	if err != nil {
 		return err

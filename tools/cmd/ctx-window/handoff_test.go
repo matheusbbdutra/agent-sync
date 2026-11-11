@@ -207,10 +207,38 @@ func TestHandoffRejectsUnsupportedCLI(t *testing.T) {
 	}
 }
 
+func TestOnToolCallLLMReadsStdinAndRedacts(t *testing.T) {
+	withTempCache(t)
+	const secret = "sk-cp-GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG"
+	var output bytes.Buffer
+	err := runOnToolCallLLM(
+		[]string{"stdin-secret", "--cli", "opencode", "--tool", "Bash", "--input-stdin"},
+		strings.NewReader("export MINIMAX_API_KEY="+secret),
+		&output,
+		&bytes.Buffer{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := Load("stdin-secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Turns) != 1 {
+		t.Fatalf("expected 1 turn, got %d", len(s.Turns))
+	}
+	if strings.Contains(s.Turns[0].Content, secret) {
+		t.Fatal("stdin path persistiu o segredo")
+	}
+	if !strings.Contains(s.Turns[0].Content, "[REDACTED:") {
+		t.Fatalf("esperava marcador de redação, got %q", s.Turns[0].Content)
+	}
+}
+
 func TestOnToolCallLLMOnlyRecords(t *testing.T) {
 	withTempCache(t)
 	var output bytes.Buffer
-	if err := runOnToolCallLLM([]string{"no-llm", "--cli", "unknown", "--tool", "Bash", "--input", strings.Repeat("x", 500)}, &output, &bytes.Buffer{}); err != nil {
+	if err := runOnToolCallLLM([]string{"no-llm", "--cli", "unknown", "--tool", "Bash", "--input", strings.Repeat("x", 500)}, strings.NewReader(""), &output, &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
 	s, err := Load("no-llm")

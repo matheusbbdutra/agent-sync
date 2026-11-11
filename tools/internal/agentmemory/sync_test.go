@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func openTestRemote(t *testing.T) *sql.DB {
@@ -97,7 +98,14 @@ func TestPushRefusesKnownSecret(t *testing.T) {
 	ctx := context.Background()
 	remote := openTestRemote(t)
 	store := openTestStore(t)
-	if err := store.Upsert(Memory{Agent: "codex", Type: "project", Name: "sensitive", Content: "sk-abcdefghijklmnopqrstuvwxyz123456"}); err != nil {
+	// Simula linha legada: insere direto no SQL para furar a redação do
+	// Upsert e validar a segunda camada (guard do Push remoto).
+	const secret = "sk-abcdefghijklmnopqrstuvwxyz123456"
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := store.db.Exec(`
+		INSERT INTO memories (id, agent, session_id, pc, project_path, project_id, type, name, description, content, scratch, created_at, updated_at, accessed_at)
+		VALUES (?, 'codex', '', '', '', 'proj-secret', 'project', 'sensitive', '', ?, 0, ?, ?, ?)
+	`, "raw-secret", secret, now, now, now); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.Push(ctx, remote); err == nil || !strings.Contains(err.Error(), "possível segredo") {

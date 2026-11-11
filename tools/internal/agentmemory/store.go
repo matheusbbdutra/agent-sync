@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/matheusdutra/token-tools/internal/secretscan"
 	_ "github.com/tursodatabase/go-libsql"
 )
 
@@ -169,6 +170,11 @@ func (s *Store) DB() *sql.DB {
 
 // Upsert grava ou atualiza uma memória (chave única: type+name).
 func (s *Store) Upsert(m Memory) error {
+	// Fronteira única de escrita: nenhuma memória (store_memory, record_event,
+	// consolidação automática) entra no banco com segredo em claro.
+	m.Name, _ = secretscan.Redact(m.Name)
+	m.Description, _ = secretscan.Redact(m.Description)
+	m.Content, _ = secretscan.Redact(m.Content)
 	now := time.Now().UTC().Format(time.RFC3339)
 	if m.ID == "" {
 		m.ID = fmt.Sprintf("%s:%s:%d", m.Type, m.Name, time.Now().UnixNano())
