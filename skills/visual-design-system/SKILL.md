@@ -20,6 +20,10 @@ Sem direção declarada, o resultado é o default do modelo — que é justament
 
 **Precedência:** o design system, `DESIGN.md` e os tokens do projeto vencem esta skill; esta vence skill externa genérica. Se o brief do usuário fixar uma estética que viola a deny-list, o brief vence — registre a exceção e siga.
 
+**Domínio finanças pessoais** (carteira, cartões, orçamento, parcelamentos, fluxo de caixa): leia também [reference/consumer-fintech.md](reference/consumer-fintech.md) — fixa o modelo de dinheiro (efetivado/previsto/reservado/livre), a formatação de valores e as regras de dataviz do domínio. Ele não substitui nenhuma seção desta skill.
+
+**Estrutura da tela:** [reference/product-archetypes.md](reference/product-archetypes.md) traz o catálogo opcional de arquétipos (visão geral, feed, gestão de objetos, análises, criação) para decidir a hierarquia de cada aba. Opcional porque prescrever o mesmo esqueleto em todas as telas é justamente a síndrome do §2.
+
 ### 1.1 Modo Retrofit (tela existente)
 
 Ajustar o que existe é diferente de criar: o custo do erro é maior porque a tela já está em uso. Cinco passos, nesta ordem:
@@ -67,6 +71,18 @@ Regras:
 - **Neutros tintados** (OKLCH ou HSL com chroma baixo na matiz da marca), não `gray-*` puro.
 - **Dark mode não é inversão**: superfícies mais claras elevam, não mais escuras; sombra perde função e vira borda.
 - Contraste conferido no par real usado, não no token isolado.
+- **Adaptação de marca:** ao trocar a paleta, mantenha a *relação*, não o hex — canvas em neutro
+  quente, superfície neutra elevada, âncora profunda de marca (não uma cor viva) para hero e CTA,
+  e um acento vibrante usado **pontualmente**. Acento claro (lima, coral, âmbar vivo) só existe
+  como fundo com tinta escura por cima; como texto, borda ou anel de foco não alcança 3:1.
+- **Pares que precisam ser medidos nos dois temas** (o token isolado não diz nada): texto principal
+  e secundário sobre canvas e sobre surface; semântico (`success`/`danger`/`warning`/`info`) sobre
+  seu próprio `-bg`; acento como fundo; borda ou âncora contra o canvas. Ao criar o tema escuro,
+  redefina **também** os semânticos, os `-bg` e a âncora — token que atravessa do light para o dark
+  vira ilha clara ou elemento invisível.
+- **Escala de superfície:** raio, sombra, borda e delta canvas→surface saem de
+  [reference/surface-derivation.md](reference/surface-derivation.md) — valores medidos em GOV.UK,
+  Carbon, Polaris e Radix. Entre produtos varia o sistema; entre telas varia só composição.
 
 ## 4. Tipografia
 
@@ -98,6 +114,8 @@ Nenhum componente interativo pode ter apenas o estado "ideal" (*happy path*). To
 7. **Empty state:** texto explicativo do domínio + ação quando não houver dados.
 8. **Error:** mensagem específica e recuperável, nunca só "Algo deu errado".
 9. **Success:** confirmação do que mudou (toast/inline), não apenas "Sucesso".
+10. **Protótipo vivo:** em demo ou protótipo, filtro filtra, aba troca de painel, card abre gaveta e
+    tema alterna. Botão que não responde é reprovação, não placeholder.
 
 ## 7. Motion
 
