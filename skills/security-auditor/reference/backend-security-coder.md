@@ -1,7 +1,6 @@
----
-name: backend-security-coder
-description: "Use when implementing backend features that handle user input, secrets, or external APIs. Boas práticas de segurança em backend: validação de entrada, prevenção de injeção e OWASP. validation, authentication, and API security. Use PROACTIVELY for backend security implementations or security code reviews."
----
+# backend-security-coder
+
+> Absorvida por `security-auditor` (2026-11-16). Conteúdo original preservado.
 
 ## Use this skill when
 

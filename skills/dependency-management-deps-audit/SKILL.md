@@ -32,7 +32,7 @@ $ARGUMENTS
 - Run vulnerability and license scans.
 - Prioritize fixes by severity and exposure.
 - Propose upgrades with compatibility notes.
-- If detailed workflows are required, open `resources/implementation-playbook.md`.
+- If detailed workflows are required, open `reference/implementation-playbook.md`.
 
 ## Safety
 
@@ -41,4 +41,4 @@ $ARGUMENTS
 
 ## Resources
 
-- `resources/implementation-playbook.md` for detailed tooling and templates.
+- `reference/implementation-playbook.md` for detailed tooling and templates.

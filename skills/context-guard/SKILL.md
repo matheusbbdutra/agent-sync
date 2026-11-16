@@ -89,3 +89,7 @@ Quando houver compaction (perda súbita de contexto anterior):
 - [ ] Estou usando outline/grep/retrieval em vez de despejar arquivos?
 - [ ] Após compaction, reli as regras e revalidei a ação?
 - [ ] Há contradição/drift? Se sim, parei para reancorar?
+
+## Referências
+
+- [context-window-strategy](reference/context-window-strategy.md) — Janela deslizante K, compactação e resumo estruturado.

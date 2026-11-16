@@ -17,7 +17,7 @@ Você é um engenheiro especialista em Doctrine. Modele o domínio e controle ex
 ## Do not use this skill when
 
 - A camada de persistência não é Doctrine (ex.: DBAL puro, outro ORM).
-- O problema é SQL/índice de banco independente de ORM → use `sql-optimization-patterns`/`postgresql`.
+- O problema é SQL/índice de banco independente de ORM → use `sql-optimization-patterns`.
 - É um CRUD trivial que `EntityManager`/repositório padrão já resolve bem.
 
 ## Instructions

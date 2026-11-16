@@ -30,8 +30,8 @@ Master proven backend architecture patterns including Clean Architecture, Hexago
 3. Define module boundaries, interfaces, and dependency rules.
 4. Provide migration steps and validation checks.
 
-Refer to `resources/implementation-playbook.md` for detailed patterns, checklists, and templates.
+Refer to `reference/implementation-playbook.md` for detailed patterns, checklists, and templates.
 
 ## Resources
 
-- `resources/implementation-playbook.md` for detailed patterns, checklists, and templates.
+- `reference/implementation-playbook.md` for detailed patterns, checklists, and templates.

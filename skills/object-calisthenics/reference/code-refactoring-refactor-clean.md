@@ -1,7 +1,6 @@
----
-name: code-refactoring-refactor-clean
-description: "Use when refactoring to improve readability, reduce duplication, or apply SOLID without changing behavior. Refatoração de código com Clean Code, SOLID e Object Calisthenics sem alterar comportamento."
----
+# code-refactoring-refactor-clean
+
+> Absorvida por `object-calisthenics` (2026-11-16). Conteúdo original preservado.
 
 # Refactor and Clean Code
 
@@ -32,7 +31,7 @@ $ARGUMENTS
 - Propose a refactor plan with incremental steps.
 - Apply changes in small slices and keep behavior stable.
 - Update tests and verify regressions.
-- If detailed patterns are required, open `resources/implementation-playbook.md`.
+- If detailed patterns are required, open `reference/code-refactoring-refactor-clean/implementation-playbook.md`.
 
 ## Safety
 
@@ -48,4 +47,4 @@ $ARGUMENTS
 
 ## Resources
 
-- `resources/implementation-playbook.md` for detailed patterns and examples.
+- `reference/code-refactoring-refactor-clean/implementation-playbook.md` for detailed patterns and examples.

@@ -28,8 +28,12 @@ Comprehensive guide to implementing CQRS (Command Query Responsibility Segregati
 - Define command and query models with clear boundaries.
 - Implement read model projections and synchronization.
 - Validate performance, recovery, and failure modes.
-- If detailed patterns are required, open `resources/implementation-playbook.md`.
+- If detailed patterns are required, open `reference/implementation-playbook.md`.
 
 ## Resources
 
-- `resources/implementation-playbook.md` for detailed CQRS patterns and templates.
+- `reference/implementation-playbook.md` for detailed CQRS patterns and templates.
+
+## Referências
+
+- [event-sourcing-architect](reference/event-sourcing-architect.md) — Event store, projeções, sagas e versionamento de eventos.

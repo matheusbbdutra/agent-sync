@@ -26,8 +26,12 @@ Comprehensive patterns for creating, maintaining, and validating OpenAPI 3.1 spe
 - Clarify goals, constraints, and required inputs.
 - Apply relevant best practices and validate outcomes.
 - Provide actionable steps and verification.
-- If detailed examples are required, open `resources/implementation-playbook.md`.
+- If detailed examples are required, open `reference/implementation-playbook.md`.
 
 ## Resources
 
-- `resources/implementation-playbook.md` for detailed patterns and examples.
+- `reference/implementation-playbook.md` for detailed patterns and examples.
+
+## Referências
+
+- [api-documenter](reference/api-documenter.md) — Spec OpenAPI canônica, exemplos, erros RFC 7807 e versionamento.

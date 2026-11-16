@@ -65,3 +65,7 @@ mr-collect-cli -provider gitlab -repo /path/to/checkout -mr-iid 42
 # Coleta funciona (GitHub)?
 mr-collect-cli -provider github -repo /path/to/checkout -mr-iid 42
 ```
+
+## Referências
+
+- [code-reviewer](reference/code-review-checklist.md) — catálogo de checagem por domínio na revisão de uma mudança

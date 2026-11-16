@@ -1,7 +1,6 @@
----
-name: legacy-modernizer
-description: "Use when incrementally modernizing legacy code or migrating framework versions. Modernização incremental de bases legadas e migração segura de frameworks. implement gradual modernization. Handles technical debt, dependency updates, and backward compatibility. Use PROACTIVELY for legacy system updates, framework migrations, or technical debt reduction."
----
+# legacy-modernizer
+
+> Absorvida por `microservices-patterns` (2026-11-16). Conteúdo original preservado.
 
 ## Use this skill when
 

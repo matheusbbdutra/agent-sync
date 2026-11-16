@@ -1,7 +1,6 @@
----
-name: context-window-strategy
-description: "Use when sessions approach the context limit and you need incremental summary. Estratégia de janela deslizante (últimos K turnos) e handoff via resumos incrementais."
----
+# context-window-strategy
+
+> Absorvida por `context-guard` (2026-11-16). Conteúdo original preservado.
 
 # Context Window Strategy
 
@@ -58,7 +57,7 @@ The summary is versioned as `summary_v{N}.md` for auditing.
 
 ### 4. Summary format
 
-YAML/Markdown structured with 6 sections (see `prompts/summarize.md`):
+YAML/Markdown structured with 6 sections (see `reference/context-window-strategy/prompts/summarize.md`):
 
 1. **Decisions** — markers like "decidimos", "vamos usar", "foi definido" (or English equivalents when locale is set).
 2. **Active hypotheses** — "hipótese:", "vou testar", "if X then Y".

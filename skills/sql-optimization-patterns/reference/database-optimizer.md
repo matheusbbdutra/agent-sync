@@ -1,7 +1,6 @@
----
-name: database-optimizer
-description: "Use when debugging slow queries, missing indexes, or designing schema for performance. Otimização de bancos de dados: indexação, planos de execução e resolução de queries lentas. tuning, query optimization, and scalable architectures. Masters advanced indexing, N+1 resolution, multi-tier caching, partitioning strategies, and cloud database optimization. Handles complex query analysis, migration strategies, and performance monitoring. Use PROACTIVELY for database optimization, performance issues, or scalability challenges."
----
+# database-optimizer
+
+> Absorvida por `sql-optimization-patterns` (2026-11-16). Conteúdo original preservado.
 
 ## Use this skill when
 

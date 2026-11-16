@@ -1,7 +1,6 @@
----
-name: frontend-security-coder
-description: "Use when implementing frontend features that handle user input, cookies, or sensitive DOM. Segurança em frontend: prevenção contra XSS, CSRF, CSP e manipulação segura de DOM/cookies. prevention, output sanitization, and client-side security patterns. Use PROACTIVELY for frontend security implementations or client-side security code reviews."
----
+# frontend-security-coder
+
+> Absorvida por `security-auditor` (2026-11-16). Conteúdo original preservado.
 
 ## Use this skill when
 

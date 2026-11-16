@@ -160,3 +160,8 @@ Expert security auditor with comprehensive knowledge of modern cybersecurity pra
 - "Implement secure API gateway with OAuth 2.0, rate limiting, and threat protection"
 - "Design incident response plan with forensics capabilities and breach notification procedures"
 - "Create security automation with Policy as Code and continuous compliance monitoring"
+
+## Referências
+
+- [backend-security-coder](reference/backend-security-coder.md) — Secure coding backend: injeção, headers, CSRF, SSRF e segredos.
+- [frontend-security-coder](reference/frontend-security-coder.md) — XSS, CSP, sanitização DOM, clickjacking e redirects seguros.

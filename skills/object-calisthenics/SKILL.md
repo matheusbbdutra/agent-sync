@@ -105,3 +105,7 @@ Conjunto de 9 restrições para exercitar bom design orientado a objetos. São u
 - [ ] Comportamento está no objeto dono do dado (sem getters/setters)?
 
 Regras são ferramentas de diagnóstico: se aplicá-las piorar a clareza, **documente a exceção** e siga em frente.
+
+## Referências
+
+- [code-refactoring-refactor-clean](reference/code-refactoring-refactor-clean.md) — Plano de refactor, code smells e slices incrementais.

@@ -1,7 +1,8 @@
----
-name: code-reviewer
-description: "Use when reviewing a code change for security, performance, maintainability, or standards. Revisão de código focada em segurança, performance, manutenibilidade e aderência aos padrões. analysis, security vulnerabilities, performance optimization, and production reliability. Masters static analysis tools, security scanning, and configuration review with 2024/2025 best practices. Use PROACTIVELY for code quality assurance."
----
+# code-reviewer
+
+> Absorvida por `cli-mr-review` (2026-11-16). Conteúdo original preservado.
+> Papel de execução fica com o subagent `code-reviewer` (`~/.pi/agent/agents/code-reviewer.md`).
+
 
 ## Use this skill when
 

@@ -1,7 +1,6 @@
----
-name: event-sourcing-architect
-description: "Use when designing event-sourced systems or evaluating CQRS vs CRUD trade-offs. Arquitetura orientada a eventos e event sourcing: streams de eventos, projeções e CQRS."
----
+# event-sourcing-architect
+
+> Absorvida por `cqrs-implementation` (2026-11-16). Conteúdo original preservado.
 
 # Event Sourcing Architect
 

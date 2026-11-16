@@ -38,7 +38,7 @@ Você pesquisa em **fontes oficiais** antes de afirmar qualquer coisa sobre bibl
   - `docs-fetch -grep <termo> <url>` → só linhas relevantes.
   - `docs-fetch -raw <url>` → conteúdo bruto (ex.: markdown/RST).
   - Cache em `~/.cache/agent-sync/docs`; use `-refresh` para atualizar.
-- **`search-specialist`** (skill) para pesquisa ampla/competitiva e verificação factual.
+- **[`search-specialist`](reference/search-specialist.md)** (absorvida nesta skill) para pesquisa ampla/competitiva e verificação factual.
 
 ## Fontes oficiais por stack
 
@@ -85,3 +85,4 @@ Você pesquisa em **fontes oficiais** antes de afirmar qualquer coisa sobre bibl
 
 - Integração Symfony/Doctrine: `symfony`, `doctrine`, `phpunit-symfony`.
 - Avaliação de MCP dedicado a docs: `mcp-advisor`.
+- [search-specialist](reference/search-specialist.md) — Operadores de busca, filtragem de domínio e verificação factual.

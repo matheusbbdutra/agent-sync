@@ -27,7 +27,7 @@ Build secure, scalable authentication and authorization systems using industry-s
 - Choose auth strategy (session, JWT, OIDC) and token lifecycle.
 - Design authorization model and policy enforcement points.
 - Plan secrets storage, rotation, logging, and audit requirements.
-- If detailed examples are required, open `resources/implementation-playbook.md`.
+- If detailed examples are required, open `reference/implementation-playbook.md`.
 
 ## Safety
 
@@ -36,4 +36,4 @@ Build secure, scalable authentication and authorization systems using industry-s
 
 ## Resources
 
-- `resources/implementation-playbook.md` for detailed patterns and examples.
+- `reference/implementation-playbook.md` for detailed patterns and examples.

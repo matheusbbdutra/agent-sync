@@ -32,4 +32,8 @@ Master microservices architecture patterns including service boundaries, inter-s
 
 ## Resources
 
-- `resources/implementation-playbook.md` for detailed patterns and examples.
+- `reference/implementation-playbook.md` for detailed patterns and examples.
+
+## Referências
+
+- [legacy-modernizer](reference/legacy-modernizer.md) — Strangler fig, migração de framework e compatibilidade retroativa.
