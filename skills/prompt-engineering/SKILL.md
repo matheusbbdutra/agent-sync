@@ -52,6 +52,7 @@ Aplique o gate antes de publicar e depois de cada mudança de template. Ordenar 
 
 - [prompt-craft](reference/prompt-craft.md) — arquétipos de documento, few-shot com gatilho, inertness, posição/dependência de snippet, contrato de output parseável, classificação com opções disjuntas, logprobs.
 - [generation-params](reference/generation-params.md) — greedy vs beam, temperature, top-k/top-p, repetição, custo por token gerado.
+- **`bin/prompt-lint`** (Go, `tools/cmd/prompt-lint`) — lint mecânico dos defeitos estruturais do prompt: `negation` (proibição sem alternativa positiva, p.102), `no-terminator` (prompt > 800 chars sem marcador de fim, p.161-162), `undeclared-output-format` (p.143), `non-disjoint-classes` (opção contida em outra ou sem instrução de escolha única, p.165) e `placeholder-leak` (`{{...}}`, `<PLACEHOLDER>`, TODO/FIXME que iriam literais para o modelo). Comando: `prompt-lint check SKILL.md --severity error` (`--json`, `--quiet`, `-` para stdin). Exit codes: `0` sem achado, `1` com achado ≥ `--severity`, `2` uso ou erro de leitura. Ele não avalia qualidade semântica — medir qualidade e comparar versões é `llm-eval`.
 
 ## Fontes
 

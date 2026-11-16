@@ -40,6 +40,7 @@ build: ## Compila agent-sync e as ferramentas em bin/
 	cd tools && go build -o ../bin/repo-map ./cmd/repo-map
 	cd tools && go build -o ../bin/secret-scan ./cmd/secret-scan
 	cd tools && go build -o ../bin/eval-run ./cmd/eval-run
+	cd tools && go build -o ../bin/prompt-lint ./cmd/prompt-lint
 
 install: build ## Compila e instala os binários/scripts em ~/.local/bin
 	mkdir -p ~/.local/bin
