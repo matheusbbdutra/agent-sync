@@ -83,7 +83,7 @@ fi
 printf '0' > "$counter_file"
 
 run_summarize() {
-  if AGENT_SYNC_HOME="${AGENT_SYNC_HOME:-}" "$BIN" summarize -root "$root" >/dev/null 2>&1; then
+  if AGENT_SYNC_HOME="${AGENT_SYNC_HOME:-}" "$BIN" summarize >/dev/null 2>&1; then
     # Mirror best-effort para memory-mcp.
     if command -v memory-mcp >/dev/null 2>&1; then
       printf '%s\n' \
