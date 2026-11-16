@@ -150,10 +150,6 @@ func TestRunHookEndToEndRecordsTurn(t *testing.T) {
 	cacheRoot = dir
 	defer func() { cacheRoot = oldRoot }()
 
-	oldThreshold := os.Getenv("AGENT_SYNC_CTX_COMPACT_AT")
-	os.Setenv("AGENT_SYNC_CTX_COMPACT_AT", "999999")
-	defer os.Setenv("AGENT_SYNC_CTX_COMPACT_AT", oldThreshold)
-
 	payload := `{"session_id":"hook-e2e","tool_name":"Bash","tool_input":{"command":"go test"},"tool_response":{"output":"ok"}}`
 	var stdout, stderr strings.Builder
 	if err := runHook([]string{"claude"}, strings.NewReader(payload), &stdout, &stderr); err != nil {

@@ -11,8 +11,9 @@ Aqui o assunto e o medidor, os limiares e as lacunas.
 
 - `Session.EstimatedChars()` soma `len(Content) + len(Role) + 32` por turn (`tools/cmd/ctx-window/store.go:90-96`).
   Nao ha tokenizer no caminho: nenhum limiar do binario conhece o vocabulario do modelo.
-- `AGENT_SYNC_CTX_COMPACT_AT` e descrito no `--help` como "estimated chars threshold", coerente com o codigo
-  (`store.go:172-181`, default 200).
+- O limiar de compactacao e **fixo em 200 chars** (`compactAtThreshold`, `store.go:172-181`). Existia o knob
+  `AGENT_SYNC_CTX_COMPACT_AT`, removido em 2026-11-16 junto com o subsistema `on-tool-call`: ele nao alcancava
+  o fluxo vivo e so servia de seam de teste.
 - Efeito pratico: 200 chars ~ 50 tokens, ordem de grandeza de um unico tool call. Medido nas sessions locais:
   `~/.cache/agent-sync/ctx-window` tem 321 sessoes, 273 com `turns.jsonl`, e **264 delas (96,7%) passam de 200
   bytes** (`find . -name turns.jsonl -size +200c`). O default nao separa sessao saudavel de sessao cheia.
@@ -26,7 +27,6 @@ Aqui o assunto e o medidor, os limiares e as lacunas.
 
 | Decisao | Variavel / constante | Default | Onde |
 | --- | --- | --- | --- |
-| Auto-compactacao heuristica | `AGENT_SYNC_CTX_COMPACT_AT` | 200 chars | `store.go:172-181` |
 | Tamanho da working memory | `AGENT_SYNC_CTX_K` | 5 turns | `store.go:423-431` |
 | Budget do resumo | `AGENT_SYNC_CTX_BUDGET` | 1000 tokens | `store.go:434-442` |
 | Nudge Claude (uma vez por sessao) | `AGENT_SYNC_CTX_NUDGE_TOKENS` | 150000 tokens | `claude_usage.go:14` |
@@ -50,8 +50,6 @@ Leituras que o `--help` induz a erro:
 
 ## 3. O que cada subcomando decide
 
-- `on-tool-call`: grava o turn e, se `EstimatedChars >= COMPACT_AT`, gera resumo por regex e incrementa a versao
-  (`main.go:270-291`). E o unico caminho com auto-compactacao.
 - `on-tool-call-llm` / `hook <cli>`: grava o turn com input truncado em 16000 chars apos `redactSecrets`
   (`summarize.go:336-346`) e **nunca compacta** — o comentario de `hook.go:60-63` diz isso explicitamente.
 - `compact`: forca a heuristica local sem LLM (`main.go:148-176`). `AppendVersionedSummary` escreve
@@ -92,10 +90,10 @@ perdeu no corte de 16000 chars.
 
 ## 5. Roteamento real dos hooks (3 lacunas verificadas)
 
-1. **Auto-compactacao nao esta ligada em CLI nenhum.** O hook Go chama `on-tool-call-llm`
-   (`hook.go:132`); o plugin do OpenCode faz o mesmo (`hooks/ctx-compact.v2.ts:136`). `on-tool-call` — o unico
-   caminho que compara com `COMPACT_AT` — aparece so no dispatch (`main.go:94`), no `--help` e nos testes
-   (`store_test.go:431+`). Logo `AGENT_SYNC_CTX_COMPACT_AT` e inalcancavel pelo fluxo automatico.
+1. **Auto-compactacao por threshold nao existe mais (resolvido).** O hook Go e o plugin do OpenCode chamam
+   `on-tool-call-llm` (`hook.go:132`, `hooks/ctx-compact.v2.ts:136`), que nunca compactou. O subsistema
+   `on-tool-call` — unico que comparava com o threshold — e o knob `AGENT_SYNC_CTX_COMPACT_AT` foram removidos
+   em 2026-11-16. Compactacao agora so acontece por `compact` ou `summarize`, explicitos.
 2. **`ctx-window-summarize-at-stop.sh` nunca summarize.** A linha 86 chama
    `"$BIN" summarize -root "$root"`, mas `summarize` so aceita `--cli`, `--model`, `--timeout`
    (`summarize.go:108-110`). Rodado: `ctx-window summarize -root /tmp/x` imprime
@@ -126,8 +124,8 @@ Onde o binario **esta alinhado** com o livro e vale registrar para nao "corrigir
 
 - Trate `EstimatedChars` como proxy grosseiro: para decidir "cabe?", meca tokens no CLI antes de comparar com a
   janela do modelo.
-- Nunca use `AGENT_SYNC_CTX_COMPACT_AT` acima de 200 esperando compactacao: o caminho que o le nao esta ligado
-  em hook nenhum. Compacte com `ctx-window compact <session>` ou `summarize` quando decidir.
+- Nao existe auto-compactacao por threshold: o limiar e fixo (200 chars) e so `quality` o usa para pontuar.
+  Compacte com `ctx-window compact <session>` ou `summarize` quando decidir.
 - Nao conte com o auto-summarize do Stop como rede de seguranca: a chamada passa flag inexistente e falha.
 - Nao leia `quality` como saude do contexto: `compaction_depth` e monotonicamente punitivo e `context_fill`
   saturado pelo default de 200 chars.

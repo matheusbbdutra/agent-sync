@@ -140,7 +140,7 @@ func sortActivityCounts(cats []ActivityCount) {
 }
 
 // splitTurn separa o tool name do resto do conteúdo. AddTurn grava
-// "tool: content" (ver runOnToolCall em main.go); então a primeira
+// "tool: content" (ver summarize.go, que registra Turn{Role: "tool"}); então a primeira
 // palavra antes do primeiro ":" é o tool.
 func splitTurn(content string) (tool, rest string) {
 	idx := strings.Index(content, ":")

@@ -57,21 +57,22 @@ func TestComputeQualityEmptySession(t *testing.T) {
 
 func TestSignalContextFill(t *testing.T) {
 	withTempCache(t)
-	t.Setenv("AGENT_SYNC_CTX_COMPACT_AT", "1000")
+	// threshold fixo = 200 (compactAtThreshold). EstimatedChars soma, por turn,
+	// len(Content) + len(Role) + 32; Role default e "tool" (4 chars) → overhead 36.
 	s, _ := Load("ctx-fill")
 	// sem turns: 0 chars → score ideal
 	if sig := signalContextFill(s); sig.Score != 100 {
 		t.Errorf("empty session should score 100 on context_fill, got %d", sig.Score)
 	}
-	// encher até ~50% do threshold (500 chars; vira 536 com padding de role/json)
-	s.AddTurn(Turn{Content: strings.Repeat("a", 500)})
-	if sig := signalContextFill(s); sig.Score != 73 { // 100 - (536/1000)*50 = 73.2 → 73
-		t.Errorf("~50%% fill should score ~73, got %d (reason=%s)", sig.Score, sig.Reason)
+	// content 64 → fill 100 = 50% do threshold → 100 - (100/200)*50 = 75
+	s.AddTurn(Turn{Content: strings.Repeat("a", 64)})
+	if sig := signalContextFill(s); sig.Score != 75 {
+		t.Errorf("50%% fill should score 75, got %d (reason=%s)", sig.Score, sig.Reason)
 	}
-	// encher até 2x threshold (2000 chars) → score 0
-	s.AddTurn(Turn{Content: strings.Repeat("b", 2000)})
+	// +content 364 → fill 500 = 2.5x threshold → 100 - 2.5*50 = -25 → clamp 0
+	s.AddTurn(Turn{Content: strings.Repeat("b", 364)})
 	if sig := signalContextFill(s); sig.Score != 0 {
-		t.Errorf("200%% fill should score 0, got %d", sig.Score)
+		t.Errorf("250%% fill should score 0, got %d (reason=%s)", sig.Score, sig.Reason)
 	}
 }
 
@@ -96,16 +97,16 @@ func TestSignalCompactionDepth(t *testing.T) {
 
 func TestSignalWasteTokens(t *testing.T) {
 	withTempCache(t)
-	t.Setenv("AGENT_SYNC_CTX_COMPACT_AT", "500")
+	// threshold fixo = 200; waste = fill - 200; score = 100 - (waste/(3*200))*100.
 	s, _ := Load("waste")
 	// fill=0 → waste=0 → 100
 	if sig := signalWasteTokens(s); sig.Score != 100 {
 		t.Errorf("no waste should score 100, got %d", sig.Score)
 	}
-	// fill > threshold: 1032-500=532 chars de waste (1000+padding)
-	s.AddTurn(Turn{Content: strings.Repeat("a", 1000)})
-	if sig := signalWasteTokens(s); sig.Score != 64 { // ratio 532/1500=0.355 → 100-35.5=64.5 → 64
-		t.Errorf("expected 64 with ~35%% waste, got %d (reason=%s)", sig.Score, sig.Reason)
+	// content 314 → fill 350 (314+36); waste = 150; 150/600 = 0.25 → 100 - 25 = 75
+	s.AddTurn(Turn{Content: strings.Repeat("a", 314)})
+	if sig := signalWasteTokens(s); sig.Score != 75 {
+		t.Errorf("expected 75 with 25%% waste, got %d (reason=%s)", sig.Score, sig.Reason)
 	}
 }
 

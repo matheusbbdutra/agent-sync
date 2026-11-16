@@ -424,49 +424,6 @@ func TestRunDoctor(t *testing.T) {
 	}
 }
 
-func TestRunOnToolCallBelowThreshold(t *testing.T) {
-	withTempCache(t)
-	var stdout, stderr bytes.Buffer
-	t.Setenv("AGENT_SYNC_CTX_COMPACT_AT", "10000") // high threshold so no auto-compact
-	if err := run([]string{"on-tool-call", "otc-session", "--tool", "Bash"}, &stdout, &stderr); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(stdout.String(), `"auto_compacted":false`) {
-		t.Errorf("expected no auto-compaction, got %s", stdout.String())
-	}
-	reloaded, _ := Load("otc-session")
-	if len(reloaded.Turns) != 1 {
-		t.Errorf("expected 1 turn, got %d", len(reloaded.Turns))
-	}
-	if !strings.Contains(reloaded.Turns[0].Content, "Bash") {
-		t.Errorf("turn should contain tool name, got %q", reloaded.Turns[0].Content)
-	}
-}
-
-func TestRunOnToolCallAboveThreshold(t *testing.T) {
-	withTempCache(t)
-	t.Setenv("AGENT_SYNC_CTX_COMPACT_AT", "50") // low threshold
-	var stdout, stderr bytes.Buffer
-	if err := run([]string{"on-tool-call", "otc-threshold", "--tool", "Read", "--input", "long content here to exceed threshold"}, &stdout, &stderr); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(stdout.String(), `"auto_compacted":true`) {
-		t.Errorf("expected auto-compaction, got %s", stdout.String())
-	}
-	reloaded, _ := Load("otc-threshold")
-	if reloaded.Version != 1 {
-		t.Errorf("expected version 1 after auto-compact, got %d", reloaded.Version)
-	}
-}
-
-func TestRunOnToolCallMissingTool(t *testing.T) {
-	withTempCache(t)
-	var stdout, stderr bytes.Buffer
-	if err := run([]string{"on-tool-call", "no-tool"}, &stdout, &stderr); err == nil {
-		t.Fatal("expected error when --tool is missing")
-	}
-}
-
 func TestEstimatedChars(t *testing.T) {
 	withTempCache(t)
 	s, _ := Load("est-session")
@@ -478,14 +435,11 @@ func TestEstimatedChars(t *testing.T) {
 	}
 }
 
-func TestCompactAtThresholdDefault(t *testing.T) {
-	t.Setenv("AGENT_SYNC_CTX_COMPACT_AT", "")
+func TestCompactAtThresholdFixed(t *testing.T) {
+	// threshold fixo: o knob AGENT_SYNC_CTX_COMPACT_AT foi removido junto com
+	// o subcomando on-tool-call, entao o valor nao depende mais do ambiente.
 	if got := compactAtThreshold(); got != 200 {
-		t.Errorf("default threshold should be 200, got %d", got)
-	}
-	t.Setenv("AGENT_SYNC_CTX_COMPACT_AT", "500")
-	if got := compactAtThreshold(); got != 500 {
-		t.Errorf("env threshold should be 500, got %d", got)
+		t.Errorf("compactAtThreshold should be 200, got %d", got)
 	}
 }
 
@@ -571,27 +525,5 @@ func TestLoopConfigFromEnv(t *testing.T) {
 	}
 	if m := loopMinRepeats(); m != 2 {
 		t.Errorf("env loopMinRepeats=2, got %d", m)
-	}
-}
-
-func TestRunOnToolCallIncludesLoopDetected(t *testing.T) {
-	withTempCache(t)
-	t.Setenv("AGENT_SYNC_CTX_LOOP_WINDOW", "10")
-	t.Setenv("AGENT_SYNC_CTX_LOOP_MIN", "3")
-	t.Setenv("AGENT_SYNC_CTX_COMPACT_AT", "10000") // evita auto-compact interferir
-	var stdout, stderr bytes.Buffer
-	// 3x mesmo tool+input → loop_detected deve virar true
-	for i := 0; i < 3; i++ {
-		stdout.Reset()
-		stderr.Reset()
-		if err := run([]string{"on-tool-call", "loop-session", "--tool", "Read", "--input", "foo.go"}, &stdout, &stderr); err != nil {
-			t.Fatalf("iteration %d failed: %v", i, err)
-		}
-	}
-	if !strings.Contains(stdout.String(), `"loop_detected":true`) {
-		t.Errorf("expected loop_detected=true after 3 identical tool calls, got %s", stdout.String())
-	}
-	if !strings.Contains(stdout.String(), `"loop_count":3`) {
-		t.Errorf("expected loop_count=3, got %s", stdout.String())
 	}
 }

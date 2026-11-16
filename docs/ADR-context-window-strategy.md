@@ -86,7 +86,7 @@ Implementar a estratégia **sliding window + incremental summary**, alinhada ao 
 | --- | --- | --- |
 | Skill (protocolo) | `skills/context-window-strategy/SKILL.md` | Defaults, comandos, quando disparar |
 | Prompt de sumarização | `skills/context-window-strategy/prompts/summarize.md` | Contrato de prompt LLM |
-| Tool CLI | `tools/cmd/ctx-window/` | `show`, `compact` (heurística), `summarize`, `on-tool-call`, `on-tool-call-llm`, `hook <cli>`, `set-k`, `doctor`, `benchmark` |
+| Tool CLI | `tools/cmd/ctx-window/` | `show`, `compact` (heurística), `summarize`, `on-tool-call-llm`, `hook <cli>`, `set-k`, `doctor`, `benchmark` |
 | Heurística (fallback) | `tools/cmd/ctx-window/heuristic.go` | Regex bilíngue para paths |
 | LLM summarizer | `tools/cmd/ctx-window/summarize.go` | Dispatch por `--cli` (`summarizerCommand`): `claude -p`, `codex exec`, `opencode run --pure`, `cursor-agent -p`, `agy -p` — cada CLI resume via seu próprio modo não-interativo, não só via opencode |
 | Hook Claude/Codex/Cursor/Antigravity | `tools/cmd/ctx-window/hook.go` (`ctx-window hook <cli>`) | Lê o payload de PostToolUse via stdin, extrai `tool_input`/resultado real por schema de cada CLI (schemas confirmados lendo `docs-cache.py`/`docs-cache.cursor.py`/`docs-cache.antigravity.py`) e chama `on-tool-call-llm` internamente. Tudo em Go — decisão consciente após avaliar bash+Python por CLI (ver "Decisões revisadas" abaixo): mais difícil de depurar/manter com 3 linguagens no mesmo hook. |

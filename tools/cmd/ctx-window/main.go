@@ -35,10 +35,6 @@ Usage:
   ctx-window show <session>                  shows summary + working memory + versions
   ctx-window compact <session>               forces compaction now (local heuristic)
   ctx-window set-k <session> <N>             adjusts K (working memory)
-  ctx-window on-tool-call <session>          records a tool call and compacts (local heuristic) if needed
-      --tool <name>                          tool name (required)
-      [--input <text>]                       truncated input (optional)
-      [--cli <name>]                         claude|codex|opencode|antigravity (persisted on the session)
   ctx-window on-tool-call-llm <session>      records a tool call without automatic LLM summarization
       --cli <name>                           claude|codex|opencode|antigravity (required first call)
   ctx-window hook <cli>                      reads a PostToolUse-style payload from stdin, extracts session/tool/
@@ -69,7 +65,6 @@ Environment variables:
                          auto = heuristic ate 20 turns E 24k chars, senao agent
   AGENT_SYNC_CTX_K=5                       working memory size
   AGENT_SYNC_CTX_BUDGET=1000               summary token budget
-  AGENT_SYNC_CTX_COMPACT_AT=200            estimated chars threshold for auto-compaction
   AGENT_SYNC_CTX_NUDGE_TOKENS=150000        Claude Code token threshold for one manual-summary reminder
 
 Persistent config:
@@ -90,8 +85,6 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runCompact(rest, stdout, stderr)
 	case "set-k":
 		return runSetK(rest, stdout, stderr)
-	case "on-tool-call":
-		return runOnToolCall(rest, stdout, stderr)
 	case "on-tool-call-llm":
 		return runOnToolCallLLM(rest, os.Stdin, stdout, stderr)
 	case "hook":
@@ -207,87 +200,6 @@ func runSetK(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	fmt.Fprintf(stdout, "K updated: %d → %d (turns kept: %d)\n", prev, s.K, len(s.Turns))
-	return nil
-}
-
-func runOnToolCall(args []string, stdout, stderr io.Writer) error {
-	if len(args) < 1 {
-		return errors.New("on-tool-call requires <session>")
-	}
-	session := args[0]
-	fs := flag.NewFlagSet("on-tool-call", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	tool := fs.String("tool", "", "tool name (required)")
-	input := fs.String("input", "", "truncated tool input (optional)")
-	cliFlag := fs.String("cli", "", "CLI that owns this session: claude, codex, opencode, antigravity")
-	if err := fs.Parse(args[1:]); err != nil {
-		return err
-	}
-	if strings.TrimSpace(*tool) == "" {
-		return errors.New("--tool is required")
-	}
-	s, err := Load(session)
-	if err != nil {
-		return err
-	}
-	if cli := strings.TrimSpace(*cliFlag); cli != "" {
-		s.CLIName = cli
-	}
-	content := *tool
-	if *input != "" {
-		// cap input to avoid bloat in working memory
-		const maxInput = 16000
-		inputText := redactSecrets(*input)
-		if len(inputText) > maxInput {
-			content = *tool + ": " + inputText[:maxInput] + "..."
-		} else {
-			content = *tool + ": " + inputText
-		}
-	}
-	if err := s.AddTurn(Turn{Role: "tool", Content: content}); err != nil {
-		return err
-	}
-	if err := s.Save(); err != nil {
-		return err
-	}
-	if cli := strings.TrimSpace(*cliFlag); cli == "opencode" {
-		if nudge, _ := checkOpenCodeNudge(session); nudge != "" {
-			fmt.Fprintf(stdout, "[AVISO agent-sync] %s\n", nudge)
-			return nil
-		}
-	}
-	// Detect loop in last K turns (fail-open: only annotates JSON, never blocks).
-	loop := DetectLoop(s.Turns, loopWindow(), loopMinRepeats())
-	loopSuffix := `,"loop_detected":false`
-	if loop.Detected {
-		loopSuffix = fmt.Sprintf(`,"loop_detected":true,"loop_count":%d`, loop.Count)
-	}
-	// Auto-compact if estimated size exceeds budget
-	estimated := s.EstimatedChars()
-	threshold := compactAtThreshold()
-	if estimated >= threshold {
-		summary := HeuristicExtract(s.Turns)
-		yaml := summary.ToYAML()
-		prev := s.Version
-		if err := s.AppendVersionedSummary(yaml); err != nil {
-			return err
-		}
-		if err := s.Save(); err != nil {
-			return err
-		}
-		_ = AppendGainEntry(session, GainEntry{
-			Kind:        "auto_compact",
-			Version:     s.Version,
-			BeforeChars: estimated,
-			AfterChars:  s.EstimatedChars(),
-			SavedChars:  estimated - s.EstimatedChars(),
-		})
-		fmt.Fprintf(stdout, `{"auto_compacted":true,"version":%d,"previous":%d,"estimated_chars":%d,"turns":%d%s}`+"\n",
-			s.Version, prev, estimated, len(s.Turns), loopSuffix)
-		return nil
-	}
-	fmt.Fprintf(stdout, `{"auto_compacted":false,"estimated_chars":%d,"turns":%d,"threshold":%d%s}`+"\n",
-		estimated, len(s.Turns), threshold, loopSuffix)
 	return nil
 }
 

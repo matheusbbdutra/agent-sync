@@ -86,7 +86,7 @@ func versionPath(dir string, v int) string {
 }
 
 // EstimatedChars returns a rough size estimate of the working memory in
-// characters (used by on-tool-call to decide auto-compaction).
+// characters (used by the quality report to score context fill).
 func (s *Session) EstimatedChars() int {
 	total := 0
 	for _, t := range s.Turns {
@@ -169,13 +169,11 @@ func loopMinRepeats() int {
 	return 3
 }
 
+// compactAtThreshold devolve o threshold fixo de chars usado pelo relatorio
+// de quality. O valor e fixo porque o knob AGENT_SYNC_CTX_COMPACT_AT nunca
+// alcancava o fluxo vivo (hook -> on-tool-call-llm) e a auto-compactacao por
+// threshold saiu junto com o subcomando on-tool-call.
 func compactAtThreshold() int {
-	if v := strings.TrimSpace(os.Getenv("AGENT_SYNC_CTX_COMPACT_AT")); v != "" {
-		var n int
-		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
-			return n
-		}
-	}
 	return 200
 }
 
