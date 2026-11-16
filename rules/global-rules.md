@@ -34,6 +34,8 @@
 - Em caso de falha/bug, registre o que desencadeou, a causa comprovada e como evitar reincidência para não entrar em loops de tentativa e erro.
 - Antes de declarar pronto, verifique na prática (testes/typecheck reais) ou declare explicitamente o que não pôde ser testado.
 - **`ok` do runtime ≠ efeito aplicado**: `hyprctl eval`/`hyprctl reload` retornam `ok` só por aceitar o comando. Sempre releia o estado real (`hyprctl monitors all -j`) após cada passo; outputs desativados não aparecem em `hyprctl monitors -j`.
+- **`ok` de pipe ≠ sucesso do comando**: `cmd | head && echo OK` reporta o status do `head`; `grep -c` sem match sai 1. Use `${PIPESTATUS[0]}` ou rode sem pipe antes de declarar pronto.
+- **`build`/`install` verde ≠ artefato novo**: confira mtime/hash do binário. `go build -o X` que falha não regrava X, e um install cego propaga o binário velho.
 - **Ordem importa em mutação de layout**: desativar monitor à esquerda dispara auto-relayout que sobrescreve posição aplicada depois → reposicione o monitor remanescente ANTES de desativar.
 - **Hyprland Lua**: `disabled = true` não é revertido por `mode`/`position`; reativar exige `disabled = false` explícito.
 
