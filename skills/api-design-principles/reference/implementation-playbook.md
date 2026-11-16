@@ -504,10 +504,7 @@ def create_context():
 
 ## Resources
 
-- **references/rest-best-practices.md**: Comprehensive REST API design guide
-- **references/graphql-schema-design.md**: GraphQL schema patterns and anti-patterns
-- **references/api-versioning-strategies.md**: Versioning approaches and migration paths
+- **reference/rest-best-practices.md**: Comprehensive REST API design guide
+- **reference/graphql-schema-design.md**: GraphQL schema patterns and anti-patterns
 - **assets/rest-api-template.py**: FastAPI REST API template
-- **assets/graphql-schema-template.graphql**: Complete GraphQL schema example
 - **assets/api-design-checklist.md**: Pre-implementation review checklist
-- **scripts/openapi-generator.py**: Generate OpenAPI specs from code

@@ -60,7 +60,7 @@ Explore the multi-user collaboration flow
 
 ## During the Session
 
-Explore the target area guided by the charter. Use heuristics (see `references/heuristics-and-automation.md`) as thinking prompts. Follow interesting leads even if they deviate slightly from the charter -- document the deviation.
+Explore the target area guided by the charter. Use heuristics (see `reference/heuristics-and-automation.md`) as thinking prompts. Follow interesting leads even if they deviate slightly from the charter -- document the deviation.
 
 **Session flow:**
 

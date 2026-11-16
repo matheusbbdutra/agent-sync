@@ -501,11 +501,3 @@ afterEach(() => {
 - [ ] Stale data (refresh database)
 ```
 
-## Resources
-
-- **references/debugging-tools-guide.md**: Comprehensive tool documentation
-- **references/performance-profiling.md**: Performance debugging guide
-- **references/production-debugging.md**: Debugging live systems
-- **assets/debugging-checklist.md**: Quick reference checklist
-- **assets/common-bugs.md**: Common bug patterns
-- **scripts/debug-helper.ts**: Debugging utility functions

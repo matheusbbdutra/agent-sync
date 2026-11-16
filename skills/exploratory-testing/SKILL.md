@@ -119,11 +119,11 @@ Explore [target]
 - Information goal describes what you want to learn, not what you want to prove
 - A single session can reasonably cover the charter in 45-90 minutes
 
-See `references/session-templates.md` for five worked charter examples (checkout, profile, search, data export, multi-user collaboration).
+See `reference/session-templates.md` for five worked charter examples (checkout, profile, search, data export, multi-user collaboration).
 
 ### Session Setup, Flow, and Debrief
 
-The full session lifecycle — pre-session setup steps, environment preparation checklist, the minute-by-minute session flow, the "when you find something interesting" loop, and the structured debrief template — lives in `references/session-templates.md`. Pull it up at the start of a session and keep it open.
+The full session lifecycle — pre-session setup steps, environment preparation checklist, the minute-by-minute session flow, the "when you find something interesting" loop, and the structured debrief template — lives in `reference/session-templates.md`. Pull it up at the start of a session and keep it open.
 
 Key timing guardrails to remember without opening the reference: orient and survey in the first 15 minutes, explore for ~40, wrap up and debrief at the end. Always debrief, even solo.
 
@@ -159,7 +159,7 @@ Adds three lenses to the base HICCUPS model:
 
 ### Heuristic Test-Idea Banks
 
-The detailed test-idea lists for boundary, state-transition, error-handling, and "what if" exploration are in `references/heuristics-and-automation.md`. Reach for them when you need concrete prompts:
+The detailed test-idea lists for boundary, state-transition, error-handling, and "what if" exploration are in `reference/heuristics-and-automation.md`. Reach for them when you need concrete prompts:
 
 - **Boundary heuristics** — numeric, string, time, and collection boundaries (zero/one/many, max±1, Unicode, DST, page-size edges).
 - **State transition heuristics** — skipping steps, going backward, interrupting, repeating, concurrent transitions, post-error state.
@@ -170,7 +170,7 @@ The detailed test-idea lists for boundary, state-transition, error-handling, and
 
 ## Note-Taking Template
 
-Use a session log to capture observations in real time. The session-log table format and the observation tags (BUG, QUESTION, IDEA, RISK, NOTE) are in `references/session-templates.md`. Tag every observation consistently so the debrief can sort findings without re-reading the whole log.
+Use a session log to capture observations in real time. The session-log table format and the observation tags (BUG, QUESTION, IDEA, RISK, NOTE) are in `reference/session-templates.md`. Tag every observation consistently so the debrief can sort findings without re-reading the whole log.
 
 ---
 
@@ -198,7 +198,7 @@ Not all testing should be exploratory, and not all testing should be automated. 
 
 ### The Exploration-to-Automation Pipeline
 
-Every reproducible bug found through exploration should become an automated regression test, so future sessions focus on new areas instead of re-checking old bugs. See `references/heuristics-and-automation.md` for the full pipeline diagram, the conversion steps, and a worked Playwright regression example (BUG-456 email validation).
+Every reproducible bug found through exploration should become an automated regression test, so future sessions focus on new areas instead of re-checking old bugs. See `reference/heuristics-and-automation.md` for the full pipeline diagram, the conversion steps, and a worked Playwright regression example (BUG-456 email validation).
 
 When an exploratory *smoke* charter stabilizes ("the happy path still works at all"), graduate it in two steps rather than one: first hand the charter to `agentic-browser-testing` as a natural-language goal run to confirm the flow is stable without writing a script, then promote the stabilized flow to a scripted `playwright-automation` test once it earns a maintained selector.
 
@@ -297,7 +297,7 @@ Prove the session produced real, accountable artifacts — not just a feeling th
 - Session logs exist with time-stamped observations tagged as BUG, QUESTION, IDEA, RISK, or NOTE
 - A findings summary captures total session count, bugs filed (by severity), test ideas identified, and follow-up sessions scheduled or explicitly deferred
 
-## Reference Files (in `references/`)
+## Reference Files (in `reference/`)
 
 - **session-templates.md** — Charter examples, environment-prep checklist, session-flow timings, debrief template, and the note-taking session-log format.
 - **heuristics-and-automation.md** — Boundary/state/error/"what if" heuristic test-idea banks, the exploration-to-automation pipeline diagram, and a worked Playwright regression example.

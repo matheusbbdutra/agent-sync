@@ -731,7 +731,6 @@ jobs:
     - name: Check Licenses
       run: |
         npx license-checker --json > licenses.json
-        python scripts/check_license_compliance.py
     
     - name: Create Issue for Critical Vulnerabilities
       if: failure()

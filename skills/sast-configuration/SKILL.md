@@ -58,7 +58,7 @@ codeql database create mydb --language=python
 
 ## Templates & Assets
 
-- `assets/semgrep-config.yml`, `assets/sonarqube-settings.xml`, `scripts/run-sast.sh` — quando este repo tiver `assets/` próprio; por ora referencie o upstream (`rmyndharis/antigravity-skills`) ou copie manualmente.
+- Configs de referencia (`semgrep-config.yml`, `sonarqube-settings.xml`, `run-sast.sh`) vivem no upstream `rmyndharis/antigravity-skills`, nao neste repo. Copie manualmente se precisar delas aqui.
 
 ## Integration Patterns
 
@@ -114,12 +114,11 @@ codeql database create mydb --language=python
 
 ### New Project Setup
 ```bash
-./scripts/run-sast.sh --setup --language python --tools semgrep,sonarqube
+semgrep --config=auto .
 ```
 
 ### Custom Rule Development
 ```yaml
-# See references/semgrep-rules.md for detailed examples
 rules:
   - id: hardcoded-jwt-secret
     pattern: jwt.encode($DATA, "...", ...)
