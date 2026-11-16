@@ -1,60 +1,60 @@
 ---
 name: prompt-engineering
-description: "Use when escrevendo ou revisando o prompt de uma aplicacao LLM: system message, template, persona de agente, few-shot e contrato de output. Construcao e revisao de prompt — arquetipo de documento, instrucao verificavel, formato parseavel, opcoes de classificacao e gate de qualidade. Nao mede qualidade de resposta; medicao e llm-eval."
+description: "Use when writing or reviewing the prompt of an LLM application: system message, template, agent persona, few-shot and output contract. Construction and review of prompt — document archetype, verifiable instruction, parseable format, classification options and quality gate. Does not measure answer quality; measurement is llm-eval."
 ---
 
 # Prompt Engineering
 
-Prompt é documento, não comando. O trabalho é decidir **que tipo de documento o modelo deve continuar** e fechar o critério de aceite antes de publicar. Medir qualidade e comparar versões por score fica em `llm-eval`; orçamento de janela e compactação ficam em `context-guard` e `token-saving-toolkit`.
+Prompt is document, not command. The work is to decide **what type of document the model must continue** and to close the acceptance criterion before publishing. Measuring quality and comparing versions by score stays in `llm-eval`; window budget and compaction stay in `context-guard` and `token-saving-toolkit`.
 
 ## Use this skill when
 
-- Escrever ou revisar system message, template de prompt, persona de agente ou mensagem de instrução.
-- Decidir se um conjunto few-shot é necessário e como montá-lo.
-- Definir o formato de saída que código vai parsear.
-- Revisar prompt que não tem critério de aceite explícito — aplique o gate de 4 critérios abaixo.
-- Tirar prompt de dentro de string no código e versioná-lo.
-- Escolher parâmetros de geração (`temperature`, `top_p`, `top_k`, beam) coerentes com a tarefa.
+- Write or review a system message, a prompt template, an agent persona or an instruction message.
+- Decide whether a few-shot set is necessary and how to assemble it.
+- Define the output format that code will parse.
+- Review a prompt that has no explicit acceptance criterion — apply the 4-criteria gate below.
+- Take the prompt out of a string in the code and version it.
+- Choose generation parameters (`temperature`, `top_p`, `top_k`, beam) coherent with the task.
 
 ## Do not use this skill when
 
-- A pergunta é "esta saída está boa?" ou "a versão A é melhor que B?" → `llm-eval`.
-- O problema é janela cheia, compaction, drift de sessão ou STATE.md → `context-guard`.
-- O problema é reduzir tokens de leitura de arquivo/log ou cortar geração com stop sequence → `token-saving-toolkit`.
-- O objeto é a tool spec, o workflow multi-etapa ou o loop reason/act → `mcp-advisor`, `agent-delegate`, `agent-react`.
-- O tema é prompt injection, ação irreversível ou conteúdo não confiável → `security-auditor`.
+- The question is "is this output good?" or "is version A better than B?" → `llm-eval`.
+- The problem is a full window, compaction, session drift or STATE.md → `context-guard`.
+- The problem is reducing tokens for reading a file/log or cutting generation with a stop sequence → `token-saving-toolkit`.
+- The object is the tool spec, the multi-step workflow or the reason/act loop → `mcp-advisor`, `agent-delegate`, `agent-react`.
+- The topic is prompt injection, irreversible action or untrusted content → `security-auditor`.
 
 ## Instructions
 
-1. **Escolha o arquétipo do documento** pela forma da resposta desejada e não invente formato: reuse motivos que existem em corpora de treino (`#`, cerca de código, listas). "Don't stray far from the path upon which the model was trained" — p.81. Detalhe em [prompt-craft](reference/prompt-craft.md).
-2. **Escreva a instrução como afirmação verificável**: peça o que fazer, não o que evitar, e ancore com a razão — "Ask for positives instead of negatives and dos instead of don'ts." / "Bolster your command with a reason." — p.102.
-3. **Exija clarificação antes da resposta** quando o pedido admite mais de uma leitura: "Clarification creates consistency." — p.101.
-4. **Só adicione few-shot se houver aspecto não óbvio** (formato, persona, distribuição de rótulos) que os exemplos carreguem — p.111.
-5. **Escreva o início da resposta no prompt** quando o modelo insiste em reformular o problema: "change your perspective from problem poser to problem solver" — p.136.
-6. **Feche início e fim reconhecíveis** no output parseável e escolha delimitador cujo término seja testável por substring — p.161-162.
-7. **Em classificação, garanta primeiro token único por opção** e proíba resposta com várias alternativas — p.165.
-8. **Trate logprob como gate de confiança**, não como verdade: derive um limiar para avisar, recuperar mais contexto ou escalar o modelo — p.163-164.
-9. **Versione o prompt fora do código**, com metadados (modelo, data, aplicação, schema de entrada/saída, sampling) e um catálogo que permita versões diferentes por aplicação — p.253, p.255.
-10. **Fixe os parâmetros de geração** por tipo de tarefa; ver [generation-params](reference/generation-params.md).
+1. **Choose the document archetype** by the shape of the desired answer and do not invent a format: reuse motifs that exist in training corpora (`#`, code fence, lists). "Don't stray far from the path upon which the model was trained" — p.81. Detail in [prompt-craft](reference/prompt-craft.md).
+2. **Write the instruction as a verifiable statement**: ask for what to do, not what to avoid, and anchor it with the reason — "Ask for positives instead of negatives and dos instead of don'ts." / "Bolster your command with a reason." — p.102.
+3. **Require clarification before the answer** when the request admits more than one reading: "Clarification creates consistency." — p.101.
+4. **Add few-shot only if there is a non-obvious aspect** (format, persona, label distribution) that the examples carry — p.111.
+5. **Write the beginning of the answer in the prompt** when the model insists on restating the problem: "change your perspective from problem poser to problem solver" — p.136.
+6. **Close a recognizable start and end** in the parseable output and choose a delimiter whose termination is testable by substring — p.161-162.
+7. **In classification, guarantee a unique first token per option** and prohibit an answer with several alternatives — p.165.
+8. **Treat logprob as a confidence gate**, not as truth: derive a threshold to warn, retrieve more context or escalate the model — p.163-164.
+9. **Version the prompt outside the code**, with metadata (model, date, application, input/output schema, sampling) and a catalog that allows different versions per application — p.253, p.255.
+10. **Pin the generation parameters** per task type; see [generation-params](reference/generation-params.md).
 
-## Gate de revisão: os 4 critérios (p.81-82)
+## Review gate: the 4 criteria (p.81-82)
 
-Reprove o prompt que falhe em qualquer um:
+Reject the prompt that fails any one of them:
 
-- [ ] **Parece documento do training set** — formato reconhecível, sem sintaxe proprietária (p.81).
-- [ ] **Contém toda a informação relevante** — nada que o modelo precise adivinhar (p.81).
-- [ ] **Conduz a uma completion que resolve o problema** — não apenas reafirma o pedido: "the prompt must condition the model to generate a completion that is actually helpful" (p.82).
-- [ ] **Tem ponto de parada natural** — o fim da resposta é testável por substring (p.161-162).
+- [ ] **Looks like a document from the training set** — recognizable format, without proprietary syntax (p.81).
+- [ ] **Contains all the relevant information** — nothing the model must guess (p.81).
+- [ ] **Leads to a completion that solves the problem** — not merely restating the request: "the prompt must condition the model to generate a completion that is actually helpful" (p.82).
+- [ ] **Has a natural stopping point** — the end of the answer is testable by substring (p.161-162).
 
-Aplique o gate antes de publicar e depois de cada mudança de template. Ordenar contexto por importância, contar tokens e decidir o que entra na janela são etapas de `context-guard`; este gate avalia forma e contrato.
+Apply the gate before publishing and after every template change. Ordering context by importance, counting tokens and deciding what goes into the window are steps of `context-guard`; this gate evaluates form and contract.
 
-## Referências
+## References
 
-- [prompt-craft](reference/prompt-craft.md) — arquétipos de documento, few-shot com gatilho, inertness, posição/dependência de snippet, contrato de output parseável, classificação com opções disjuntas, logprobs.
-- [generation-params](reference/generation-params.md) — greedy vs beam, temperature, top-k/top-p, repetição, custo por token gerado.
-- **`bin/prompt-lint`** (Go, `tools/cmd/prompt-lint`) — lint mecânico dos defeitos estruturais do prompt: `negation` (proibição sem alternativa positiva, p.102), `no-terminator` (prompt > 800 chars sem marcador de fim, p.161-162), `undeclared-output-format` (p.143), `non-disjoint-classes` (opção contida em outra ou sem instrução de escolha única, p.165) e `placeholder-leak` (`{{...}}`, `<PLACEHOLDER>`, TODO/FIXME que iriam literais para o modelo). Comando: `prompt-lint check SKILL.md --severity error` (`--json`, `--quiet`, `-` para stdin). Exit codes: `0` sem achado, `1` com achado ≥ `--severity`, `2` uso ou erro de leitura. Ele não avalia qualidade semântica — medir qualidade e comparar versões é `llm-eval`.
+- [prompt-craft](reference/prompt-craft.md) — document archetypes, few-shot with a trigger, inertness, snippet position/dependency, parseable output contract, classification with disjoint options, logprobs.
+- [generation-params](reference/generation-params.md) — greedy vs beam, temperature, top-k/top-p, repetition, cost per generated token.
+- **`bin/prompt-lint`** (Go, `tools/cmd/prompt-lint`) — mechanical lint of the structural defects of the prompt: `negation` (prohibition without a positive alternative, p.102), `no-terminator` (prompt > 800 chars without an end marker, p.161-162), `undeclared-output-format` (p.143), `non-disjoint-classes` (option contained in another or without a single-choice instruction, p.165) and `placeholder-leak` (`{{...}}`, `<PLACEHOLDER>`, TODO/FIXME that would go literally to the model). Command: `prompt-lint check SKILL.md --severity error` (`--json`, `--quiet`, `-` for stdin). Exit codes: `0` no finding, `1` with a finding ≥ `--severity`, `2` usage or read error. It does not evaluate semantic quality — measuring quality and comparing versions is `llm-eval`.
 
-## Fontes
+## Sources
 
-- Berryman & Ziegler, *Prompt Engineering for LLMs* — cap. 4 Designing LLM Applications (p.81-82); cap. 5 Prompt Content (p.101-102, p.111); cap. 6 Assembling the Prompt (p.136, p.161-162); cap. 7 Taming the Model (p.163-165).
-- Huyen, *AI Engineering* — cap. 5 Prompt Engineering: Prompt Engineering Best Practices (p.240-243) e Organize and Version Prompts (p.253-255).
+- Berryman & Ziegler, *Prompt Engineering for LLMs* — ch. 4 Designing LLM Applications (p.81-82); ch. 5 Prompt Content (p.101-102, p.111); ch. 6 Assembling the Prompt (p.136, p.161-162); ch. 7 Taming the Model (p.163-165).
+- Huyen, *AI Engineering* — ch. 5 Prompt Engineering: Prompt Engineering Best Practices (p.240-243) and Organize and Version Prompts (p.253-255).

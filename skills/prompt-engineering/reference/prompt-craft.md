@@ -1,192 +1,193 @@
 # prompt-craft
 
-Regras de forma e de contrato para escrever e revisar prompt de aplicação. Pressupõe `SKILL.md` carregado.
-Marcadores `p.N` vêm do digest da fonte (cap. 6 de *Prompt Engineering for LLMs* começa em p.133). Orçamento
-de token, ordem de contexto por turno e compactação **não** estão aqui: ficam em `context-guard` e
+Rules of form and of contract for writing and reviewing the prompt of an application. Assumes `SKILL.md` loaded.
+`p.N` markers come from the source digest (ch. 6 of *Prompt Engineering for LLMs* starts on p.133). Token
+budget, per-turn context order and compaction are **not** here: they are in `context-guard` and
 `token-saving-toolkit`.
 
-## 0. Fluxo de escrita
+## 0. Writing flow
 
-Seis passos, na ordem. Pular um deles é o que produz prompt que "funciona na minha máquina".
+Six steps, in order. Skipping one of them is what produces a prompt that "works on my machine".
 
-1. **Classifique a resposta** e escolha o arquétipo (§1) — p.137, p.140, p.143.
-2. **Escreva a instrução como afirmação verificável** com a razão anexada (§2) — p.101-102.
-3. **Feche o contrato de output** com start e terminador testável (§6) — p.161-162.
-4. **Decida few-shot pelo gatilho**, nomeando a regra implícita (§3) — p.111.
-5. **Declare posição, importância e dependência** de cada elemento (§5) — p.151.
-6. **Passe o gate de 4 critérios** do `SKILL.md` — p.81-82.
+1. **Classify the answer** and choose the archetype (§1) — p.137, p.140, p.143.
+2. **Write the instruction as a verifiable statement** with the reason attached (§2) — p.101-102.
+3. **Close the output contract** with a start and a testable terminator (§6) — p.161-162.
+4. **Decide few-shot by the trigger**, naming the implicit rule (§3) — p.111.
+5. **Declare position, importance and dependency** of each element (§5) — p.151.
+6. **Run the 4-criteria gate** of `SKILL.md` — p.81-82.
 
-## 1. Arquétipo de documento
+## 1. Document archetype
 
-Antes de escrever, decida **que tipo de documento a resposta é** e copie essa forma. O critério de escolha
-é a forma da resposta desejada, não o gosto de quem escreve (p.137, p.140, p.143).
+Before writing, decide **what type of document the answer is** and copy that form. The choice criterion
+is the shape of the desired answer, not the taste of whoever writes it (p.137, p.140, p.143).
 
-| Arquétipo | Seção | Quando serve | Falha típica |
+| Archetype | Section | When it serves | Typical failure |
 | --- | --- | --- | --- |
-| Advice conversation | p.137 | diálogo multi-turno, resposta é a próxima fala de um assistente | tarefa analítica com fronteira rígida; o modelo abre idas e voltas de esclarecimento |
-| Analytic report | p.140 | análise com escopo declarado e seções nomeadas | escopo implícito; o modelo extrapola o que estava fora |
-| Structured document | p.143 | saída que precisa ser parseada (XML/YAML/JSON/código) | terminador frágil: indentação não é testável por substring (p.161-162) |
+| Advice conversation | p.137 | multi-turn dialogue, the answer is the next turn of an assistant | analytical task with a rigid boundary; the model opens back-and-forth clarification |
+| Analytic report | p.140 | analysis with a declared scope and named sections | implicit scope; the model extrapolates what was outside |
+| Structured document | p.143 | output that must be parsed (XML/YAML/JSON/code) | fragile terminator: indentation is not testable by substring (p.161-162) |
 
-- **Declare a fronteira como negação explícita no corpo**: "This report focuses solely on novels, excluding
+- **Declare the boundary as an explicit negation in the body**: "This report focuses solely on novels, excluding
   self-help books." (p.140).
-- **Reporte respeita limite melhor que diálogo**: "LLMs tend to respect such clear boundaries more
-  consistently in reports than in dialogues" (p.140) — se há conteúdo proibido, use reporte com seção
-  `Scope`, não conversa.
-- **Prompt longo em Markdown com índice**: seções `# Ideas` / `# Analysis` antes de `# Conclusion` guiam a
-  conclusão (p.141).
-- **Seção sentinela como fim**: `# Further Reading` no fim do documento dá ao modelo um ponto de parada
-  previsível (p.141). O corte por `stop` em si é chamada de API, ver `token-saving-toolkit`.
-- **Não invente sintaxe**: o formato do prompt deve parecer documento que existe em corpora de treino
-  (p.81). `#`, cerca de código, lista numerada e heading já são motifs conhecidos.
+- **A report respects a limit better than a dialogue**: "LLMs tend to respect such clear boundaries more
+  consistently in reports than in dialogues" (p.140) — if there is prohibited content, use a report with a
+  `Scope` section, not a conversation.
+- **Long prompt in Markdown with an index**: sections `# Ideas` / `# Analysis` before `# Conclusion` guide the
+  conclusion (p.141).
+- **Sentinel section as the end**: `# Further Reading` at the end of the document gives the model a predictable
+  stopping point (p.141). The cut by `stop` itself is an API call, see `token-saving-toolkit`.
+- **Do not invent syntax**: the prompt format must look like a document that exists in training corpora
+  (p.81). `#`, code fence, numbered list and heading are already known motifs.
 
-## 2. Instrução verificável
+## 2. Verifiable instruction
 
-- **Positivo em vez de negativo**: "Ask for positives instead of negatives and dos instead of don'ts."
-  (p.102). Reescreva "não invente números" como "cite apenas números que aparecem no contexto".
-- **Ancore o comando numa razão**: "Bolster your command with a reason." (p.102) — "responda em no máximo
-  3 bullets porque a saída é lida em terminal".
-- **Evite absoluto** (p.102): "nunca" / "sempre" em contexto ambíguo produz violação parcial silenciosa;
-  troque por condição testável.
-- **Peça clarificação antes de produzir**: "Clarification creates consistency." (p.101) — se o pedido
-  admite mais de uma leitura, o prompt exige que o modelo pergunte antes da resposta.
-- **O prompt precisa condicionar a uma resposta útil**, não só reafirmar o pedido: "the prompt must
+- **Positive instead of negative**: "Ask for positives instead of negatives and dos instead of don'ts."
+  (p.102). Rewrite "do not invent numbers" as "cite only the numbers that appear in the context".
+- **Anchor the command in a reason**: "Bolster your command with a reason." (p.102) — "answer in at most
+  3 bullets because the output is read in a terminal".
+- **Avoid the absolute** (p.102): "never" / "always" in an ambiguous context produces a silent partial
+  violation; replace them with a testable condition.
+- **Ask for clarification before producing**: "Clarification creates consistency." (p.101) — if the request
+  admits more than one reading, the prompt requires the model to ask before the answer.
+- **The prompt must condition to a useful answer**, not only restate the request: "the prompt must
   condition the model to generate a completion that is actually helpful" (p.82).
-- **Toda informação relevante no prompt**: critério 2 do gate — o modelo não deve precisar adivinhar
-  (p.81). Falta de dado não se compensa com instrução mais forte.
+- **All relevant information in the prompt**: criterion 2 of the gate — the model must not need to guess
+  (p.81). A missing datum is not compensated with a stronger instruction.
 
-## 3. Few-shot com gatilho
+## 3. Few-shot with a trigger
 
-Use exemplo só quando houver regra implícita a demonstrar. O gatilho é: **nomeie a regra antes de colar o
-exemplo**.
+Use an example only when there is an implicit rule to demonstrate. The trigger is: **name the rule before pasting
+the example**.
 
-- **Sem regra nomeável, sem few-shot**: "Use few-shot prompting if you have relevant examples that
+- **No nameable rule, no few-shot**: "Use few-shot prompting if you have relevant examples that
   illustrate an aspect of what you want the model to do that is otherwise unobvious." (p.111).
-- **Formato apenas → exemplo mínimo**: few-shot é "particularly suited to quickly and easily demonstrating
+- **Format only → minimal example**: few-shot is "particularly suited to quickly and easily demonstrating
   just the expected output format and nothing more" (p.106).
-- **Pattern é compulsão**: "LLMs have a compulsion to continue patterns" (p.104) — tudo que aparece no
-  exemplo vira regra, inclusive o que você não queria fixar.
-- **Respeite a distribuição real**: "If you have an idea what the distribution is, don't stray too far away
+- **Pattern is compulsion**: "LLMs have a compulsion to continue patterns" (p.104) — everything that appears in
+  the example becomes a rule, including what you did not want to fix.
+- **Respect the real distribution**: "If you have an idea what the distribution is, don't stray too far away
   from it." (p.108).
-- **Cubra as classes e as exceções não triviais**: um exemplo por classe relevante, incluindo o caso de
-  borda que o prompt precisa acertar (p.108).
-- **Embaralhe a ordem**: "Your prompt examples are not randomly ordered unless you consciously shuffle
-  them." (p.109) — happy path primeiro e erro depois cria padrão espúrio.
-- **Mantenha o nível de contexto**: exemplo gigante emparelhado com pergunta curta (ou o contrário) muda o
-  que o modelo imita; encolher demais remove o raciocínio que se queria demonstrar (p.109).
-- **Formato do exemplo segue o documento de origem** (p.81, p.149): código em cerca de código, tabela em
-  Markdown — o modelo já viu esses motifs em treino.
+- **Cover the classes and the non-trivial exceptions**: one example per relevant class, including the edge
+  case the prompt must get right (p.108).
+- **Shuffle the order**: "Your prompt examples are not randomly ordered unless you consciously shuffle
+  them." (p.109) — happy path first and error after creates a spurious pattern.
+- **Keep the level of context**: a gigantic example paired with a short question (or the opposite) changes what
+  the model imitates; shrinking too much removes the reasoning that was to be demonstrated (p.109).
+- **The example format follows the source document** (p.81, p.149): code in a code fence, table in
+  Markdown — the model has already seen these motifs in training.
 
-| Situação | Few-shot? | Base |
+| Situation | Few-shot? | Basis |
 | --- | --- | --- |
-| formato de saída não óbvio | sim, exemplos mínimos | p.106 |
-| persona ou estilo específico | sim, exemplos reais e curtos | p.111 |
-| fronteira sutil entre classes | sim, um por classe | p.108 |
-| regra já escrita em texto e obedecida | não | p.111 |
-| orçamento curto e formato simples | não; descreva o formato em palavras | p.106 |
+| non-obvious output format | yes, minimal examples | p.106 |
+| specific persona or style | yes, real and short examples | p.111 |
+| subtle boundary between classes | yes, one per class | p.108 |
+| rule already written in text and obeyed | no | p.111 |
+| short budget and simple format | no; describe the format in words | p.106 |
 
-## 4. Inertness e formato de snippet
+## 4. Inertness and snippet format
 
-Inertness é manter o conteúdo colado **inerte**: o snippet deve ser lido como dado do escopo dele, não
-como continuação da instrução.
+Inertness is keeping the pasted content **inert**: the snippet must be read as data of its own scope, not
+as a continuation of the instruction.
 
-- **O modelo usa tudo que recebe**: "the model often feels compelled to use every bit of information it
-  gets" (p.116) — snippet que não serve à resposta desloca a resposta.
-- **Colagem não é soma de tokens**: "Pasting strings together doesn't mean the arrays of tokens just get
-  concatenated" (p.148). A borda entre dois snippets pode fundir tokens (1+1 → 1) ou quebrar em três
-  (1+1 → 3), então o custo do prompt não é a soma dos custos dos pedaços.
-- **Separe elementos por whitespace** e não confie em concatenação direta de strings (p.148).
-- **Comece o elemento com espaço**: "prefer prompt elements that start with a space rather than ending with
-  one" (p.149) — elemento que termina com espaço/newline contamina o vizinho.
-- **Formato de snippet é contrato**: o bloco deve parecer o documento de origem (heading, cerca, lista), e
-  não um formato proprietário que o modelo nunca viu (p.81).
-- **Inertness não substitui delimitação** de início/fim da resposta: ver §6.
+- **The model uses everything it receives**: "the model often feels compelled to use every bit of information it
+  gets" (p.116) — a snippet that does not serve the answer displaces the answer.
+- **Pasting is not adding tokens**: "Pasting strings together doesn't mean the arrays of tokens just get
+  concatenated" (p.148). The boundary between two snippets can fuse tokens (1+1 → 1) or break into three
+  (1+1 → 3), so the cost of the prompt is not the sum of the costs of the pieces.
+- **Separate elements by whitespace** and do not trust direct string concatenation (p.148).
+- **Start the element with a space**: "prefer prompt elements that start with a space rather than ending with
+  one" (p.149) — an element that ends with a space/newline contaminates its neighbour.
+- **Snippet format is contract**: the block must look like the source document (heading, fence, list), and
+  not a proprietary format the model has never seen (p.81).
+- **Inertness does not replace delimitation** of the start/end of the answer: see §6.
 
-## 5. Posição, importância e dependência
+## 5. Position, importance and dependency
 
-Modele o prompt como conjunto de elementos declarados, não como string montada na ordem em que o código
-foi escrito.
+Model the prompt as a set of declared elements, not as a string assembled in the order in which the code
+was written.
 
-- **Três relações por elemento**: "has to account for three ways in which the elements relate to each
-  other: position and ordering, importance, and dependency" (p.151). Para cada elemento declare posição
-  fixa, tier de importância e de quais outros ele depende.
-- **Recência domina**: "The closer a piece of information is to the end of the prompt, the more impact it
-  has on the model" (p.135); o meio é onde a instrução é ignorada ("Valley of Meh", p.135).
-- **Sandwich**: instrução no início, contexto no meio, refocus no fim — o refocus nomeia o que fazer agora
-  (p.135-136).
-- **Dependência é acoplamento**: snippet e a instrução que explica como usá-lo viajam juntos; cortar um
-  sem o outro deixa o par quebrado (p.151). Requisitos e incompatibilidades fazem parte da declaração do
-  elemento.
-- **O teto é a janela menos a resposta**: o orçamento de elementos é "your context window size minus the
-  tokens needed for the model's response" (p.153). O algoritmo de montagem e a política de corte ficam em
-  `context-guard`; aqui a regra é só declarar posição e dependência antes de cortar.
+- **Three relations per element**: "has to account for three ways in which the elements relate to each
+  other: position and ordering, importance, and dependency" (p.151). For each element declare a fixed
+  position, an importance tier and which other elements it depends on.
+- **Recency dominates**: "The closer a piece of information is to the end of the prompt, the more impact it
+  has on the model" (p.135); the middle is where the instruction is ignored ("Valley of Meh", p.135).
+- **Sandwich**: instruction at the start, context in the middle, refocus at the end — the refocus names what to do
+  now (p.135-136).
+- **Dependency is coupling**: the snippet and the instruction that explains how to use it travel together; cutting
+  one without the other leaves the pair broken (p.151). Requirements and incompatibilities are part of the
+  declaration of the element.
+- **The ceiling is the window minus the answer**: the element budget is "your context window size minus the
+  tokens needed for the model's response" (p.153). The assembly algorithm and the truncation policy are in
+  `context-guard`; here the rule is only to declare position and dependency before cutting.
 
-## 6. Contrato de output parseável
+## 6. Parseable output contract
 
-- **Defina o começo da resposta**: start reconhecível antes de escrever o contrato (p.161). O preâmbulo
-  pode ser longo — "having a long preamble is a virtue, not a vice" (p.158) — desde que exista marcador que
-  separe preâmbulo de resposta.
-- **Escolha o terminador pelo teste de fim**: a tabela de p.161 classifica os formatos pela coluna "Test
-  for end is test for substring" (Yes/No). Escolha o formato que responde Yes para o seu caso; indentação
-  não é terminador testável por substring (p.161-162).
-- **Fim testável por substring**: "you can determine the end by checking for specific substrings" (p.162)
-  — heading de seção, cerca de código e item numerado são terminadores válidos; "qualquer cabeçalho" não é
-  (o parser precisa do literal exato).
-- **Feche o bloco de entrada com marcador improvável** para o modelo saber onde a saída começa
+- **Define the start of the answer**: a recognizable start before writing the contract (p.161). The preamble
+  can be long — "having a long preamble is a virtue, not a vice" (p.158) — as long as a marker exists that
+  separates the preamble from the answer.
+- **Choose the terminator by the end test**: the table of p.161 classifies the formats by the column "Test
+  for end is test for substring" (Yes/No). Choose the format that answers Yes for your case; indentation
+  is not a terminator testable by substring (p.161-162).
+- **End testable by substring**: "you can determine the end by checking for specific substrings" (p.162)
+  — section heading, code fence and numbered item are valid terminators; "any heading" is not
+  (the parser needs the exact literal).
+- **Close the input block with an unlikely marker** so the model knows where the output starts
   (AI Engineering, p.243).
-- **Declare o formato exato**: chaves do JSON, inteiro versus fracionário, ausência de preâmbulo
+- **Declare the exact format**: JSON keys, integer versus fractional, absence of preamble
   (AI Engineering, p.243).
-- **Prefira o formato de exemplo mais econômico** quando a performance for equivalente: 38 versus 27
-  tokens no caso citado (AI Engineering, p.242).
-- **Um contrato por resposta**: se a saída tem duas partes (rótulo + justificativa), o contrato precisa
-  ordenar as duas; ver §7.
+- **Prefer the most economical example format** when the performance is equivalent: 38 versus 27
+  tokens in the cited case (AI Engineering, p.242).
+- **One contract per answer**: if the output has two parts (label + justification), the contract must
+  order both; see §7.
 
-## 7. Classificação com opções disjuntas
+## 7. Classification with disjoint options
 
-- **Primeiro token único por opção**: "you need to make sure each option starts with a unique token"
-  (p.165). `North America` versus `Northeast Asia` compartilham prefixo de token e as probabilidades das
-  duas opções se somam, fazendo o modelo escolher a alternativa que ele considera pior.
-- **Proíba múltiplas alternativas**: "avoid waffling answers that include several alternatives" (p.165).
-- **Enumerado com rótulo antes da justificativa**: `1. [negative | positive | neutral], 2. [explicação]`
-  (p.165) — o primeiro token carrega a decisão e a justificativa vem depois.
-- **Rótulo único é correção de prompt, não de modelo**: se as classes não puderem começar com tokens
-  distintos, reescreva os rótulos antes de culpar o modelo (p.165).
-- **Rode o gate de 4 critérios** depois de mexer nos rótulos; opção nova pode quebrar o critério 3 (p.81-82).
+- **Unique first token per option**: "you need to make sure each option starts with a unique token"
+  (p.165). `North America` versus `Northeast Asia` share a token prefix and the probabilities of the
+  two options add up, making the model choose the alternative it considers worse.
+- **Prohibit multiple alternatives**: "avoid waffling answers that include several alternatives" (p.165).
+- **Enumerated with the label before the justification**: `1. [negative | positive | neutral], 2. [explanation]`
+  (p.165) — the first token carries the decision and the justification comes after.
+- **A unique label is a prompt fix, not a model fix**: if the classes cannot start with distinct
+  tokens, rewrite the labels before blaming the model (p.165).
+- **Run the 4-criteria gate** after touching the labels; a new option can break criterion 3 (p.81-82).
 
-## 8. Logprobs como gate de confiança
+## 8. Logprobs as a confidence gate
 
-- **logprob não é probabilidade**: "To convert a logprob to a standard probability, you use the exp
+- **logprob is not probability**: "To convert a logprob to a standard probability, you use the exp
   function" (p.163).
-- **Agregue os primeiros tokens**: "averaging the probabilities ... of early tokens in the completion is
-  predictive of overall quality" (p.164). A média simples dos primeiros tokens já é sinal preditivo.
-- **Aja por limiar, não por intuição**: "Include warnings when the model struggles more than usual"
-  (p.164) — as opções são não mostrar, avisar, recuperar mais contexto ou escalar para modelo melhor
+- **Aggregate the first tokens**: "averaging the probabilities ... of early tokens in the completion is
+  predictive of overall quality" (p.164). The simple mean of the first tokens is already a predictive signal.
+- **Act by threshold, not by intuition**: "Include warnings when the model struggles more than usual"
+  (p.164) — the options are not to show, to warn, to retrieve more context or to escalate to a better model
   (p.163-164).
-- **Gate ≠ verdade**: logprob baixo indica hesitação do modelo, e logprob alto não valida o conteúdo. Nunca
-  use esse número para justificar a resposta; use para decidir se ela é exibida com aviso (p.163-164).
-- **O limiar é política de produto**: decidir entre exibir, avisar ou escalar é escolha de quem opera a
-  feature; comparar duas políticas por score é papel de `llm-eval` (p.163-164).
+- **Gate ≠ truth**: a low logprob indicates hesitation of the model, and a high logprob does not validate the
+  content. Never use that number to justify the answer; use it to decide whether it is displayed with a warning
+  (p.163-164).
+- **The threshold is product policy**: deciding between showing, warning or escalating is the choice of whoever
+  operates the feature; comparing two policies by score is the role of `llm-eval` (p.163-164).
 
-## 9. Diagnóstico de revisão
+## 9. Review diagnosis
 
-Sintomas que aparecem em revisão de prompt e a regra que os resolve. Se o sintoma não estiver aqui, meça
-antes de mexer: comparação de versões por score é `llm-eval`.
+Symptoms that show up in prompt review and the rule that solves them. If the symptom is not here, measure
+before touching: comparing versions by score is `llm-eval`.
 
-| Sintoma | Causa provável | Regra | Evidência |
+| Symptom | Probable cause | Rule | Evidence |
 | --- | --- | --- | --- |
-| resposta reafirma o problema e não resolve | prompt posiciona o modelo como "problem poser" | escrever o início da resposta | p.136 |
-| análise extrapola o que foi pedido | escopo implícito | arquétipo de reporte + negação explícita | p.140 |
-| texto divaga e não termina | falta ponto de parada | seção sentinela + terminador testável | p.141, p.161-162 |
-| modelo continua o documento de entrada em vez de responder | falta marcador de fim do bloco de entrada | fechar a entrada com marcador improvável | AI Eng. p.243 |
-| saída com duas alternativas na mesma resposta | opções com prefixo de token comum | primeiro token único por opção | p.165 |
-| parser captura conteúdo a mais | delimitador não testável por substring | heading/cerca literal em vez de indentação | p.161-162 |
-| few-shot copiado literalmente na saída | exemplo carrega pattern não intencional | gatilho do §3 e exemplos mínimos | p.104, p.111 |
-| resposta muda ao reordenar snippets | snippet não inerte ou dependência quebrada | separação por whitespace e par snippet+instrução | p.148, p.151 |
-| resposta não usa o dado que você colou | dado longe do fim ou fora do refocus | recência + sandwich | p.135-136 |
-| correção errada exibida com confiança | nenhuma política sobre logprob | gate por limiar | p.163-164 |
+| the answer restates the problem and does not solve it | the prompt positions the model as a "problem poser" | write the beginning of the answer | p.136 |
+| the analysis extrapolates what was asked | implicit scope | report archetype + explicit negation | p.140 |
+| the text rambles and does not end | missing stopping point | sentinel section + testable terminator | p.141, p.161-162 |
+| the model continues the input document instead of answering | missing end marker of the input block | close the input with an unlikely marker | AI Eng. p.243 |
+| output with two alternatives in the same answer | options with a common token prefix | unique first token per option | p.165 |
+| the parser captures extra content | delimiter not testable by substring | literal heading/fence instead of indentation | p.161-162 |
+| few-shot copied literally into the output | the example carries an unintentional pattern | trigger of §3 and minimal examples | p.104, p.111 |
+| the answer changes when reordering snippets | non-inert snippet or broken dependency | separation by whitespace and snippet+instruction pair | p.148, p.151 |
+| the answer does not use the data you pasted | data far from the end or outside the refocus | recency + sandwich | p.135-136 |
+| a wrong correction displayed with confidence | no policy about logprob | threshold gate | p.163-164 |
 
-## Fontes
+## Sources
 
-- Berryman & Ziegler, *Prompt Engineering for LLMs* — cap. 4 Designing LLM Applications (p.81-82); cap. 5
-  Prompt Content (p.101-102, p.104, p.106, p.108-109, p.111, p.116); cap. 6 Assembling the Prompt
-  (p.135-137, p.140-141, p.143, p.147-149, p.151, p.153); cap. 7 Taming the Model (p.158, p.161-165).
-- Huyen, *AI Engineering* — cap. 5 Prompt Engineering: Prompt Engineering Best Practices (p.240-243).
+- Berryman & Ziegler, *Prompt Engineering for LLMs* — ch. 4 Designing LLM Applications (p.81-82); ch. 5
+  Prompt Content (p.101-102, p.104, p.106, p.108-109, p.111, p.116); ch. 6 Assembling the Prompt
+  (p.135-137, p.140-141, p.143, p.147-149, p.151, p.153); ch. 7 Taming the Model (p.158, p.161-165).
+- Huyen, *AI Engineering* — ch. 5 Prompt Engineering: Prompt Engineering Best Practices (p.240-243).

@@ -1,105 +1,105 @@
 ---
 name: agent-delegate
-description: "Critérios e workflow para delegar tarefas a subagentes/CLIs com contexto isolado, conforme complexidade, tokens e volume de saída."
+description: "Criteria and workflow for when to delegate tasks to subagents/CLIs with isolated context, according to complexity, tokens and output volume."
 ---
 
-# Delegação entre agentes/CLIs
+# Delegation between agents/CLIs
 
-Responda em PT-BR, objetivo (AGENTS.md global). Esta skill não cria orquestração automática — é um checklist para decidir se/para onde/como delegar. Infra de suporte: memória compartilhada (`memory-mcp`) + subagentes nativos do host + modos print/session que cada CLI já expõe.
+Answer in PT-BR, objective (global AGENTS.md). This skill does not create automatic orchestration — it is a checklist to decide whether/where/how to delegate. Supporting infra: shared memory (`memory-mcp`) + host's native subagents + print/session modes that each CLI already exposes.
 
-## Subagentes nativos (isolar contexto)
+## Native subagents (isolate context)
 
-Dentro do Pi, o caminho default é o tool `subagent` — `delegate-run` fica para cruzar CLI. Regra de bolso: **se o output que voltaria ao chat é maior que o brief, delegue**.
+Inside Pi, the default path is the `subagent` tool — `delegate-run` remains for crossing CLI. Rule of thumb: **if the output that would come back to the chat is larger than the brief, delegate**.
 
-| Ponto | Agente | Paralelo | Retorno ao pai |
+| Point | Agent | Parallel | Return to the parent |
 | --- | --- | --- | --- |
-| Pesquisa web/docs, comparar propostas | `researcher` | 2-4 | `research.md` + resumo ≤1.5k tokens |
-| Mapear módulos/arquivos | `scout` | 1 por seam | `context.md` com `file:line` |
-| Implementar 1 ponto | `worker` | não (1 writer/cwd) | diff + como validou |
-| Revisar diff/plano | `reviewer` | sim (contexto fresco) | achados por severidade |
-| Saída volumosa (testes/logs) | qualquer | sim | só veredito + artefato |
+| Web/docs research, compare proposals | `researcher` | 2-4 | `research.md` + summary ≤1.5k tokens |
+| Map modules/files | `scout` | 1 per seam | `context.md` with `file:line` |
+| Implement 1 point | `worker` | no (1 writer/cwd) | diff + how it validated |
+| Review diff/plan | `reviewer` | yes (fresh context) | findings by severity |
+| Voluminous output (tests/logs) | any | yes | only verdict + artifact |
 
-Pipeline: **PLAN** (pai) → **RESEARCH∥** → **RECON∥** → **IMPLEMENT** (serial) → **REVIEW** (fresco) → **ACCEPT** (pai).
+Pipeline: **PLAN** (parent) → **RESEARCH∥** → **RECON∥** → **IMPLEMENT** (serial) → **REVIEW** (fresh) → **ACCEPT** (parent).
 
-Brief mínimo: objetivo · cwd/ref · autoridade (pode/não pode editar) · evidências · critério de sucesso · validação · artefato de saída · quando parar/perguntar.
+Minimum brief: objective · cwd/ref · authority (can/cannot edit) · evidence · success criterion · validation · output artifact · when to stop/ask.
 
-Contrato de retorno: status, resumo ≤1.5k tokens, caminho do artefato, evidência (`file:line` / comando). Nunca colar log inteiro — o pai lê o artefato.
+Return contract: status, summary ≤1.5k tokens, artifact path, evidence (`file:line` / command). Never paste the whole log — the parent reads the artifact.
 
-Subagente **não herda skills nem o AGENTS.md global** por padrão: embuta as restrições críticas no brief ou ligue `inheritGlobalContext`/`inheritSkills` no agente.
+A subagent **does not inherit skills nor the global AGENTS.md** by default: embed the critical restrictions in the brief or turn on `inheritGlobalContext`/`inheritSkills` on the agent.
 
-## Modos de execução
+## Execution modes
 
-| Modo | Quando | Como |
+| Mode | When | How |
 | --- | --- | --- |
-| **`print`** | tarefa mecânica, fácil de auditar, alvo permissivo, sem expectativa de prompt de permissão | `claude -p`, `opencode run`, `agent -p`, e só excepcionalmente `agy -p` |
-| **`session`** | alvo pedirá permissão, tarefa longa, ou você pode precisar intervir | CLI **interativo** (ex.: `agy -i` / `--prompt-interactive`, ou sessão tmux detachable). O orquestrador **não** bloqueia no TTY — avisa o usuário a attachar se precisar aprovar |
+| **`print`** | mechanical task, easy to audit, permissive target, no expectation of a permission prompt | `claude -p`, `opencode run`, `agent -p`, and only exceptionally `agy -p` |
+| **`session`** | target will ask for permission, long task, or you may need to intervene | **interactive** CLI (e.g.: `agy -i` / `--prompt-interactive`, or detachable tmux session). The orchestrator **does not** block on the TTY — it tells the user to attach if they need to approve |
 
-Não trate todos os CLIs como equivalentes no passo “rodar via Bash”. O critério decisivo é o **perfil de fricção de permissão** do harness, não só o modelo.
+Do not treat all CLIs as equivalent in the “run via Bash” step. The decisive criterion is the harness's **permission friction profile**, not only the model.
 
-## Perfil de permissão por alvo
+## Permission profile per target
 
-| Alvo | Perfil | Comando print | Uso em delegação |
+| Target | Profile | Print command | Use in delegation |
 | --- | --- | --- | --- |
-| **OpenCode** | permissivo (deny-list; só padrões perigosos pedem `ask`) | `opencode run "<mensagem>"` | **default** para headless / trabalho mecânico |
-| **Cursor Agent** | médio (`--force` / `--yolo` só se o usuário autorizar) | `agent -p "<prompt>"` (`--workspace <path>` se precisar) | ok em workspace confiado |
-| **Claude Code** | médio/alto + classificador de segurança | `claude -p "<prompt>"` | ok em print; **não** orquestrar `agy` a partir dele |
-| **Antigravity (agy)** | allow-list estreita + sandbox; aprovar uma vez **não** generaliza (matching quase literal) | `agy -p` / `--print` | **não** usar print por padrão → modo `session`. Print só se a allowlist já cobrir exatamente as tools/comandos da tarefa |
-| **Codex** | médio | modo non-interactive do Codex | ok se a tarefa couber no sandbox dele |
+| **OpenCode** | permissive (deny-list; only dangerous patterns ask `ask`) | `opencode run "<message>"` | **default** for headless / mechanical work |
+| **Cursor Agent** | medium (`--force` / `--yolo` only if the user authorizes) | `agent -p "<prompt>"` (`--workspace <path>` if needed) | ok in a trusted workspace |
+| **Claude Code** | medium/high + safety classifier | `claude -p "<prompt>"` | ok in print; **do not** orchestrate `agy` from it |
+| **Antigravity (agy)** | narrow allow-list + sandbox; approving once **does not** generalize (almost literal matching) | `agy -p` / `--print` | **do not** use print by default → `session` mode. Print only if the allowlist already covers exactly the task's tools/commands |
+| **Codex** | medium | Codex's non-interactive mode | ok if the task fits in its sandbox |
 
-### Por que o agy “pede de novo”
+### Why agy “asks again”
 
-No Antigravity CLI, `permissions.allow` costuma ser lista de entradas estreitas (`command(ls)`, comando literal longo, MCP específico). Variação de flag/path/tool → novo prompt. Em `--print` não há humano → nega e quebra a delegação. OpenCode, por contraste, deixa passar o que não está na deny-list — por isso é o alvo padrão de delegação automática.
+In the Antigravity CLI, `permissions.allow` is usually a list of narrow entries (`command(ls)`, long literal command, specific MCP). Variation in flag/path/tool → new prompt. In `--print` there is no human → it denies and breaks the delegation. OpenCode, by contrast, lets through what is not in the deny-list — that is why it is the default target for automatic delegation.
 
-### Limitação: Claude Code → agy headless
+### Limitation: Claude Code → agy headless
 
-Testado em 2026-09-12: orquestrar `agy --print` (ou com `--dangerously-skip-permissions` / `--mode accept-edits`) a partir do Claude Code esbarra no classificador do próprio Claude (“Create Unsafe Agents”), não só no agy. Não insistir com variações de flag na mesma sessão — o classificador escala o bloqueio. Se o usuário quiser agy nessa situação: abrir agy interativo (modo `session`) ou delegar via OpenCode.
+Tested on 2026-09-12: orchestrating `agy --print` (or with `--dangerously-skip-permissions` / `--mode accept-edits`) from Claude Code runs into Claude's own classifier (“Create Unsafe Agents”), not only agy's. Do not insist with flag variations in the same session — the classifier escalates the block. If the user wants agy in this situation: open interactive agy (`session` mode) or delegate via OpenCode.
 
-`--dangerously-skip-permissions` / `--mode accept-edits` no agy: só com o usuário na frente e consciente — **nunca** como padrão desta skill.
+`--dangerously-skip-permissions` / `--mode accept-edits` in agy: only with the user in front of it and aware — **never** as the default of this skill.
 
-## Antes de delegar
+## Before delegating
 
-1. Consultar `memory-mcp` (`search_memory` / `list_memories`) e embutir o contexto no prompt do alvo.
-2. **Calibrar custo histórico** via `agent-sync event stats --actor <cli> --last N` (ADR-003). Sem histórico, a decisão "qual CLI é mais barato" é cega — heurística textual padrão pode mandar para `claude` quando `opencode` já mostrou custar 3x menos para a mesma classe de tarefa. Preferir `agent-sync event stats --actor claude --last 50` antes de escolher alvo baseado em modelo.
-3. Escolher alvo pelo **perfil de permissão** (tabela acima), depois pelo modelo/custo.
-4. Escolher modo `print` vs `session` conforme a tabela.
-5. Default quando a tarefa é mecânica e o alvo não importa: **`opencode run`**.
-6. **Se a tarefa é de linguagem/stack coberta por uma skill compartilhada** deste repo de skills (ex.: `backend`, `object-calisthenics`, `architecture`) — embuta o conteúdo relevante dessa skill no prompt de delegação, não só a tarefa nua. O alvo (CLI diferente) não necessariamente carrega essas skills automaticamente; embutir garante que ele siga os mesmos padrões de qualidade que esta sessão seguiria. **Status: a testar** — ainda não validado em delegação real (pendente desde 2026-09-17); na próxima delegação de tarefa Go, ler `backend/reference/go.md` inteira e colar as seções relevantes (não só o nome) no prompt do `delegate-run`, e registrar aqui o resultado.
+1. Consult `memory-mcp` (`search_memory` / `list_memories`) and embed the context in the target's prompt.
+2. **Calibrate historical cost** via `agent-sync event stats --actor <cli> --last N` (ADR-003). Without history, the decision "which CLI is cheaper" is blind — the default textual heuristic can send it to `claude` when `opencode` has already shown it costs 3x less for the same task class. Prefer `agent-sync event stats --actor claude --last 50` before choosing a target based on model.
+3. Choose the target by **permission profile** (table above), then by model/cost.
+4. Choose `print` vs `session` mode according to the table.
+5. Default when the task is mechanical and the target does not matter: **`opencode run`**.
+6. **If the task is in a language/stack covered by a shared skill** of this skills repo (e.g.: `backend`, `object-calisthenics`, `architecture`) — embed the relevant content of that skill in the delegation prompt, not just the bare task. The target (different CLI) does not necessarily carry these skills automatically; embedding guarantees it follows the same quality standards this session would follow. **Status: to be tested** — not yet validated in real delegation (pending since 2026-09-17); in the next Go task delegation, read `backend/reference/go.md` in full and paste the relevant sections (not only the name) in the `delegate-run` prompt, and record the result here.
 
-Ao gravar memórias: `agent` = `claude-code` | `codex` | `antigravity` | `opencode`.
+When recording memories: `agent` = `claude-code` | `codex` | `antigravity` | `opencode`.
 
-## Critérios para decidir se delega
+## Criteria to decide whether to delegate
 
-1. **Risco/reversibilidade.** Mecânica e fácil de verificar → pode ir para modelo mais barato (de preferência OpenCode em print). Arquitetura, segurança, irreversível → mantenha no CLI da sessão.
-2. **Custo de verificação.** Só delegue se checar o resultado for mais barato do que fazer você mesmo.
-3. **Capacidade necessária.** Tooling exclusivo de um CLI restringe o alvo (independente de custo).
-4. **Contexto na memória.** Sem contexto suficiente no `memory-mcp`, o alvo barato reconstrói do zero — resolva a lacuna antes de delegar.
-5. **Escolha explícita.** Você ou o usuário escolhe alvo/modo na hora; não automatizar “qual modelo pra qual tarefa”.
+1. **Risk/reversibility.** Mechanical and easy to verify → it can go to a cheaper model (preferably OpenCode in print). Architecture, security, irreversible → keep it in the session CLI.
+2. **Verification cost.** Only delegate if checking the result is cheaper than doing it yourself.
+3. **Required capability.** Tooling exclusive to one CLI restricts the target (regardless of cost).
+4. **Context in memory.** Without enough context in `memory-mcp`, the cheap target rebuilds from scratch — close the gap before delegating.
+5. **Explicit choice.** You or the user choose target/mode on the spot; do not automate “which model for which task”.
 
-## Fluxo de uma delegação
+## Flow of a delegation
 
-1. Consultar `memory-mcp` pelo contexto relevante.
-2. Escolher **alvo** (perfil de permissão) + **modo** (`print` / `session`).
-3. Montar o prompt já com o contexto embutido.
-4. Executar via **`delegate-run`** (preferível ao Bash cru):
+1. Consult `memory-mcp` for the relevant context.
+2. Choose **target** (permission profile) + **mode** (`print` / `session`).
+3. Build the prompt already with the embedded context.
+4. Run via **`delegate-run`** (preferable to raw Bash):
 
 ```bash
-# default mecânico
-delegate-run start --target opencode --mode print --prompt "…contexto + tarefa…"
+# mechanical default
+delegate-run start --target opencode --mode print --prompt "…context + task…"
 
-# agy / precisa de aprovação humana
+# agy / needs human approval
 delegate-run start --target agy --mode session --prompt "…" --workspace /path/do/proj --name slug
-delegate-run attach <id>          # se pedir permissão
-delegate-run tail <id> -f         # observabilidade
-delegate-run status <id>          # stalled_hint se log parado (default 600s)
-delegate-run watch <id> --interval 5 --timeout 1800   # poll até done/failed
-delegate-run watch <id> --fail-on-stall               # sai 2 se stalled
-delegate-run result <id>          # lê DELEGATE_RESULT do log
-delegate-run result <id> --raw    # JSON completo
+delegate-run attach <id>          # if it asks for permission
+delegate-run tail <id> -f         # observability
+delegate-run status <id>          # stalled_hint if the log is stalled (default 600s)
+delegate-run watch <id> --interval 5 --timeout 1800   # poll until done/failed
+delegate-run watch <id> --fail-on-stall               # exits 2 if stalled
+delegate-run result <id>          # reads DELEGATE_RESULT from the log
+delegate-run result <id> --raw    # full JSON
 ```
 
-   - **`print`**: bloqueia até terminar; revise o log/`run.log` antes de aceitar.
-   - **`session`**: sobe tmux detached (`delegate-<id>`); o orquestrador **não** fica no TTY — avise o usuário a `attach` se o alvo pedir permissão.
-5. O `delegate-run` **injeta** no prompt o contrato de saída. O filho deve imprimir:
+   - **`print`**: blocks until it finishes; review the log/`run.log` before accepting.
+   - **`session`**: brings up detached tmux (`delegate-<id>`); the orchestrator **does not** stay on the TTY — tell the user to `attach` if the target asks for permission.
+5. `delegate-run` **injects** the output contract into the prompt. The child must print:
 
 ```text
 === DELEGATE_RESULT ===
@@ -107,19 +107,19 @@ delegate-run result <id> --raw    # JSON completo
 === END_DELEGATE_RESULT ===
 ```
 
-   Opcional: `store_memory(name="delegate-<id>", …)` para persistir além do log.
-6. Pai: `delegate-run result <id>` (não parsear prosa do modelo). Se `has_result=false`, trate como incompleto.
-7. Se nascer decisão/aprendizado útil além do resultado → `store_memory` permanente com proveniência correta. Rascunho/teste → `scratch: true`.
+   Optional: `store_memory(name="delegate-<id>", …)` to persist beyond the log.
+6. Parent: `delegate-run result <id>` (do not parse the model's prose). If `has_result=false`, treat it as incomplete.
+7. If a useful decision/learning arises beyond the result → permanent `store_memory` with correct provenance. Draft/test → `scratch: true`.
 
-Dados em `~/.cache/agent-sync/delegates/<id>/` (`manifest.json`, `prompt.txt`, `run.log`, `result.json`, `exit_code`). Script: `scripts/delegate-run.sh` (`make install` → `~/.local/bin/delegate-run`).
+Data in `~/.cache/agent-sync/delegates/<id>/` (`manifest.json`, `prompt.txt`, `run.log`, `result.json`, `exit_code`). Script: `scripts/delegate-run.sh` (`make install` → `~/.local/bin/delegate-run`).
 
-## Apagar memória
+## Deleting memory
 
-`delete_memory` só remove o que foi gravado com `scratch: true`. Permanentes exigem remoção manual deliberada.
+`delete_memory` only removes what was recorded with `scratch: true`. Permanent ones require deliberate manual removal.
 
-## Quando NÃO delegar
+## When NOT to delegate
 
-- Overhead (montar prompt + rodar + revisar) maior que fazer direto.
-- Decisão irreversível/sensível — não terceirize a decisão em si.
-- Alvo = agy e a tarefa claramente vai disparar tools fora da allowlist **e** ninguém pode ficar no modo `session` → mude o alvo (OpenCode) ou faça você mesmo.
-- Sem memória/contexto suficiente e produzi-lo já é caro.
+- Overhead (building prompt + running + reviewing) larger than doing it directly.
+- Irreversible/sensitive decision — do not outsource the decision itself.
+- Target = agy and the task will clearly trigger tools outside the allowlist **and** no one can stay in `session` mode → change the target (OpenCode) or do it yourself.
+- Without enough memory/context and producing it is already expensive.

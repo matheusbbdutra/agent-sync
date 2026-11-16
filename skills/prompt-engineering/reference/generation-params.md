@@ -1,130 +1,131 @@
 # generation-params
 
-Parâmetros de decodificação: como a distribuição de probabilidade do modelo vira texto. Escolha por tipo
-de tarefa e por custo, não por default herdado de tutorial. Base: cap. 5 (Text Generation) de *Natural
-Language Processing with Transformers*, seções `Greedy/Beam Search` (p.148-153) e `Top-k and Nucleus
+Decoding parameters: how the probability distribution of the model becomes text. Choose by task type
+and by cost, not by a default inherited from a tutorial. Basis: ch. 5 (Text Generation) of *Natural
+Language Processing with Transformers*, sections `Greedy/Beam Search` (p.148-153) and `Top-k and Nucleus
 Sampling` (p.156).
 
-Contexto: qualquer política de exibição baseada em confiança é `prompt-craft` §8 (logprobs); custo de
-janela e de contexto é `context-guard`.
+Context: any display policy based on confidence is `prompt-craft` §8 (logprobs); window and context cost
+is `context-guard`.
 
-## 1. Ordem de decisão
+## 1. Decision order
 
-Decida nesta ordem, parando no primeiro item que resolver a tarefa:
+Decide in this order, stopping at the first item that solves the task:
 
-1. **A saída é verificável e precisa ser determinística?** (aritmética, extração, resposta factual curta)
-   → greedy, ou greedy combinado com beam (p.159-160).
-2. **A saída é texto aberto e repetitiva com greedy?** → beam com penalidade de n-gram repetido, ou
+1. **Is the output verifiable and must it be deterministic?** (arithmetic, extraction, short factual answer)
+   → greedy, or greedy combined with beam (p.159-160).
+2. **Is the output open text and repetitive with greedy?** → beam with an n-gram repetition penalty, or
    sampling (p.150, p.153-154).
-3. **A saída aberta precisa de diversidade controlada?** → truncar a cauda (`top_k` / `top_p`) e só então
-   ajustar temperature (p.155-159).
-4. **Sempre**: fixe `max_new_tokens` coerente com o maior caso real; não há decoder que "termine sozinho"
-   de graça (p.160).
+3. **Does the open output need controlled diversity?** → truncate the tail (`top_k` / `top_p`) and only then
+   adjust temperature (p.155-159).
+4. **Always**: pin `max_new_tokens` coherent with the largest real case; there is no decoder that "ends by
+   itself" for free (p.160).
 
-Não existe escolha universal: "there is no universally 'best' decoding method" (p.159-160).
+There is no universal choice: "there is no universally 'best' decoding method" (p.159-160).
 
 ## 2. Greedy
 
-- **O que faz**: a cada passo toma o token de maior probabilidade; um único caminho, sem exploração.
-- **Custo mínimo**: um forward pass por token gerado (p.160).
-- **Defeito estrutural**: "one of the main drawbacks with greedy search decoding: it tends to produce
-  repetitive output sequences" (p.150) — em texto livre o modelo entra em loop de frase.
-- **Onde serve**: tarefa determinística, resposta curta, saída que você vai parsear (p.159-160).
-- **Não resolve com temperature**: temperature reescala a distribuição antes do softmax (p.155); em greedy
-  a escolha é o token de maior probabilidade, então reescalar não troca o token escolhido. Para mudar o
-  comportamento em texto livre é preciso trocar o decoder (p.150, p.153).
+- **What it does**: at each step takes the token of highest probability; a single path, without exploration.
+- **Minimal cost**: one forward pass per generated token (p.160).
+- **Structural defect**: "one of the main drawbacks with greedy search decoding: it tends to produce
+  repetitive output sequences" (p.150) — in free text the model enters a sentence loop.
+- **Where it serves**: deterministic task, short answer, output you are going to parse (p.159-160).
+- **It is not fixed with temperature**: temperature rescales the distribution before the softmax (p.155); in
+  greedy the choice is the token of highest probability, so rescaling does not change the chosen token. To
+  change the behaviour in free text you have to change the decoder (p.150, p.153).
 
 ## 3. Beam search
 
-- **O que faz**: mantém `num_beams` caminhos simultâneos e escolhe a sequência de maior probabilidade
-  conjunta; não há sorteio entre candidatos, então a mesma entrada tende ao mesmo resultado (p.153).
-- **Custo**: "Generating text requires at least one forward pass per generated token, and even more if we
-  use beam search" (p.160) — beam multiplica o compute por caminho mantido.
-- **Não elimina repetição**: "beam search also suffers from repetitive text" (p.153). Beam melhora a
-  escolha da sequência, não a diversidade.
-- **Onde serve**: tradução, sumarização e tarefa precisa em que você quer a sequência mais provável, não
-  a mais criativa (p.159-160).
-- **Cuidado com beam grande**: paga-se N× compute por ganho decrescente; justifique `num_beams` por medição,
-  não por default (p.160).
+- **What it does**: keeps `num_beams` simultaneous paths and picks the sequence of highest joint
+  probability; there is no draw between candidates, so the same input tends to the same result (p.153).
+- **Cost**: "Generating text requires at least one forward pass per generated token, and even more if we
+  use beam search" (p.160) — beam multiplies the compute by path kept.
+- **It does not eliminate repetition**: "beam search also suffers from repetitive text" (p.153). Beam improves
+  the choice of the sequence, not the diversity.
+- **Where it serves**: translation, summarization and a precise task in which you want the most probable
+  sequence, not the most creative one (p.159-160).
+- **Careful with a large beam**: you pay N× compute for diminishing gain; justify `num_beams` by measurement,
+  not by default (p.160).
 
-## 4. Repetição: penalidade de n-gram
+## 4. Repetition: n-gram penalty
 
-- **Solução para repetição de decoder determinístico**: "One way to address this is to impose an n-gram
+- **Solution for repetition of a deterministic decoder**: "One way to address this is to impose an n-gram
   penalty" (p.153).
-- **Efeito medido**: com `no_repeat_ngram_size=2` o log-prob cai de −55.23 para −93.12 e a repetição cessa
-  (p.154) — o texto fica menos provável e menos repetitivo; é exatamente o trade-off aceito.
-- **Custo da penalidade**: bloquear n-gram repetido reduz o espaço de continuação. n=2 é o valor medido no
-  livro (p.154); n maior proíbe mais sequências e passa a vetar repetição legítima de termos técnicos
-  (p.153-154).
-- **Alternativa real**: trocar para sampling com truncamento quando a tarefa aceita variação (p.155-159).
+- **Measured effect**: with `no_repeat_ngram_size=2` the log-prob falls from −55.23 to −93.12 and the repetition
+  stops (p.154) — the text becomes less probable and less repetitive; that is exactly the accepted trade-off.
+- **Cost of the penalty**: blocking a repeated n-gram reduces the continuation space. n=2 is the value measured
+  in the book (p.154); a larger n prohibits more sequences and starts to veto legitimate repetition of technical
+  terms (p.153-154).
+- **Real alternative**: switch to sampling with truncation when the task accepts variation (p.155-159).
 
 ## 5. Temperature
 
-- **O que faz**: reescala os logits antes do softmax — "When T ≪ 1, the distribution becomes peaked ...
+- **What it does**: rescales the logits before the softmax — "When T ≪ 1, the distribution becomes peaked ...
   when T ≫ 1, the distribution flattens out" (p.155).
-- **Efeito por faixa**: T baixa concentra massa nos tokens prováveis; T alta espalha massa e passa a
-  amostrar tokens improváveis — com T=2 a saída vira gibberish (p.155).
-- **O trade-off**: "a trade-off between coherence (low temperature) and diversity (high temperature)"
-  (p.156). Não existe T "correto"; existe T coerente com a tarefa.
-- **Erro comum**: subir temperature buscando criatividade sem truncar a cauda — o ganho vem do tokens de
-  cauda entrarem na amostragem, e é isso que produz palavra inventada (p.155-156).
-- **Ordem correta**: truncar primeiro (`top_k`/`top_p`), ajustar temperature depois (p.158-159). Temperature
-  sozinha não remove a cauda improvável que você queria excluir.
+- **Effect by range**: low T concentrates mass on the probable tokens; high T spreads mass and starts to
+  sample improbable tokens — with T=2 the output becomes gibberish (p.155).
+- **The trade-off**: "a trade-off between coherence (low temperature) and diversity (high temperature)"
+  (p.156). There is no "correct" T; there is a T coherent with the task.
+- **Common error**: raising temperature seeking creativity without truncating the tail — the gain comes from
+  the tail tokens entering the sampling, and that is what produces an invented word (p.155-156).
+- **Correct order**: truncate first (`top_k`/`top_p`), adjust temperature afterwards (p.158-159). Temperature
+  alone does not remove the improbable tail you wanted to exclude.
 
-## 6. top-k e top-p (nucleus)
+## 6. top-k and top-p (nucleus)
 
-| Parâmetro | Critério de corte | Força | Limite |
+| Parameter | Cut criterion | Strength | Limit |
 | --- | --- | --- | --- |
-| `top_k` | mantém os k tokens mais prováveis | simples, previsível | corte fixo ignora a forma da distribuição: "that fixed cutoff might not be very satisfactory" (p.158) |
-| `top_p` | mantém o menor conjunto que soma massa p | adapta o número de candidatos por passo | depende de `p` calibrado; em distribuição achatada mantém muitos tokens |
+| `top_k` | keeps the k most probable tokens | simple, predictable | a fixed cut ignores the shape of the distribution: "that fixed cutoff might not be very satisfactory" (p.158) |
+| `top_p` | keeps the smallest set that sums to mass p | adapts the number of candidates per step | depends on a calibrated `p`; in a flat distribution it keeps many tokens |
 
-- **`top_k` evita a cauda**: "top-k sampling is to avoid the low-probability choices by only sampling from
+- **`top_k` avoids the tail**: "top-k sampling is to avoid the low-probability choices by only sampling from
   the k tokens with the highest probability" (p.158).
-- **Combinar os dois**: "`top_k=50` and `top_p=0.9` corresponds to ... probability mass of 90%, from a pool
-  of at most 50 tokens" (p.159) — o teto de candidatos vem do k, a massa vem do p.
-- **Sem truncamento não há controle**: com qualquer temperature acima de 0, tokens de cauda improvável
-  entram na amostragem (p.155-156).
-- **Calibre p e k juntos**: mexer em um muda o efeito do outro; registre o par usado por tarefa (p.159).
+- **Combining the two**: "`top_k=50` and `top_p=0.9` corresponds to ... probability mass of 90%, from a pool
+  of at most 50 tokens" (p.159) — the candidate ceiling comes from k, the mass comes from p.
+- **Without truncation there is no control**: with any temperature above 0, improbable tail tokens enter the
+  sampling (p.155-156).
+- **Calibrate p and k together**: touching one changes the effect of the other; record the pair used per task
+  (p.159).
 
-## 7. Escolha por tarefa
+## 7. Choice by task
 
-| Tarefa | Decoder | Parâmetro que importa | Evidência |
+| Task | Decoder | Parameter that matters | Evidence |
 | --- | --- | --- | --- |
-| aritmética, extração, resposta factual curta | greedy ou greedy + beam | determinismo; sem sampling | p.159-160 |
-| saída parseável (JSON, rótulo) | greedy/beam | nenhuma variação desejada | p.159-160 |
-| tradução, sumarização | beam | `num_beams` justificado por medição | p.153, p.160 |
-| texto aberto curto com repetição | beam + `no_repeat_ngram_size` | penalidade de n-gram | p.153-154 |
-| texto aberto criativo | sampling com `top_k`/`top_p` + temperature | massa de cauda truncada | p.155-159 |
-| chat/diálogo aberto | sampling truncado | coerência versus diversidade | p.156 |
+| arithmetic, extraction, short factual answer | greedy or greedy + beam | determinism; no sampling | p.159-160 |
+| parseable output (JSON, label) | greedy/beam | no variation desired | p.159-160 |
+| translation, summarization | beam | `num_beams` justified by measurement | p.153, p.160 |
+| short open text with repetition | beam + `no_repeat_ngram_size` | n-gram penalty | p.153-154 |
+| creative open text | sampling with `top_k`/`top_p` + temperature | truncated tail mass | p.155-159 |
+| open chat/dialogue | truncated sampling | coherence versus diversity | p.156 |
 
-Regra de bolso: quanto mais fácil é verificar a saída automaticamente, mais perto de determinístico o
-decoder deve ficar (p.159-160).
+Rule of thumb: the easier it is to verify the output automatically, the closer to deterministic the
+decoder must stay (p.159-160).
 
-## 8. Custo por token gerado
+## 8. Cost per generated token
 
-- **Piso de latência**: "Generating text requires at least one forward pass per generated token, and even
+- **Latency floor**: "Generating text requires at least one forward pass per generated token, and even
   more if we use beam search. This makes text generation computationally demanding" (p.160).
-- **Orçamento = tokens de entrada + tokens de saída × passes por token**: o termo que escala por
-  requisição é tokens de saída × passes por token, isto é, `max_new_tokens` × `num_beams` (p.160).
-- **Consequência prática**: cortar `max_new_tokens` e evitar beam em tarefa que não precisa reduz custo
-  direto; o custo de saída é o que escala por requisição (p.160).
-- **Meça antes de fixar**: escolha de decoder é decisão por tarefa; a comparação de qualidade entre dois
-  decoders exige baseline e eval set, fora do escopo desta skill (p.159-160).
+- **Budget = input tokens + output tokens × passes per token**: the term that scales per
+  request is output tokens × passes per token, that is, `max_new_tokens` × `num_beams` (p.160).
+- **Practical consequence**: cutting `max_new_tokens` and avoiding beam in a task that does not need it reduces
+  cost directly; the output cost is what scales per request (p.160).
+- **Measure before fixing**: the decoder choice is a decision per task; comparing the quality of two
+  decoders requires a baseline and an eval set, outside the scope of this skill (p.159-160).
 
-## 9. Diagnóstico por sintoma
+## 9. Diagnosis by symptom
 
-| Sintoma na saída | Causa provável | Ação | Evidência |
+| Symptom in the output | Probable cause | Action | Evidence |
 | --- | --- | --- | --- |
-| loop de frase, texto se repete | greedy (ou beam) em texto aberto | trocar decoder; penalidade de n-gram | p.150, p.153-154 |
-| repetição mesmo com beam | beam também repete | `no_repeat_ngram_size` ou sampling | p.153-154 |
-| palavra inventada, texto incoerente | T alta sem truncamento de cauda | reduzir T e truncar antes com `top_k`/`top_p` | p.155-156 |
-| texto sempre igual, sem variação | T baixa / greedy | subir T com cauda truncada, se a tarefa aceita diversidade | p.156 |
-| candidatos ruins mesmo com k alto | corte fixo não acompanha a distribuição | usar `top_p` (ou combinar com `top_k`) | p.158-159 |
-| resposta boa ocasional perdida | 1 caminho só | beam com k justificado | p.153, p.160 |
-| custo/latência acima do previsto | `num_beams` ou `max_new_tokens` altos | reduzir beam e teto de tokens | p.160 |
+| sentence loop, the text repeats | greedy (or beam) in open text | change the decoder; n-gram penalty | p.150, p.153-154 |
+| repetition even with beam | beam also repeats | `no_repeat_ngram_size` or sampling | p.153-154 |
+| invented word, incoherent text | high T without tail truncation | lower T and truncate before with `top_k`/`top_p` | p.155-156 |
+| text always the same, without variation | low T / greedy | raise T with a truncated tail, if the task accepts diversity | p.156 |
+| bad candidates even with a high k | a fixed cut does not follow the distribution | use `top_p` (or combine with `top_k`) | p.158-159 |
+| an occasional good answer lost | 1 path only | beam with a justified k | p.153, p.160 |
+| cost/latency above the predicted | high `num_beams` or `max_new_tokens` | reduce beam and the token ceiling | p.160 |
 
-## Fontes
+## Sources
 
-- Tunstall, von Werra & Wolf, *Natural Language Processing with Transformers* (Revised Edition) — cap. 5
-  Text Generation: `Greedy/Beam Search` (p.148-153; greedy em p.150, beam e penalidade de n-gram em
-  p.153-154), temperature (p.155-156), `Top-k and Nucleus Sampling` (p.156-159), custo de geração (p.160).
+- Tunstall, von Werra & Wolf, *Natural Language Processing with Transformers* (Revised Edition) — ch. 5
+  Text Generation: `Greedy/Beam Search` (p.148-153; greedy on p.150, beam and n-gram penalty on
+  p.153-154), temperature (p.155-156), `Top-k and Nucleus Sampling` (p.156-159), generation cost (p.160).

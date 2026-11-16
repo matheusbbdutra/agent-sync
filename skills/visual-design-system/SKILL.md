@@ -1,175 +1,175 @@
 ---
 name: visual-design-system
-description: Diretrizes de engenharia visual, design systems, consistência estética, UX writing e acessibilidade WCAG para web e apps mobile (Android/Compose/XML e iOS). Use ao criar telas, landing pages, dashboards, componentes, formulários, apps nativos ou estruturar tokens de design — inclui deny-list para evitar o visual genérico de UI gerada por IA.
+description: Visual engineering guidelines, design systems, aesthetic consistency, UX writing and WCAG accessibility for web and mobile apps (Android/Compose/XML and iOS). Use when creating screens, landing pages, dashboards, components, forms, native apps or structuring design tokens — includes a deny-list to avoid the generic look of AI-generated UI.
 ---
 
 # Visual Design System & Frontend Engineering
 
-Esta skill estabelece os padrões e critérios de aceitação visual para código frontend produzido pelos agentes. O alvo é uma interface que pareça **produto real**, não template gerado.
+This skill establishes the visual standards and acceptance criteria for frontend code produced by agents. The target is an interface that looks like a **real product**, not a generated template.
 
-## 1. Direção Antes do Código
+## 1. Direction Before Code
 
-Nenhuma tela nova começa pelo markup. Declare primeiro, em 4 linhas no plano:
+No new screen starts with the markup. Declare first, in 4 lines in the plan:
 
-- **Adjetivos:** 3 que a interface deve transmitir (ex.: densa, sóbria, editorial, lúdica).
-- **Referência:** 1 produto real (site ou app) cujo acabamento serve de norte. Sem referência, ancore na estética do domínio do usuário (ferramenta fiscal ≠ SaaS de IA).
-- **Densidade:** compacta (dashboard/ferramenta) ou arejada (landing/marketing).
-- **Modo:** claro, escuro ou ambos.
+- **Adjectives:** 3 that the interface must convey (e.g.: dense, sober, editorial, playful).
+- **Reference:** 1 real product (site or app) whose finish serves as the north star. Without a reference, anchor on the aesthetics of the user's domain (tax tool ≠ AI SaaS).
+- **Density:** compact (dashboard/tool) or airy (landing/marketing).
+- **Mode:** light, dark or both.
 
-Sem direção declarada, o resultado é o default do modelo — que é justamente o visual genérico. Se o usuário não deu referência e a tela é de marketing, pergunte uma vez antes de gerar.
+Without a declared direction, the result is the model's default — which is precisely the generic look. If the user gave no reference and the screen is marketing, ask once before generating.
 
-**Precedência:** o design system, `DESIGN.md` e os tokens do projeto vencem esta skill; esta vence skill externa genérica. Se o brief do usuário fixar uma estética que viola a deny-list, o brief vence — registre a exceção e siga.
+**Precedence:** the design system, `DESIGN.md` and the project tokens beat this skill; this skill beats a generic external skill. If the user's brief fixes an aesthetic that violates the deny-list, the brief wins — record the exception and proceed.
 
-**Domínio finanças pessoais** (carteira, cartões, orçamento, parcelamentos, fluxo de caixa): leia também [reference/consumer-fintech.md](reference/consumer-fintech.md) — fixa o modelo de dinheiro (efetivado/previsto/reservado/livre), a formatação de valores e as regras de dataviz do domínio. Ele não substitui nenhuma seção desta skill.
+**Personal finance domain** (wallet, cards, budget, installments, cash flow): also read [reference/consumer-fintech.md](reference/consumer-fintech.md) — it fixes the money model (efetivado/previsto/reservado/livre [settled/forecast/reserved/free]), the value formatting and the domain dataviz rules. It does not replace any section of this skill.
 
-**Estrutura da tela:** [reference/product-archetypes.md](reference/product-archetypes.md) traz o catálogo opcional de arquétipos (visão geral, feed, gestão de objetos, análises, criação) para decidir a hierarquia de cada aba. Opcional porque prescrever o mesmo esqueleto em todas as telas é justamente a síndrome do §2.
+**Screen structure:** [reference/product-archetypes.md](reference/product-archetypes.md) brings the optional catalog of archetypes (overview, feed, object management, analytics, creation) to decide the hierarchy of each tab. Optional because prescribing the same skeleton on every screen is precisely the §2 syndrome.
 
-### 1.1 Modo Retrofit (tela existente)
+### 1.1 Retrofit Mode (existing screen)
 
-Ajustar o que existe é diferente de criar: o custo do erro é maior porque a tela já está em uso. Cinco passos, nesta ordem:
+Adjusting what already exists is different from creating: the cost of error is higher because the screen is already in use. Five steps, in this order:
 
-1. **Auditar antes de tocar:** inventarie tokens, tipografia, espaçamento e superfícies já presentes; marque só o que viola a deny-list (§2).
-2. **Nomear a direção implícita:** a tela já tem uma direção, mesmo que ruim. Declare se vai assumi-la e corrigir ou substituí-la — e por quê. **Preserve por padrão; substitua a direção existente só com pedido explícito de redesign.**
-3. **Atacar por impacto:** tipografia → densidade/espaço → cor → superfícies/bordas → motion. Pare quando o escopo acabar.
-4. **Raio de mudança:** ou aplica a linguagem em **todas** as superfícies tocadas, ou não toca. Redesign parcial que mistura dois estilos é pior que o original.
-5. **Não reescreva o que funciona:** se 70% está bom, corrija os 30%. Preserve markup, classes e lógica que já atendem — ajuste de UI não é pretexto para refatorar código adjacente.
+1. **Audit before touching:** inventory the tokens, typography, spacing and surfaces already present; mark only what violates the deny-list (§2).
+2. **Name the implicit direction:** the screen already has a direction, even a bad one. Declare whether you will take it on and correct it or replace it — and why. **Preserve by default; replace the existing direction only with an explicit redesign request.**
+3. **Attack by impact:** typography → density/space → color → surfaces/borders → motion. Stop when the scope ends.
+4. **Blast radius:** either apply the language to **all** touched surfaces, or do not touch it. A partial redesign that mixes two styles is worse than the original.
+5. **Do not rewrite what works:** if 70% is good, fix the 30%. Preserve markup, classes and logic that already deliver — a UI adjustment is no pretext to refactor adjacent code.
 
-Valide com o §11 inteiro, incluindo o teste do print lado a lado (antes/depois).
+Validate with §11 in full, including the side-by-side print test (before/after).
 
-## 2. Deny-List: o que denuncia UI de IA
+## 2. Deny-List: what betrays AI UI
 
-Não use os padrões abaixo sem justificativa explícita na direção (§1):
+Do not use the patterns below without an explicit justification in the direction (§1):
 
-| Padrão | Por quê | Em vez disso |
+| Pattern | Why | Instead |
 |---|---|---|
-| Gradiente roxo→azul, glow, `blur-3xl` atrás do hero | Assinatura visual de template | Cor de marca sólida com intenção; no máximo 1 gradiente justificado |
-| `Inter`/`system-ui` como fonte "de design" e todos os títulos em `font-bold tracking-tight` | Ausência de escolha tipográfica | Uma família com personalidade para display; tracking negativo só em tamanhos grandes |
-| Card soup: todo bloco em `rounded-2xl border shadow-lg p-6` com ícone em quadradinho `bg-primary/10` | Sem hierarquia: tudo tem o mesmo peso | Uma só linguagem de superfície (borda fina **ou** flat); hierarquia por espaço e tipografia |
-| Hero clichê: badge "✨ Novo", "Supercharge your X", dois CTAs genéricos, 3 features "Fast/Secure/Scalable" | Copy e layout de molde | Copy e números concretos do domínio; um CTA primário |
-| Glassmorphism, `backdrop-blur` com borda `white/10` no dark | Efeito decorativo sem função | Superfícies opacas com contraste real |
-| Tudo `py-24 gap-6`, 100% simétrico, sempre 3 colunas iguais | Ritmo uniforme denuncia geração em série | Ritmo vertical variado + ao menos 1 assimetria intencional |
-| `text-gray-500` sobre `gray-100`, paleta apagada | Baixo contraste e cinza puro | Neutros tintados na direção da marca e contraste AA conferido |
-| "Seamlessly", "Effortlessly", "Elevate", "Unlock", "Empower", "Supercharge" | Vocabulário de marketing genérico | Vocabulário do domínio do produto |
-| Só o happy path: nenhum empty/error state, skeleton de 3 barras cinzas | Interface não sobrevive a dado real | Estados reais por componente (§6) |
-| `hover:scale-105`, `animate-pulse` decorativo, tudo animado | Ruído visual e custo de performance | Motion só com propósito (§7) |
-| Estética "anti-IA" (creme + serifada + terracota, broadsheet com hairlines, near-black + acid green) | Também é default; o agente só troca um cluster por outro | Escolha ancorada no domínio; no máximo 1 gesto estético forte |
-| Emoji como ícone de UI | Amadoriza e quebra consistência entre plataformas | Biblioteca de ícones única (Lucide, Material Symbols, SF Symbols) |
+| Purple→blue gradient, glow, `blur-3xl` behind the hero | A template's visual signature | An intentional solid brand color; at most 1 justified gradient |
+| `Inter`/`system-ui` as the "de design" [design] font and every heading in `font-bold tracking-tight` | Absence of a typographic choice | One family with personality for display; negative tracking only at large sizes |
+| Card soup: every block in `rounded-2xl border shadow-lg p-6` with an icon in a little square `bg-primary/10` | No hierarchy: everything has the same weight | A single surface language (thin border **or** flat); hierarchy through space and typography |
+| Cliché hero: badge "✨ Novo" [New], "Supercharge your X", two generic CTAs, 3 "Fast/Secure/Scalable" features | Template copy and layout | Concrete copy and numbers from the domain; one primary CTA |
+| Glassmorphism, `backdrop-blur` with a `white/10` border in dark | Decorative effect without function | Opaque surfaces with real contrast |
+| Everything `py-24 gap-6`, 100% symmetric, always 3 equal columns | A uniform rhythm betrays mass generation | A varied vertical rhythm + at least 1 intentional asymmetry |
+| `text-gray-500` over `gray-100`, washed-out palette | Low contrast and pure gray | Neutrals tinted toward the brand and AA contrast verified |
+| "Seamlessly", "Effortlessly", "Elevate", "Unlock", "Empower", "Supercharge" | Generic marketing vocabulary | The product domain's vocabulary |
+| Only the happy path: no empty/error state, a skeleton of 3 gray bars | The interface does not survive real data | Real states per component (§6) |
+| `hover:scale-105`, decorative `animate-pulse`, everything animated | Visual noise and performance cost | Motion only with purpose (§7) |
+| The "anti-IA" [anti-AI] aesthetic (cream + serif + terracotta, broadsheet with hairlines, near-black + acid green) | It is also a default; the agent merely swaps one cluster for another | A choice anchored in the domain; at most 1 strong aesthetic gesture |
+| Emoji as a UI icon | It amateurizes and breaks consistency across platforms | A single icon library (Lucide, Material Symbols, SF Symbols) |
 
-## 3. Sistema de Tokens & Cor
+## 3. Token System & Color
 
-Não use valores hexadecimais soltos no markup. Use tokens com significado semântico:
+Do not use loose hexadecimal values in the markup. Use tokens with semantic meaning:
 
-- `primary`: ação principal, identidade do produto.
-- `surface` / `background`: camadas de profundidade (canvas, cards, popovers).
-- `muted` / `subtle`: bordas, divisores e fundos secundários.
+- `primary`: main action, product identity.
+- `surface` / `background`: depth layers (canvas, cards, popovers).
+- `muted` / `subtle`: borders, dividers and secondary backgrounds.
 - `text`: `text-primary`, `text-muted`, `text-inverse`.
-- `destructive` / `warning` / `success`: feedback de estado estritamente padronizado.
+- `destructive` / `warning` / `success`: strictly standardized state feedback.
 
-Regras:
+Rules:
 
-- **Uma cor de marca** com justificativa na direção. Não herde o `blue-600`/`violet-600` do framework.
-- **Neutros tintados** (OKLCH ou HSL com chroma baixo na matiz da marca), não `gray-*` puro.
-- **Dark mode não é inversão**: superfícies mais claras elevam, não mais escuras; sombra perde função e vira borda.
-- Contraste conferido no par real usado, não no token isolado.
-- **Adaptação de marca:** ao trocar a paleta, mantenha a *relação*, não o hex — canvas em neutro
-  quente, superfície neutra elevada, âncora profunda de marca (não uma cor viva) para hero e CTA,
-  e um acento vibrante usado **pontualmente**. Acento claro (lima, coral, âmbar vivo) só existe
-  como fundo com tinta escura por cima; como texto, borda ou anel de foco não alcança 3:1.
-- **Pares que precisam ser medidos nos dois temas** (o token isolado não diz nada): texto principal
-  e secundário sobre canvas e sobre surface; semântico (`success`/`danger`/`warning`/`info`) sobre
-  seu próprio `-bg`; acento como fundo; borda ou âncora contra o canvas. Ao criar o tema escuro,
-  redefina **também** os semânticos, os `-bg` e a âncora — token que atravessa do light para o dark
-  vira ilha clara ou elemento invisível.
-- **Escala de superfície:** raio, sombra, borda e delta canvas→surface saem de
-  [reference/surface-derivation.md](reference/surface-derivation.md) — valores medidos em GOV.UK,
-  Carbon, Polaris e Radix. Entre produtos varia o sistema; entre telas varia só composição.
+- **One brand color** with a justification in the direction. Do not inherit the framework's `blue-600`/`violet-600`.
+- **Tinted neutrals** (OKLCH or HSL with low chroma on the brand hue), not pure `gray-*`.
+- **Dark mode is not an inversion**: lighter surfaces elevate, not darker ones; shadow loses its function and becomes a border.
+- Contrast verified on the real pair used, not on the isolated token.
+- **Brand adaptation:** when swapping the palette, keep the *relationship*, not the hex — canvas in warm neutral,
+  elevated neutral surface, deep brand anchor (not a bright color) for hero and CTA,
+  and a vibrant accent used **sparingly**. A light accent (lime, coral, vivid amber) exists only
+  as a background with dark ink on top; as text, border or focus ring it does not reach 3:1.
+- **Pairs that must be measured in both themes** (the isolated token says nothing): primary and secondary text
+  over canvas and over surface; semantic (`success`/`danger`/`warning`/`info`) over
+  its own `-bg`; accent as background; border or anchor against the canvas. When creating the dark theme,
+  redefine **also** the semantics, the `-bg` and the anchor — a token that crosses from light to dark
+  becomes a light island or an invisible element.
+- **Surface scale:** radius, shadow, border and canvas→surface delta come from
+  [reference/surface-derivation.md](reference/surface-derivation.md) — values measured on GOV.UK,
+  Carbon, Polaris and Radix. Between products the system varies; between screens only composition varies.
 
-## 4. Tipografia
+## 4. Typography
 
-- Escala modular: razão **1.2** para UI densa, **1.333** para marketing. Não invente 8 tamanhos arbitrários.
-- `measure` de **45–75ch** para corpo de texto (`max-w-prose` / `65ch`).
-- Line-height por papel: display 1.0–1.15, corpo 1.5–1.7, UI 1.2–1.4.
-- Tracking negativo apenas em tamanhos display (≥24px); positivo apenas em caixa-alta pequena (labels).
-- **Duas famílias no máximo**, com contraste real: display com personalidade + texto neutro e legível. Pesos: no máximo 2 por tela.
-- Fonte via `font-display: swap` + fallback métrico próximo; nunca depender de CDN bloqueante.
+- Modular scale: ratio **1.2** for dense UI, **1.333** for marketing. Do not invent 8 arbitrary sizes.
+- `measure` of **45–75ch** for body text (`max-w-prose` / `65ch`).
+- Line-height per role: display 1.0–1.15, body 1.5–1.7, UI 1.2–1.4.
+- Negative tracking only at display sizes (≥24px); positive only in small uppercase (labels).
+- **Two families at most**, with real contrast: a display family with personality + neutral, legible text. Weights: at most 2 per screen.
+- Font via `font-display: swap` + a close metric fallback; never depend on a blocking CDN.
 
-## 5. Espaço, Layout e Densidade
+## 5. Space, Layout and Density
 
-- Grade de **4px/8px** (`gap-1`, `gap-2`, `gap-4`, `p-6`) e consistência entre containers vizinhos.
-- Ritmo vertical **variado** por seção (ex.: 48/80/120px no desktop; 32/48/64px no mobile). Nunca o mesmo `py-*` em tudo.
-- Duas larguras de referência: **conteúdo** (65ch) e **aplicação** (1200–1440px). Dashboard usa gutter menor e densidade maior que landing.
-- Assimetria intencional em pelo menos um bloco de marketing (2/3 + 1/3), não 3 colunas iguais por padrão.
-- **390px é requisito de aceitação**, não "depois": sem scroll horizontal e sem texto truncado.
+- **4px/8px** grid (`gap-1`, `gap-2`, `gap-4`, `p-6`) and consistency between neighboring containers.
+- **Varied** vertical rhythm per section (e.g.: 48/80/120px on desktop; 32/48/64px on mobile). Never the same `py-*` on everything.
+- Two reference widths: **content** (65ch) and **application** (1200–1440px). A dashboard uses a smaller gutter and higher density than a landing page.
+- Intentional asymmetry in at least one marketing block (2/3 + 1/3), not 3 equal columns by default.
+- **390px is an acceptance requirement**, not "depois" [later]: no horizontal scroll and no truncated text.
 
-## 6. Ciclo de Vida Completo de Componentes
+## 6. Full Component Lifecycle
 
-Nenhum componente interativo pode ter apenas o estado "ideal" (*happy path*). Toda implementação deve prever:
+No interactive component may have only the "ideal" state (*happy path*). Every implementation must provide for:
 
-1. **Default:** estado de repouso legível.
-2. **Hover:** indicação sutil de interatividade (tonalidade ou elevação).
-3. **Focus-visible:** foco por teclado nítido (ex.: `focus-visible:ring-2 focus-visible:ring-offset-2`).
-4. **Active:** feedback de clique (micro-transição).
-5. **Disabled:** atenuado com `cursor-not-allowed` e `opacity-50`, bloqueando eventos.
-6. **Loading:** spinner ou skeleton sem quebrar a geometria do container (sem Layout Shift).
-7. **Empty state:** texto explicativo do domínio + ação quando não houver dados.
-8. **Error:** mensagem específica e recuperável, nunca só "Algo deu errado".
-9. **Success:** confirmação do que mudou (toast/inline), não apenas "Sucesso".
-10. **Protótipo vivo:** em demo ou protótipo, filtro filtra, aba troca de painel, card abre gaveta e
-    tema alterna. Botão que não responde é reprovação, não placeholder.
+1. **Default:** a legible resting state.
+2. **Hover:** a subtle indication of interactivity (tone or elevation).
+3. **Focus-visible:** crisp keyboard focus (e.g.: `focus-visible:ring-2 focus-visible:ring-offset-2`).
+4. **Active:** click feedback (micro-transition).
+5. **Disabled:** dimmed with `cursor-not-allowed` and `opacity-50`, blocking events.
+6. **Loading:** spinner or skeleton without breaking the container geometry (no Layout Shift).
+7. **Empty state:** explanatory text from the domain + an action when there is no data.
+8. **Error:** a specific, recoverable message, never just "Algo deu errado" [Something went wrong].
+9. **Success:** confirmation of what changed (toast/inline), not just "Sucesso" [Success].
+10. **Living prototype:** in a demo or prototype, the filter filters, the tab switches panels, the card opens a drawer and
+    the theme toggles. A button that does not respond is a failing grade, not a placeholder.
 
 ## 7. Motion
 
-- Durações: **120ms** (micro), **180ms** (hover), **240ms** (entrada), **320ms** (transição de tela). Acima de 400ms só se coreografado.
-- `ease-out` para entrada, `ease-in` para saída; `linear` não se usa em UI.
-- Anime só `transform`, `opacity` e `filter` — nunca `width`, `height`, `top` ou `left`.
-- `prefers-reduced-motion` obrigatório sempre que houver animação.
-- Animação decorativa em loop é proibida.
+- Durations: **120ms** (micro), **180ms** (hover), **240ms** (entrance), **320ms** (screen transition). Above 400ms only if choreographed.
+- `ease-out` for entrance, `ease-in` for exit; `linear` is not used in UI.
+- Animate only `transform`, `opacity` and `filter` — never `width`, `height`, `top` or `left`.
+- `prefers-reduced-motion` mandatory whenever there is animation.
+- Looping decorative animation is prohibited.
 
-## 8. Checklist de Acessibilidade (WCAG 2.1 AA / 2.2 AA)
+## 8. Accessibility Checklist (WCAG 2.1 AA / 2.2 AA)
 
-- **Contraste:** 4.5:1 para texto normal; 3:1 para textos grandes e elementos gráficos de UI.
-- **Teclado:** todos os controles alcançáveis via `Tab` e acionáveis via `Enter`/`Space`; foco nunca obscurecido por elemento fixo.
-- **Formulários:** `<label>` explícito associado (`htmlFor`/`id`) e erro descritivo com `aria-describedby`.
-- **Botões de ícone:** sempre com `aria-label` descritivo.
-- **Alvo de toque:** mínimo **24x24px** (WCAG 2.2 AA, 2.5.8); recomendação **44x44px** (WCAG 2.1 AAA, 2.5.5) na web; **48dp** no Android e **44pt** no iOS.
+- **Contrast:** 4.5:1 for normal text; 3:1 for large text and UI graphical elements.
+- **Keyboard:** every control reachable via `Tab` and operable via `Enter`/`Space`; focus never obscured by a fixed element.
+- **Forms:** explicit associated `<label>` (`htmlFor`/`id`) and a descriptive error with `aria-describedby`.
+- **Icon buttons:** always with a descriptive `aria-label`.
+- **Touch target:** minimum **24x24px** (WCAG 2.2 AA, 2.5.8); recommendation **44x44px** (WCAG 2.1 AAA, 2.5.5) on the web; **48dp** on Android and **44pt** on iOS.
 
-## 9. Mobile Nativo (Android/iOS)
+## 9. Native Mobile (Android/iOS)
 
-Vale para Compose, XML/Views e iOS. Implementação específica de Compose pertence a uma skill própria; aqui ficam os critérios visuais e de plataforma.
+Applies to Compose, XML/Views and iOS. Compose-specific implementation belongs to its own skill; what stays here are the visual and platform criteria.
 
-- **Plataforma primeiro:** Android = Material 3 (Expressive quando a versão do projeto suportar) + Material Symbols; iOS = HIG + SF Symbols. Nunca vista uma plataforma com o uniforme da outra.
-- **Controles nativos:** use `Scaffold`, `NavigationBar`, `ModalBottomSheet`, `TextField`, `LazyColumn` (Compose), `MaterialToolbar`, `BottomNavigationView`, `RecyclerView` (XML) ou equivalentes iOS — não recrie botões/divs web.
-- **Insets e safe areas:** status bar, navigation bar, cutout, teclado/IME e edge-to-edge no Android 15+; nada de conteúdo sob o notch ou o teclado.
-- **Back:** predictive back no Android e edge-swipe no iOS; não sequestre o gesto.
-- **Toque:** 48dp no Android, 44pt no iOS, com espaçamento entre alvos.
-- **Tipografia:** `sp` no Android e Dynamic Type no iOS; teste com fonte 1.0, 1.3 e 2.0.
-- **Tema:** color roles do Material 3 / cores semânticas do iOS; dynamic color com fallback estático; dark mode de primeira classe.
-- **Listas:** virtualize (`LazyColumn`/`RecyclerView`/`List`); nada de `Column` com 100 itens.
-- **Estados:** loading, empty, error, success, offline e permissão negada.
-- **Preview:** `@Preview` no Compose (light/dark, font scale, phone/tablet) ou `tools:` no XML; capture o emulador em phone e tablet.
-- **Aceitação:** sem screenshot real do emulador, declare "não verificado".
+- **Platform first:** Android = Material 3 (Expressive when the project version supports it) + Material Symbols; iOS = HIG + SF Symbols. Never dress one platform in the other's uniform.
+- **Native controls:** use `Scaffold`, `NavigationBar`, `ModalBottomSheet`, `TextField`, `LazyColumn` (Compose), `MaterialToolbar`, `BottomNavigationView`, `RecyclerView` (XML) or the iOS equivalents — do not recreate web buttons/divs.
+- **Insets and safe areas:** status bar, navigation bar, cutout, keyboard/IME and edge-to-edge on Android 15+; no content under the notch or the keyboard.
+- **Back:** predictive back on Android and edge-swipe on iOS; do not hijack the gesture.
+- **Touch:** 48dp on Android, 44pt on iOS, with spacing between targets.
+- **Typography:** `sp` on Android and Dynamic Type on iOS; test with font scale 1.0, 1.3 and 2.0.
+- **Theme:** Material 3 color roles / iOS semantic colors; dynamic color with a static fallback; first-class dark mode.
+- **Lists:** virtualize (`LazyColumn`/`RecyclerView`/`List`); no `Column` with 100 items.
+- **States:** loading, empty, error, success, offline and permission denied.
+- **Preview:** `@Preview` in Compose (light/dark, font scale, phone/tablet) or `tools:` in XML; capture the emulator on phone and tablet.
+- **Acceptance:** without a real emulator screenshot, declare "não verificado" [not verified].
 
 ## 10. UX Writing
 
-- **CTA = ação + objeto:** "Salvar alterações", não "Enviar" ou "Continuar".
-- **Erro = o que aconteceu + como corrigir:** nunca só "Algo deu errado".
-- **Empty = o que é + próximo passo:** não deixe a tela morta.
-- **Success = o que mudou:** "Convite enviado", não "Sucesso".
-- **Consistência:** o botão "Publicar" produz o toast "Publicado"; o mesmo vocabulário do início ao fim.
-- **Voz:** sentence case, segunda pessoa, vocabulário do domínio; proibido "Seamlessly/Elevate/Unlock/Supercharge".
+- **CTA = action + object:** "Salvar alterações" [Save changes], not "Enviar" [Send] or "Continuar" [Continue].
+- **Error = what happened + how to fix it:** never just "Algo deu errado" [Something went wrong].
+- **Empty = what it is + next step:** do not leave the screen dead.
+- **Success = what changed:** "Convite enviado" [Invitation sent], not "Sucesso" [Success].
+- **Consistency:** the "Publicar" [Publish] button produces the "Publicado" [Published] toast; the same vocabulary from the start to the end.
+- **Voice:** sentence case, second person, the domain vocabulary; "Seamlessly/Elevate/Unlock/Supercharge" prohibited.
 
-## 11. Aceitação
+## 11. Acceptance
 
-Uma tela só está pronta quando **todos** os itens forem verdadeiros:
+A screen is only ready when **all** the items are true:
 
-- [ ] Direção (§1) declarada e seguida; precedência respeitada.
-- [ ] Nenhum item da deny-list (§2) sem justificativa escrita.
-- [ ] Tokens semânticos; zero hex solto no markup.
-- [ ] Todos os estados do componente (§6), inclusive success, implementados.
-- [ ] WCAG AA verificado (§8) e alvos de toque da plataforma conferidos.
-- [ ] Web: 1440px e 390px sem quebra nem scroll horizontal. Mobile: phone/tablet, light/dark e font scale 1.0/1.3/2.0.
-- [ ] `prefers-reduced-motion` / Reduce Motion respeitado.
-- [ ] UX writing revisado (§10): CTA, erro, empty e success com o vocabulário do domínio.
-- [ ] **Teste do print:** comparando o screenshot com 1 produto real da mesma categoria, existe ao menos uma decisão visual (tipografia, cor, densidade ou composição) que um template pronto não teria. Se não existir, refaça.
-- [ ] **Em tela existente:** o raio de mudança (§1.1) foi respeitado — sem mistura de dois estilos na mesma tela.
-- [ ] **Evidência:** screenshot anexado ou "não verificado" declarado; sem isso, a tela não está pronta.
+- [ ] Direction (§1) declared and followed; precedence respected.
+- [ ] No deny-list item (§2) without a written justification.
+- [ ] Semantic tokens; zero loose hex in the markup.
+- [ ] All component states (§6), including success, implemented.
+- [ ] WCAG AA verified (§8) and the platform's touch targets checked.
+- [ ] Web: 1440px and 390px without breaking or horizontal scroll. Mobile: phone/tablet, light/dark and font scale 1.0/1.3/2.0.
+- [ ] `prefers-reduced-motion` / Reduce Motion respected.
+- [ ] UX writing revised (§10): CTA, error, empty and success with the domain vocabulary.
+- [ ] **Print test:** comparing the screenshot with 1 real product of the same category, there is at least one visual decision (typography, color, density or composition) that a ready-made template would not have. If there is none, redo it.
+- [ ] **On an existing screen:** the blast radius (§1.1) was respected — no mixture of two styles on the same screen.
+- [ ] **Evidence:** screenshot attached or "não verificado" [not verified] declared; without it, the screen is not ready.
