@@ -35,3 +35,4 @@ Refer to `reference/implementation-playbook.md` for detailed patterns, checklist
 ## Resources
 
 - `reference/implementation-playbook.md` for detailed patterns, checklists, and templates.
+- `reference/async-operations.md` quando a operação passa de 1s (`202 Accepted`, monitor de operação, chave de repetição, `ETag`/`If-Match`, contrato de paginação).

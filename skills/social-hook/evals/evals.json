@@ -1,0 +1,25 @@
+{
+  "skill_name": "social-hook",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "give me 8 hooks for this post about our pricing change",
+      "expected_output": "Eight distinct hook options across different patterns, each scored 1–10 on scroll-stopping power and 1–10 on audience fit with a one-line rationale, and the top two recommended.",
+      "assertions": [
+        "Returns exactly 8 hook options",
+        "Each hook is scored on both scroll-stopping power and audience fit",
+        "Each hook has a one-line rationale",
+        "The top two are explicitly recommended"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "better opening line for this LinkedIn draft: 'I want to talk about productivity today'",
+      "expected_output": "Eight scored, varied replacement hooks that are more specific and scroll-stopping than the original throat-clearing opener.",
+      "assertions": [
+        "Returns 8 options spanning multiple hook patterns",
+        "None of the options are generic throat-clearing openers"
+      ]
+    }
+  ]
+}

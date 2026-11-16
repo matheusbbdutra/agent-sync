@@ -51,6 +51,8 @@ Ordene os achados por risco, não por gosto. Cada achado leva severidade, evidê
 
 Rubrica completa (qualidade, escalabilidade, consistência, gates): [reference/review-rubric.md](reference/review-rubric.md).
 
+Quando a discussão for escala (performance vs escalabilidade, CAP, failover, shard, cache write-behind, back pressure): [reference/scalability-tradeoffs.md](reference/scalability-tradeoffs.md).
+
 ## 5. Registrar a decisão (ADR)
 
 Decisão estruturante sem registro volta como discussão. A ADR cobre contexto, opções descartadas e consequências — inclusive as negativas.

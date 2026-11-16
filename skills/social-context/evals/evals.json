@@ -1,0 +1,24 @@
+{
+  "skill_name": "social-context",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "set up my social context",
+      "expected_output": "A focused interview of ten questions or fewer that produces a social-context.md file capturing audience, platforms, pillars, voice, and a Never list.",
+      "assertions": [
+        "Asks ten questions or fewer",
+        "Produces a social-context.md file",
+        "The file covers audience, platforms, content pillars, and a Never list"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "onboard me — re-run my social setup",
+      "expected_output": "An update pass that edits the existing social-context.md section by section without silently overwriting the user's manual edits.",
+      "assertions": [
+        "Updates the existing file rather than replacing it wholesale",
+        "Confirms before overwriting manual edits"
+      ]
+    }
+  ]
+}

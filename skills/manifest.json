@@ -135,6 +135,22 @@
       "bundleRef": "ops-core"
     },
     {
+      "id": "social-check",
+      "domain": "content"
+    },
+    {
+      "id": "social-context",
+      "domain": "content"
+    },
+    {
+      "id": "social-hook",
+      "domain": "content"
+    },
+    {
+      "id": "social-post",
+      "domain": "content"
+    },
+    {
       "id": "object-calisthenics",
       "domain": "backend-quality",
       "bundleRef": "core-dev"
@@ -177,6 +193,10 @@
         "license": "MIT",
         "skillsDir": "skills"
       }
+    },
+    {
+      "id": "product-discovery",
+      "domain": "product"
     },
     {
       "id": "exploratory-testing",

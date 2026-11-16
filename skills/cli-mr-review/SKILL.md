@@ -69,3 +69,4 @@ mr-collect-cli -provider github -repo /path/to/checkout -mr-iid 42
 ## Referências
 
 - [code-reviewer](reference/code-review-checklist.md) — catálogo de checagem por domínio na revisão de uma mudança
+- [review-standard](reference/review-standard.md) — critério de aprovação, severidade do achado (`Nit:` vs bloqueante), tamanho de mudança, prazo de resposta, conflito e escalada

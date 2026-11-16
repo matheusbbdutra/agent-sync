@@ -1,0 +1,26 @@
+{
+  "skill_name": "social-check",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "check this draft for X",
+      "expected_output": "A per-check verdict table for X that flags the post is over the limit once URLs are billed at 23 (or within, correctly counted), flags more than one link, flags hashtag overflow, and supplies a corrected draft.",
+      "files": ["evals/files/x-over-limit.txt"],
+      "assertions": [
+        "Reports a platform-accurate character count for X (URLs counted as 23)",
+        "Flags that the draft exceeds X's one-link norm",
+        "Flags that the hashtag count exceeds X's norm",
+        "Provides a corrected, ready-to-paste version of the draft"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "will this work on Instagram? 'New post is live — read it at https://example.com/post'",
+      "expected_output": "An Instagram verdict that flags the in-body link as dead text and rewrites it to a 'link in bio' or first-comment approach.",
+      "assertions": [
+        "Flags the in-body link as a problem on Instagram",
+        "Supplies a corrected link approach (link in bio or first comment)"
+      ]
+    }
+  ]
+}

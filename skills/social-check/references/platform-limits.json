@@ -1,0 +1,120 @@
+{
+  "linkedin": {
+    "name": "LinkedIn",
+    "charLimit": 3000,
+    "truncateAt": 210,
+    "urlWeight": null,
+    "emojiWeight": 1,
+    "hashtags": { "min": 0, "max": 3, "position": "end" },
+    "links": {
+      "inBody": "warn",
+      "maxLinks": null,
+      "advice": "Move links to the first comment or below the fold."
+    },
+    "media": "1.91:1–1:1 image; document posts 1:1.294; alt ≤ 300 chars"
+  },
+  "reddit": {
+    "name": "Reddit",
+    "charLimit": 10000,
+    "truncateAt": null,
+    "urlWeight": null,
+    "emojiWeight": 1,
+    "hashtags": { "min": 0, "max": 0, "position": "none" },
+    "links": {
+      "inBody": "ok",
+      "maxLinks": null,
+      "advice": "Links are normal on Reddit; put the context in the body instead of a bare URL."
+    },
+    "media": "Link post or image gallery; the title carries the hook, the body carries the argument",
+    "titleLimit": 300
+  },
+  "x": {
+    "name": "X",
+    "charLimit": 280,
+    "truncateAt": null,
+    "urlWeight": 23,
+    "emojiWeight": 2,
+    "hashtags": { "min": 0, "max": 1, "position": "inline" },
+    "links": {
+      "inBody": "ok",
+      "maxLinks": 1,
+      "advice": "One link, at the end of the post."
+    },
+    "media": "16:9 or 1:1; up to 4 images; alt ≤ 1,000 chars"
+  },
+  "instagram": {
+    "name": "Instagram",
+    "charLimit": 2200,
+    "truncateAt": 125,
+    "urlWeight": null,
+    "emojiWeight": 1,
+    "hashtags": { "min": 3, "max": 5, "position": "end" },
+    "links": {
+      "inBody": "fix",
+      "maxLinks": 0,
+      "advice": "Body links are dead text — use 'link in bio' or point to the first comment."
+    },
+    "media": "1:1, 4:5, or 1.91:1; Reels 9:16; alt text supported — use it"
+  },
+  "facebook": {
+    "name": "Facebook",
+    "charLimit": 63206,
+    "truncateAt": 250,
+    "urlWeight": null,
+    "emojiWeight": 1,
+    "hashtags": { "min": 0, "max": 2, "position": "any" },
+    "links": {
+      "inBody": "ok",
+      "maxLinks": null,
+      "advice": "Inline OK; a link-card preview beats a raw URL."
+    },
+    "media": "1.91:1 link card; 1:1 / 4:5 feed image"
+  },
+  "threads": {
+    "name": "Threads",
+    "charLimit": 500,
+    "truncateAt": null,
+    "urlWeight": null,
+    "emojiWeight": 1,
+    "hashtags": { "min": 0, "max": 1, "position": "any" },
+    "links": {
+      "inBody": "ok",
+      "maxLinks": 1,
+      "advice": "Inline OK, one link per post."
+    },
+    "media": "1:1 or 4:5; up to 20 media items"
+  },
+  "bluesky": {
+    "name": "Bluesky",
+    "charLimit": 300,
+    "truncateAt": null,
+    "urlWeight": null,
+    "emojiWeight": 1,
+    "hashtags": { "min": 0, "max": 2, "position": "any", "weak": true },
+    "links": {
+      "inBody": "ok",
+      "maxLinks": null,
+      "advice": "Inline links are native."
+    },
+    "media": "1:1 / 4:3; up to 4 images; alt text strongly normed"
+  },
+  "mastodon": {
+    "name": "Mastodon",
+    "charLimit": 500,
+    "truncateAt": null,
+    "urlWeight": 23,
+    "emojiWeight": 1,
+    "hashtags": {
+      "min": 2,
+      "max": 4,
+      "position": "any",
+      "discoveryCritical": true
+    },
+    "links": {
+      "inBody": "ok",
+      "maxLinks": null,
+      "advice": "Inline links are native."
+    },
+    "media": "Alt text strongly normed; flag its absence"
+  }
+}

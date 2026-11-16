@@ -1,0 +1,26 @@
+{
+  "skill_name": "social-post",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "write a LinkedIn post about the lesson from our failed product launch",
+      "expected_output": "Two ready-to-paste variants labeled by hook pattern, one idea each, hook within the first ~200 characters, plain text, with hook and total character counts shown.",
+      "assertions": [
+        "Produces two variants with different hook patterns",
+        "Each variant is under 3,000 characters",
+        "Each variant shows its hook and total character counts",
+        "No markdown formatting characters in the post body",
+        "Any link is handled as first-comment text, not in the body"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "post this on LinkedIn: we hit 10k users with no paid marketing",
+      "expected_output": "A single-idea LinkedIn post with a scroll-stopping hook above the fold and one specific, answerable CTA (not 'Thoughts?').",
+      "assertions": [
+        "The post argues exactly one idea",
+        "The CTA is specific and answerable, not engagement bait"
+      ]
+    }
+  ]
+}
