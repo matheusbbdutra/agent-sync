@@ -25,7 +25,7 @@ Toda resposta separa três origens: o que vem desta skill, o que vem de decisão
 | Fronteiras de módulo/time em disputa | sim | app pequena, um time, sem fronteira |
 | Evolução do modelo prevista por anos | sim | protótipo descartável |
 
-Detalhe estratégico e tático: [reference/domain-modeling.md](reference/domain-modeling.md). Carregue quando a tarefa envolver invariante, agregado ou bounded context.
+Detalhe estratégico e tático: [reference/domain-modeling.md](reference/domain-modeling.md). Carregue quando a tarefa envolver invariante, agregado ou bounded context. Quando a pergunta for **como dois contextos se relacionam** (quem é upstream, tradução, conformismo): [reference/context-mapping.md](reference/context-mapping.md).
 
 ## 2. Estilo arquitetural e dependency rule
 

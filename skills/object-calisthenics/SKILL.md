@@ -109,3 +109,4 @@ Regras são ferramentas de diagnóstico: se aplicá-las piorar a clareza, **docu
 ## Referências
 
 - [code-refactoring-refactor-clean](reference/code-refactoring-refactor-clean.md) — Plano de refactor, code smells e slices incrementais.
+- [refactoring-catalog](reference/refactoring-catalog.md) — catálogo de refactorings nomeados, mapa `smell → move`, movimentos específicos de Go, quando **não** refatorar e protocolo de segurança.
