@@ -36,6 +36,8 @@
 - **`ok` do runtime ≠ efeito aplicado**: `hyprctl eval`/`hyprctl reload` retornam `ok` só por aceitar o comando. Sempre releia o estado real (`hyprctl monitors all -j`) após cada passo; outputs desativados não aparecem em `hyprctl monitors -j`.
 - **`ok` de pipe ≠ sucesso do comando**: `cmd | head && echo OK` reporta o status do `head`; `grep -c` sem match sai 1. Use `${PIPESTATUS[0]}` ou rode sem pipe antes de declarar pronto.
 - **`build`/`install` verde ≠ artefato novo**: confira mtime/hash do binário. `go build -o X` que falha não regrava X, e um install cego propaga o binário velho.
+- **Sinal do editor ≠ compilador**: LSP/lens marcar "clean" não é build. Só declare build limpo após `go build`/`go vet` real — o editor não pega símbolo removido em outro arquivo (2026-11-16: `benchmark.go` chamava `CompressBashOutput` já deletado e o lens reportou "Go clean"; `bin/` velho continuava respondendo ao subcomando removido).
+- **Knob/flag/subcomando sem chamador é dívida, não feature**: antes de documentar ou manter, prove o chamador com `grep` no *wiring* (hooks, configs de CLI, skills) e pelo **símbolo**, não pelo nome do subcomando. Sem chamador: remova ou ligue — nunca documente como se funcionasse. Três casos em 2026-11-16 (`bash-compress`, `on-tool-call`, `AGENT_SYNC_CTX_COMPACT_AT`): todos documentados, nenhum hook os chamava.
 - **Ordem importa em mutação de layout**: desativar monitor à esquerda dispara auto-relayout que sobrescreve posição aplicada depois → reposicione o monitor remanescente ANTES de desativar.
 - **Hyprland Lua**: `disabled = true` não é revertido por `mode`/`position`; reativar exige `disabled = false` explícito.
 
