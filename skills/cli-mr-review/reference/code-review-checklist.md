@@ -1,7 +1,7 @@
 # code-reviewer
 
-> Absorvida por `cli-mr-review` (2026-11-16). Conteúdo original preservado.
-> Papel de execução fica com o subagent `code-reviewer` (`~/.pi/agent/agents/code-reviewer.md`).
+> Absorbed by `cli-mr-review` (2026-11-16). Original content preserved.
+> The execution role stays with the `code-reviewer` subagent (`~/.pi/agent/agents/code-reviewer.md`).
 
 
 ## Use this skill when

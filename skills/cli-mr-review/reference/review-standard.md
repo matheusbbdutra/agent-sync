@@ -1,111 +1,111 @@
-# Padrão de revisão
+# Review standard
 
-Fonte: Google `eng-practices` (CC BY 3.0). Reescrito; trechos literais citados entre aspas.
-Citação por arquivo#seção.
+Source: Google `eng-practices` (CC BY 3.0). Rewritten; literal excerpts quoted in quotes.
+Citation by file#section.
 
-Complementa `code-review-checklist.md` (o que inspecionar); aqui está **o critério de aprovação,
-a severidade do achado e o que fazer quando autor e revisor discordam**.
+Complements `code-review-checklist.md` (what to inspect); here is **the approval criterion,
+the finding severity and what to do when author and reviewer disagree**.
 
-## O padrão de aprovação
+## The approval standard
 
 > "reviewers should favor approving a CL once it is in a state where it definitely improves the
 > overall code health of the system being worked on, even if the CL isn't perfect"
 > — `reviewer/standard.md#The Standard of Code Review`
 
-Consequências práticas:
+Practical consequences:
 
-- Não existe código "perfeito", só código **melhor**. Segurar merge por polimento é perda da equipe,
-  não rigor (`standard.md#The Standard of Code Review`).
-- O contrapeso é a proibição de degradar: nada autoriza mergear mudança que **piora** o code health,
-  exceto emergência (`standard.md#The Standard of Code Review`).
-- Melhoria incremental justifica aprovação; "não é o design que eu faria" não justifica bloqueio.
+- There is no "perfect" code, only **better** code. Holding a merge for polish is a loss for the team,
+  not rigor (`standard.md#The Standard of Code Review`).
+- The counterweight is the prohibition on degrading: nothing authorizes merging a change that **worsens**
+  code health, except an emergency (`standard.md#The Standard of Code Review`).
+- Incremental improvement justifies approval; "it is not the design I would have done" does not justify blocking.
 
-## Severidade do comentário
+## Comment severity
 
-Marque o comentário para o autor saber o que é obrigatório (`reviewer/comments.md#Label comment severity`):
+Label the comment so the author knows what is mandatory (`reviewer/comments.md#Label comment severity`):
 
-| Marcador | Significado | Autor pode ignorar? |
+| Marker | Meaning | Can the author ignore it? |
 |---|---|---|
-| (sem prefixo) | precisa ser resolvido para aprovar | não |
-| `Nit:` | polimento, correto mas não essencial | sim |
-| `Optional:` / `Consider:` | sugestão, alternativa válida | sim |
-| `FYI:` | informação, sem ação | sim |
+| (no prefix) | must be resolved to approve | no |
+| `Nit:` | polish, correct but not essential | yes |
+| `Optional:` / `Consider:` | suggestion, valid alternative | yes |
+| `FYI:` | information, no action | yes |
 
-Regras de comentário:
+Comment rules:
 
-- Explique **por quê**, não só o quê (`comments.md#Explain Why`). Achado sem razão vira preferência
-  pessoal e abre discussão improdutiva.
-- Comentário puramente educativo já nasce `Nit:` (`standard.md#Mentoring`).
-- Pedir explicação de trecho que você não entendeu é legítimo, desde que não seja apenas
-  complexidade desnecessária (`comments.md`).
+- Explain **why**, not just what (`comments.md#Explain Why`). A finding without a reason becomes personal
+  preference and opens an unproductive discussion.
+- A purely educational comment is born as `Nit:` (`standard.md#Mentoring`).
+- Asking for an explanation of a passage you did not understand is legitimate, provided it is not merely
+  unnecessary complexity (`comments.md`).
 
-## O que conta como problema
+## What counts as a problem
 
-Fatos técnicos vencem opinião e preferência (`standard.md#Principles`). Sobre estilo, o style guide
-do projeto é autoridade; ponto de estilo ausente do guia é preferência — se não há precedente no
-código, aceite o do autor (`standard.md#Principles`).
+Technical facts beat opinion and preference (`standard.md#Principles`). On style, the project's style guide
+is the authority; a style point absent from the guide is preference — if there is no precedent in the
+code, accept the author's (`standard.md#Principles`).
 
-Em design, "quase nunca é questão de estilo": se o autor demonstra com dado ou princípio de
-engenharia que as duas opções são válidas, o revisor aceita a dele; caso contrário, decide o
-princípio de design (`standard.md#Principles`).
+In design, "almost never a matter of style": if the author demonstrates with data or an engineering
+principle that both options are valid, the reviewer accepts theirs; otherwise, the design principle decides
+(`standard.md#Principles`).
 
-Lista do que se procura (`reviewer/looking-for.md`):
+List of what is looked for (`reviewer/looking-for.md`):
 
-- design adequado ao sistema, não genérico;
-- funcionalidade faz o que o autor quis, inclusive para o usuário final;
-- mudança de UI faz sentido e não quebra fluxo;
-- concorrência/paralelismo seguros;
-- **não há complexidade além do necessário**, nem código "para o futuro" que ainda não é preciso;
-- testes unitários presentes **e bem desenhados**;
-- nomes claros para tudo;
-- comentários explicam **por quê**, não **o quê**;
-- documentação atualizada;
-- conformidade com o style guide.
+- design suited to the system, not generic;
+- functionality does what the author wanted, including for the end user;
+- UI change makes sense and does not break the flow;
+- concurrency/parallelism are safe;
+- **there is no complexity beyond what is needed**, nor "for the future" code that is not yet required;
+- unit tests present **and well designed**;
+- clear names for everything;
+- comments explain **why**, not **what**;
+- documentation up to date;
+- conformance with the style guide.
 
-## Tamanho da mudança
+## Change size
 
-Uma CL deve mudar **uma coisa** (`developer/small-cls.md`). Mudança pequena é revisada mais rápido,
-mais a fundo, com menos bug, menos retrabalho, merge e rollback mais simples
+A CL must change **one thing** (`developer/small-cls.md`). A small change is reviewed faster,
+more deeply, with fewer bugs, less rework, simpler merge and rollback
 (`small-cls.md`).
 
-Limites úteis, todos do mesmo arquivo:
+Useful limits, all from the same file:
 
-- inclua o código de teste relacionado na mesma mudança;
-- tudo que o revisor precisa para entender a mudança entra junto (exceto trabalho futuro);
-- o sistema continua funcionando para usuários e para o time depois da mudança;
-- não tão pequena que o efeito global fique incompreensível;
-- apagar um arquivo inteiro conta como uma linha.
+- include the related test code in the same change;
+- everything the reviewer needs to understand the change goes in together (except future work);
+- the system keeps working for users and for the team after the change;
+- not so small that the global effect becomes incomprehensible;
+- deleting an entire file counts as one line.
 
-## Velocidade
+## Speed
 
 > "One business day is the maximum time it should take to respond to a code review request"
 > — `reviewer/speed.md`
 
-- O que se otimiza é a velocidade do **time**, não a conveniência do revisor
+- What is optimized is the **team's** speed, not the reviewer's convenience
   (`speed.md`).
-- Revisão lenta não é neutra: aumenta a chance de degradação do code health pelo acúmulo de atalhos
+- A slow review is not neutral: it increases the chance of code health degradation through the accumulation of shortcuts
   (`speed.md`).
-- Resposta rápida ao longo do processo é mais barata para o time do que uma revisão "perfeita" tardia
+- A fast response throughout the process is cheaper for the team than a late "perfect" review
   (`speed.md`).
-- Aprovar quando: o revisor confia que os pontos serão tratados, e os comentários restantes não
-  **precisam** ser resolvidos (`speed.md`).
+- Approve when: the reviewer trusts that the points will be handled, and the remaining comments do not
+  **need** to be resolved (`speed.md`).
 
-## Conflito e escalada
+## Conflict and escalation
 
-Ordem de resolução (`standard.md#Resolving Conflicts`):
+Resolution order (`standard.md#Resolving Conflicts`):
 
-1. consenso com base no guia de revisão;
-2. conversa direta (presencial/vídeo) quando o comentário não resolve — e o resultado **precisa**
-   ser registrado como comentário na mudança;
-3. escalada: discussão de time, tech lead, maintainer ou eng manager.
+1. consensus based on the review guide;
+2. direct conversation (in person/video) when the comment does not resolve it — and the result **must**
+   be recorded as a comment on the change;
+3. escalation: team discussion, tech lead, maintainer or eng manager.
 
 > "Don't let a CL sit around because the author and the reviewer can't come to an agreement."
 > — `standard.md#Resolving Conflicts`
 
-## Tradução para revisão local (`cli-mr-review`)
+## Translation to local review (`cli-mr-review`)
 
-- Todo achado do relatório recebe severidade: sem prefixo = bloqueia aprovação; `Nit:` não bloqueia.
-- Achado sem "por quê" e sem referência (linha, regra, doc) volta para reescrita, não para o autor.
-- Aprovação se decide por "melhora o code health", não por checklist completo.
-- Mudança grande demais para revisar de verdade é achado de primeira ordem: peça split
-  (`small-cls.md`), não aprove por cansaço.
+- Every finding in the report receives a severity: no prefix = blocks approval; `Nit:` does not block.
+- A finding without a "why" and without a reference (line, rule, doc) goes back for rewriting, not to the author.
+- Approval is decided by "improves code health", not by a complete checklist.
+- A change too large to review for real is a first-order finding: ask for a split
+  (`small-cls.md`), do not approve out of tiredness.

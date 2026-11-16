@@ -1,64 +1,64 @@
 ---
 name: product-discovery
-description: "Use when descobrir e validar um problema de produto antes de construir: hipótese de produto, queda de retenção/churn, roteiro de entrevista com cliente, priorização com RICE/ICE e corte de roadmap, e quem decide o quê (DACI). Processo de discovery em 6 fases com portão de saída verificável e condição de matar a iniciativa. Não gera ideias em aberto (product-brainstorming) nem audita produto já pronto (gtp)."
+description: "Use when discovering and validating a product problem before building: product hypothesis, retention/churn drop, customer interview script, prioritization with RICE/ICE and roadmap cut, and who decides what (DACI). Discovery process in 6 phases with a verifiable exit gate and a condition to kill the initiative. Does not generate open-ended ideas (product-brainstorming) nor audit a product that is already built (gtp)."
 ---
 
 # Product Discovery
 
-Discovery responde **"o problema existe e vale resolver agora?"** — não "como implementar". O erro caro não é escolher a solução errada: é construir com confiança uma solução para um problema que ninguém confirmou. Cada fase abaixo termina em um artefato e um portão; sem o artefato, a fase não fechou.
+Discovery answers **"does the problem exist and is it worth solving now?"** — not "how to implement". The expensive mistake is not choosing the wrong solution: it is building with confidence a solution to a problem nobody confirmed. Each phase below ends in an artifact and a gate; without the artifact, the phase did not close.
 
-Discovery não é ideação (`product-brainstorming`), não é teste de usabilidade de solução pronta e não substitui entrega — roda em paralelo, tipicamente 1-2 ciclos por trimestre ([discovery-process](reference/discovery-loop.md#quando-usar)).
+Discovery is not ideation (`product-brainstorming`), is not usability testing of a finished solution and does not replace delivery — it runs in parallel, typically 1-2 cycles per quarter ([discovery-process](reference/discovery-loop.md#when-to-use)).
 
 ## Use this skill when
 
-- Existe uma hipótese de produto ("usuários abandonam por causa de X") e ainda não há evidência.
-- Retenção, ativação ou churn caíram e a causa é desconhecida.
-- É preciso montar roteiro e amostra de entrevista com cliente, ou revisar um roteiro que induz resposta.
-- Vai-se decidir o que entra no roadmap e é preciso score defensável + dono da decisão.
-- Uma iniciativa precisa de condição explícita de cancelamento antes de ganhar budget.
-- Alguém pediu uma feature e é preciso separar pedido de problema.
+- There is a product hypothesis ("users abandon because of X") and there is no evidence yet.
+- Retention, activation or churn dropped and the cause is unknown.
+- A customer interview script and sample must be assembled, or a script that leads the answer must be reviewed.
+- What goes into the roadmap is about to be decided and a defensible score + decision owner are needed.
+- An initiative needs an explicit kill condition before it gets budget.
+- Someone asked for a feature and the request must be separated from the problem.
 
 ## Do not use this skill when
 
-- O objetivo é gerar ou expandir alternativas de solução → `product-brainstorming`.
-- O produto já existe e o pedido é interrogá-lo do ponto de vista do usuário → `gtp`.
-- A decisão é técnica (trade-off de arquitetura, escolha de biblioteca) → `architecture`, `backend`.
-- A decisão é sobre medir qualidade de saída de LLM → `llm-eval`.
-- O problema é gestão de execução (sprint, tarefa, prazo) — não é discovery.
+- The goal is to generate or expand solution alternatives → `product-brainstorming`.
+- The product already exists and the request is to interrogate it from the user's point of view → `gtp`.
+- The decision is technical (architecture trade-off, library choice) → `architecture`, `backend`.
+- The decision is about measuring LLM output quality → `llm-eval`.
+- The problem is execution management (sprint, task, deadline) — it is not discovery.
 
 ## Instructions
 
-Curto-circuito a fase só quando a saída dela já existe e está escrita.
+Short-circuit a phase only when its output already exists and is written.
 
-1. **Enquadre o problema em uma frase falsificável** antes de qualquer entrevista: "Acreditamos que [persona] sofre com [problema] porque [causa raiz], levando a [consequência]." Sem persona, causa e consequência, não é hipótese — é assunto ([Phase 1](reference/discovery-loop.md#fase-1--enquadrar-o-problema)). Saída: 1 hipótese, 3-5 perguntas de pesquisa, critério de validação/invalidação.
-2. **Defina amostra e roteiro antes de agendar**: quem (segmento e papel), quantos, e o que cada pergunta tenta falsificar. Roteiro com pergunta no futuro, hipotética ou de opinião sobre a ideia está errado ([biases](reference/discovery-loop.md#roteiro-e-vieses)).
-3. **Conduza até saturação, não até o calendário**: saturação é a mesma dor aparecendo em 3+ entrevistas sem insight novo; na prática fecha em 5-7 entrevistas. Não saturou → mais 3-5, e registre esse custo ([Decision Point 2](reference/discovery-loop.md#fase-3--conduzir)).
-4. **Separe evidência de opinião na síntese**: evidência é o que a pessoa fez ou pagou; "eu usaria" é opinião. Registre a dor com a contagem de entrevistas que a sustentam e o que ficou de fora ([Fase 4](reference/discovery-loop.md#fase-4--sintetizar)).
-5. **Mapeie as 5 categorias de risco antes de escolher solução**: desejável, usável, viável, factível, ético — e diga qual evidência falta em cada uma. Suposição sem evidência e de alta importância é onde o experimento vai ([assumption map](reference/discovery-loop.md#fase-5--soluções-e-experimento)).
-6. **Gere soluções como árvore, não como lista**: 1 outcome → 3 oportunidades → 3 soluções por oportunidade → 1 experimento por solução escolhida ([OST](reference/discovery-loop.md#fase-5--soluções-e-experimento)).
-7. **Escolha o framework de priorização pelo estágio, não pelo gosto**: RICE exige dados de reach/impact; pré-product-market-fit com RICE é erro de encaixe ([prioritization](reference/prioritization.md#escolher-o-framework-pelo-estágio)). Registre o framework usado e quando ele será reavaliado.
-8. **Nomeie a condição de cancelamento junto com a de sucesso**: "matamos se [métrica] não atingir [limiar] em [prazo]". Sem kill condition, o experimento só confirma ([Pitfall 5](reference/discovery-loop.md#condição-de-cancelamento)).
-9. **Feche com GO / PIVOT / KILL explícito** contra 4 critérios: problema validado, solução validada, encaixe estratégico, factível. Decisão que não é nenhum dos três não foi tomada ([Phase 6](reference/discovery-loop.md#fase-6--decidir-e-documentar)).
-10. **Atribua um único dono por decisão** e escreva no decision log: o que foi decidido, quem decidiu, quem foi consultado, data e o que reabriria ([DACI](reference/prioritization.md#direito-de-decisão-daci)).
+1. **Frame the problem in one falsifiable sentence** before any interview: "We believe that [persona] suffers from [problem] because [root cause], leading to [consequence]." Without persona, cause and consequence, it is not a hypothesis — it is a topic ([Phase 1](reference/discovery-loop.md#phase-1--frame-the-problem)). Output: 1 hypothesis, 3-5 research questions, validation/invalidation criterion.
+2. **Define the sample and the script before scheduling**: who (segment and role), how many, and what each question tries to falsify. A script with a question in the future, hypothetical, or of opinion about the idea is wrong ([biases](reference/discovery-loop.md#script-and-biases)).
+3. **Conduct until saturation, not until the calendar**: saturation is the same pain appearing in 3+ interviews with no new insight; in practice it closes at 5-7 interviews. Not saturated → 3-5 more, and record that cost ([Decision Point 2](reference/discovery-loop.md#phase-3--conduct)).
+4. **Separate evidence from opinion in the synthesis**: evidence is what the person did or paid; "I would use it" is opinion. Record the pain with the count of interviews that support it and what was left out ([Phase 4](reference/discovery-loop.md#phase-4--synthesize)).
+5. **Map the 5 risk categories before choosing a solution**: desirable, usable, viable, feasible, ethical — and say which evidence is missing in each one. An assumption without evidence and of high importance is where the experiment goes ([assumption map](reference/discovery-loop.md#phase-5--solutions-and-experiment)).
+6. **Generate solutions as a tree, not as a list**: 1 outcome → 3 opportunities → 3 solutions per opportunity → 1 experiment per chosen solution ([OST](reference/discovery-loop.md#phase-5--solutions-and-experiment)).
+7. **Choose the prioritization framework by stage, not by taste**: RICE requires reach/impact data; pre-product-market-fit with RICE is a fit error ([prioritization](reference/prioritization.md#choosing-the-framework-by-stage)). Record the framework used and when it will be reassessed.
+8. **Name the kill condition together with the success one**: "we kill it if [metric] does not reach [threshold] within [timeframe]". Without a kill condition, the experiment only confirms ([Pitfall 5](reference/discovery-loop.md#kill-condition)).
+9. **Close with an explicit GO / PIVOT / KILL** against 4 criteria: problem validated, solution validated, strategic fit, feasible. A decision that is none of the three was not made ([Phase 6](reference/discovery-loop.md#phase-6--decide-and-document)).
+10. **Assign a single owner per decision** and write it in the decision log: what was decided, who decided, who was consulted, date and what would reopen it ([DACI](reference/prioritization.md#decision-rights-daci)).
 
-## Portão de honestidade
+## Honesty gate
 
-Reprove a fase que falhe em qualquer item:
+Fail the phase that misses any item:
 
-- [ ] A hipótese nomeia persona, causa e consequência — e pode ser falsificada.
-- [ ] Toda dor citada tem contagem de entrevistas e pelo menos uma citação literal registrada.
-- [ ] Nenhuma conclusão depende de uma única voz (diga de quem você **não** ouviu).
-- [ ] Cada suposição crítica tem evidência ou experimento designado, com limiar numérico.
-- [ ] Existe kill condition escrita antes do resultado.
-- [ ] A decisão final é GO, PIVOT ou KILL, com dono e data no log.
+- [ ] The hypothesis names persona, cause and consequence — and can be falsified.
+- [ ] Every pain cited has an interview count and at least one literal quote recorded.
+- [ ] No conclusion depends on a single voice (say who you did **not** hear).
+- [ ] Each critical assumption has evidence or a designated experiment, with a numeric threshold.
+- [ ] A kill condition is written before the result.
+- [ ] The final decision is GO, PIVOT or KILL, with owner and date in the log.
 
-## Referências
+## References
 
-- [discovery-loop](reference/discovery-loop.md) — 6 fases, hipótese, amostra, roteiro e vieses, saturação, síntese, opportunity solution tree, assumption map, kill condition, decisão.
-- [prioritization](reference/prioritization.md) — escolha de framework por estágio, RICE/ICE, template de score, DACI/RACI, decision log.
+- [discovery-loop](reference/discovery-loop.md) — 6 phases, hypothesis, sample, script and biases, saturation, synthesis, opportunity solution tree, assumption map, kill condition, decision.
+- [prioritization](reference/prioritization.md) — framework choice by stage, RICE/ICE, score template, DACI/RACI, decision log.
 
-## Fontes
+## Sources
 
-- `deanpeters/Product-Manager-Skills` — `skills/discovery-process` (6 fases, saturação, GO/PIVOT/KILL), `skills/opportunity-solution-tree` (4 níveis), `skills/assumption-mapping` (5 riscos, evidência vs opinião), `skills/discovery-interview-prep` (vieses e pares pergunta/resposta), `skills/prioritization-advisor` (paisagem de frameworks, fórmula RICE), `skills/decision-rights-matrix` (RACI vs DACI, um decisor).
-- `dend/awesome-product-management` (CC0-1.0) — índice de leitura; base canônica: Torres, *Continuous Discovery Habits*; Cagan, *Inspired*.
-- Conteúdo reescrito; nenhum trecho literal das fontes. A fonte primária é CC BY-NC-SA 4.0 — não copie texto dela para este repo.
+- `deanpeters/Product-Manager-Skills` — `skills/discovery-process` (6 phases, saturation, GO/PIVOT/KILL), `skills/opportunity-solution-tree` (4 levels), `skills/assumption-mapping` (5 risks, evidence vs opinion), `skills/discovery-interview-prep` (biases and question/answer pairs), `skills/prioritization-advisor` (framework landscape, RICE formula), `skills/decision-rights-matrix` (RACI vs DACI, one decision maker).
+- `dend/awesome-product-management` (CC0-1.0) — reading index; canonical basis: Torres, *Continuous Discovery Habits*; Cagan, *Inspired*.
+- Rewritten content; no literal excerpt from the sources. The primary source is CC BY-NC-SA 4.0 — do not copy text from it into this repo.

@@ -1,162 +1,163 @@
-# Discovery loop — 6 fases com portão
+# Discovery loop — 6 phases with a gate
 
-Fonte primária: `deanpeters/Product-Manager-Skills`, `skills/discovery-process/SKILL.md` (CC BY-NC-SA 4.0).
-Reescrito; nenhuma frase copiada. Citação por seção, não por página — o material é markdown.
+Primary source: `deanpeters/Product-Manager-Skills`, `skills/discovery-process/SKILL.md` (CC BY-NC-SA 4.0).
+Rewritten; no sentence copied. Citation by section, not by page — the material is markdown.
 
-## Quando usar
+## When to use
 
-O ciclo roda em 2-4 semanas e serve para explorar área nova, investigar queda de retenção/churn,
-validar iniciativa antes de comprometer roadmap, e manter toque semanal com cliente
+The cycle runs in 2-4 weeks and serves to explore a new area, investigate a retention/churn drop,
+validate an initiative before committing the roadmap, and keep a weekly touch with the customer
 (`discovery-process#Key Concepts`).
 
-Não use quando:
+Do not use when:
 
-- o problema já está bem entendido → vá para execução;
-- o stakeholder já se comprometeu com a solução → resolva o alinhamento primeiro;
-- é bug tático ou dívida técnica → não há o que descobrir.
+- the problem is already well understood → go to execution;
+- the stakeholder has already committed to the solution → resolve the alignment first;
+- it is a tactical bug or technical debt → there is nothing to discover.
 
-Discovery **não é** pesquisa em cascata (waterfall) feita uma vez antes do dev, **não é** teste de
-usabilidade — teste valida solução, discovery valida problema — e **não substitui** entrega
-(`discovery-process#Anti-Patterns`).
+Discovery **is not** cascading (waterfall) research done once before dev, **is not** usability
+testing — a test validates the solution, discovery validates the problem — and **does not replace**
+delivery (`discovery-process#Anti-Patterns`).
 
-## Fase 1 — Enquadrar o problema
+## Phase 1 — Frame the problem
 
-Saída obrigatória:
+Mandatory output:
 
 ```text
-Hipótese: Acreditamos que [persona] sofre com [problema] porque [causa raiz], levando a [consequência].
-Perguntas de pesquisa: 3-5, cada uma falsificável por evidência de cliente.
-Critério: o que valida / o que invalida o problema.
+Hypothesis: We believe that [persona] suffers from [problem] because [root cause], leading to [consequence].
+Research questions: 3-5, each one falsifiable by customer evidence.
+Criterion: what validates / what invalidates the problem.
 ```
 
-Regras:
+Rules:
 
-- Sem persona, causa e consequência a frase vira assunto. Causa raiz explícita é o que permite
-  escolher o experimento depois (`discovery-process#Outputs from Phase 1`).
-- Perguntas de pesquisa precisam ser respondíveis por comportamento passado, não por intenção.
-- Se o segmento está nebuloso, personas são hipótese a testar, não retrato de mercado.
-- Se a motivação do cliente está nebulosa, escreva o job (o progresso que ele tenta obter), não a
-  feature que ele pediu (`discovery-process#Phase 1: Frame the Problem`).
+- Without persona, cause and consequence the sentence becomes a topic. An explicit root cause is
+  what allows choosing the experiment later (`discovery-process#Outputs from Phase 1`).
+- Research questions must be answerable by past behavior, not by intention.
+- If the segment is fuzzy, personas are a hypothesis to test, not a picture of the market.
+- If the customer motivation is fuzzy, write the job (the progress they try to get), not the
+  feature they asked for (`discovery-process#Phase 1: Frame the Problem`).
 
-Portão: a hipótese pode ser falsificada com uma entrevista? Se não, reescreva antes de agendar.
+Gate: can the hypothesis be falsified with one interview? If not, rewrite it before scheduling.
 
-## Roteiro e vieses
+## Script and biases
 
-O roteiro existe para **não induzir**. Pares verificados no material — à esquerda o erro, à direita
-a pergunta utilizável (`discovery-interview-prep#Biases to Avoid`):
+The script exists in order to **not lead**. Pairs verified in the material — on the left the
+mistake, on the right the usable question (`discovery-interview-prep#Biases to Avoid`):
 
-| Viés | Não pergunte | Pergunte |
+| Bias | Do not ask | Ask |
 |---|---|---|
-| Confirmação | "Você não acha que X é um problema?" | "Me conte como você vive X hoje." |
-| Pergunta indutiva | "Você usaria isto?" | "O que já tentou? Por que funcionou ou falhou?" |
-| Hipotético | "Se construíssemos Y, você pagaria?" | "Pelo que você paga hoje? Por quê?" |
-| Pitch disfarçado de pesquisa | "Estamos construindo Z para resolver X" | "Estou estudando X. Me conte sua experiência." |
-| Sim/não | "Faturar é difícil?" | "Me mostre seu processo de faturamento." |
+| Confirmation | "Don't you think X is a problem?" | "Tell me how you live X today." |
+| Leading question | "Would you use this?" | "What have you already tried? Why did it work or fail?" |
+| Hypothetical | "If we built Y, would you pay?" | "What do you pay for today? Why?" |
+| Pitch disguised as research | "We are building Z to solve X" | "I am studying X. Tell me your experience." |
+| Yes/no | "Is billing hard?" | "Show me your billing process." |
 
-Estrutura de sessão: abertura curta (5 min), núcleo (30-40 min), fechamento (5 min)
+Session structure: short opening (5 min), core (30-40 min), closing (5 min)
 (`discovery-interview-prep#Interview Framework`).
 
-Amostra: defina segmento **e papel** (usuário, comprador, quem opera, quem aprova) — cada papel vê
-um risco diferente. Registre quem faltou: conclusão apoiada em uma voz é hipótese, não achado
-(`assumption-mapping#Generating Them`).
+Sample: define segment **and role** (user, buyer, who operates, who approves) — each role sees a
+different risk. Record who was missing: a conclusion supported by one voice is a hypothesis, not a
+finding (`assumption-mapping#Generating Them`).
 
-## Fase 3 — Conduzir
+## Phase 3 — Conduct
 
-Saturação é o critério de parada, não o número redondo de entrevistas: **a mesma dor apareceu em
-3+ entrevistas e nada novo surgiu**. Na prática fecha em **5-7 entrevistas**; se ainda aprende algo
-novo, agende **3-5** e conte o custo de +1 semana (`discovery-process#Decision Point 2`).
+Saturation is the stopping criterion, not the round number of interviews: **the same pain appeared
+in 3+ interviews and nothing new came up**. In practice it closes at **5-7 interviews**; if you
+still learn something new, schedule **3-5** and count the cost of +1 week
+(`discovery-process#Decision Point 2`).
 
-Registro por entrevista, mínimo:
+Record per interview, minimum:
 
-- citação literal da dor (palavras da pessoa, não parafrase);
-- o que ela **fez** a respeito (workaround, gasto, abandono);
-- papel e contexto (empresa, porte, ferramenta atual);
-- o que a entrevista contradisse do que você achava.
+- literal quote of the pain (the person's words, do not paraphrase);
+- what they **did** about it (workaround, spend, abandonment);
+- role and context (company, size, current tool);
+- what the interview contradicted of what you thought.
 
-## Fase 4 — Sintetizar
+## Phase 4 — Synthesize
 
-Agrupe por dor, não por pessoa. Para cada dor: contagem de entrevistas que a sustentam, citação
-representativa, workaround observado e o que ainda não se sabe.
+Group by pain, not by person. For each pain: count of interviews that support it, representative
+quote, observed workaround and what is not known yet.
 
-Evidência é o que aconteceu: ação, gasto, abandono, tempo perdido. Opinião — inclusive elogio — não
-é evidência (`assumption-mapping#Evidence Is What Happened, Not What Was Said`).
+Evidence is what happened: action, spend, abandonment, wasted time. Opinion — including praise — is
+not evidence (`assumption-mapping#Evidence Is What Happened, Not What Was Said`).
 
-Síntese que não muda nenhuma decisão é relatório, não síntese.
+A synthesis that changes no decision is a report, not a synthesis.
 
-## Fase 5 — Soluções e experimento
+## Phase 5 — Solutions and experiment
 
-Estrutura obrigatória (opportunity solution tree, `opportunity-solution-tree#What is an Opportunity Solution Tree (OST)?`):
+Mandatory structure (opportunity solution tree, `opportunity-solution-tree#What is an Opportunity Solution Tree (OST)?`):
 
 ```text
-Outcome desejado (1 métrica de negócio)
-├── Oportunidade 1 ── solução A / B / C
-├── Oportunidade 2 ── solução A / B / C
-└── Oportunidade 3 ── solução A / B / C
+Desired outcome (1 business metric)
+├── Opportunity 1 ── solution A / B / C
+├── Opportunity 2 ── solution A / B / C
+└── Opportunity 3 ── solution A / B / C
 ```
 
-Regras:
+Rules:
 
-- Oportunidade é **problema do cliente**, não feature disfarçada — "precisa de dashboard" é solução
-  (`opportunity-solution-tree#Pitfall 1: Opportunities Disguised as Solutions`).
-- Diverja antes de convergir: 3 soluções por oportunidade antes de escolher a POC
+- An opportunity is a **customer problem**, not a disguised feature — "needs a dashboard" is a
+  solution (`opportunity-solution-tree#Pitfall 1: Opportunities Disguised as Solutions`).
+- Diverge before converging: 3 solutions per opportunity before choosing the POC
   (`opportunity-solution-tree#Pitfall 2: Skipping Divergence`).
-- Outcome vago ("melhorar experiência") não permite medir; ancore em uma métrica
+- A vague outcome ("improve experience") does not allow measuring; anchor it in a metric
   (`opportunity-solution-tree#Pitfall 3: Outcome is Too Vague`).
-- Toda solução escolhida leva um experimento: o que mede, limiar, custo, prazo.
+- Every chosen solution carries an experiment: what it measures, threshold, cost, timeframe.
 
 ### Assumption map
 
-Ordene cada suposição por **importância** (quanto dói se estiver errada) × **evidência** (quanto já
-se sabe). O quadrante de alta importância e baixa evidência é a fila do experimento
+Order each assumption by **importance** (how much it hurts if it is wrong) × **evidence** (how much
+is already known). The high-importance and low-evidence quadrant is the experiment queue
 (`assumption-mapping#Importance by Evidence`).
 
-Cinco categorias de risco — classifique cada suposição em uma
+Five risk categories — classify each assumption into one
 (`assumption-mapping#Five Kinds of Risk`):
 
-| Tipo | Pergunta |
+| Type | Question |
 |---|---|
-| Desejável | O cliente quer, e resolve dor que ele sente? |
-| Usável | Ele consegue usar sem ajuda? |
-| Viável | Funciona para o negócio: receita, custo, canal, legal? |
-| Factível | Dá para construir e operar? |
-| Ético | Pode causar dano ou quebrar confiança? |
+| Desirable | Does the customer want it, and does it solve a pain they feel? |
+| Usable | Can they use it without help? |
+| Viable | Does it work for the business: revenue, cost, channel, legal? |
+| Feasible | Can it be built and operated? |
+| Ethical | Can it cause harm or break trust? |
 
-Gere suposições perguntando "o que teria de ser verdade?" ao longo da história inteira — primeiro
-contato, uso, pagamento, renovação —, por papel. Inclua as entediantes: "o time terá tempo",
-"jurídico aprovará" (`assumption-mapping#Generating Them`).
+Generate assumptions by asking "what would have to be true?" along the whole story — first
+contact, use, payment, renewal —, by role. Include the boring ones: "the team will have time",
+"legal will approve" (`assumption-mapping#Generating Them`).
 
-## Condição de cancelamento
+## Kill condition
 
-Escreva antes do resultado, não depois:
+Write it before the result, not after:
 
 ```text
-Matamos se [métrica] não atingir [limiar] até [data].
-Seguimos se [métrica] atingir [limiar] em [amostra mínima].
+We kill if [metric] does not reach [threshold] by [date].
+We continue if [metric] reaches [threshold] in [minimum sample].
 ```
 
-Suposição sem kill condition vira projeto por inércia — é pitfall explícito do material
-(`assumption-mapping#Pitfall 5: No Kill Condition`).
+An assumption without a kill condition becomes a project by inertia — it is an explicit pitfall of
+the material (`assumption-mapping#Pitfall 5: No Kill Condition`).
 
-## Fase 6 — Decidir e documentar
+## Phase 6 — Decide and document
 
-Decisão é sempre uma das três (`discovery-process#Phase 6: Decide & Document`):
+The decision is always one of the three (`discovery-process#Phase 6: Decide & Document`):
 
-- **GO** — vai para roadmap, com épico escrito como hipótese e critério de sucesso.
-- **PIVOT** — problema validado, solução não; volte para a árvore.
-- **KILL** — problema real, mas não agora; registre por quê para não redescobrir.
+- **GO** — goes to the roadmap, with the epic written as a hypothesis and success criterion.
+- **PIVOT** — problem validated, solution not; go back to the tree.
+- **KILL** — real problem, but not now; record why so it is not rediscovered.
 
-Quatro critérios simultâneos para GO: problema validado (fases 3-4), solução validada (fase 5),
-encaixe estratégico, factível (`discovery-process#Phase 6: Decide & Document`).
+Four simultaneous criteria for GO: problem validated (phases 3-4), solution validated (phase 5),
+strategic fit, feasible (`discovery-process#Phase 6: Decide & Document`).
 
-Readout de 30 min: o que foi validado sobre o problema, o que foi validado sobre a solução,
-recomendação e o que muda se ela for aceita.
+30 min readout: what was validated about the problem, what was validated about the solution,
+recommendation and what changes if it is accepted.
 
-## Pitfalls que invalidam o ciclo
+## Pitfalls that invalidate the cycle
 
-Extraídos do material (`discovery-process#Common Pitfalls`):
+Extracted from the material (`discovery-process#Common Pitfalls`):
 
-1. **Pular entrevistas** e "validar" com dados de analytics — analytics diz onde, não por quê.
-2. **Pergunta indutiva** — a resposta confirma o que você queria ouvir.
-3. **Não saturar** — decide com 2 conversas e uma planilha.
-4. **Paralisia de análise** — discovery infinito para não ter de decidir.
-5. **Discovery como evento único** — depois da primeira entrega, ninguém volta a falar com cliente.
+1. **Skipping interviews** and "validating" with analytics data — analytics says where, not why.
+2. **Leading question** — the answer confirms what you wanted to hear.
+3. **Not saturating** — deciding with 2 conversations and a spreadsheet.
+4. **Analysis paralysis** — endless discovery so as not to have to decide.
+5. **Discovery as a one-off event** — after the first delivery, nobody talks to the customer again.

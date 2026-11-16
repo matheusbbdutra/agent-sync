@@ -1,38 +1,39 @@
-# Priorização e direito de decisão
+# Prioritization and decision rights
 
-Fonte primária: `deanpeters/Product-Manager-Skills`, `skills/prioritization-advisor/SKILL.md` e
-`skills/decision-rights-matrix/SKILL.md` (CC BY-NC-SA 4.0). Reescrito; nenhuma frase copiada.
+Primary source: `deanpeters/Product-Manager-Skills`, `skills/prioritization-advisor/SKILL.md` and
+`skills/decision-rights-matrix/SKILL.md` (CC BY-NC-SA 4.0). Rewritten; no sentence copied.
 
-Priorização é decisão, não planilha. Duas perguntas separadas: **qual framework encaixa no estágio**
-e **quem decide**. Escolher o score sem definir o decisor produz número que ninguém segue.
+Prioritization is a decision, not a spreadsheet. Two separate questions: **which framework fits the
+stage** and **who decides**. Choosing the score without defining the decision maker produces a
+number nobody follows.
 
-## Escolher o framework pelo estágio
+## Choosing the framework by stage
 
-Escolha por estágio, contexto de time, tipo de decisão e dados disponíveis — não por preferência
-(`prioritization-advisor#Application`, perguntas 1-4).
+Choose by stage, team context, decision type and available data — not by preference
+(`prioritization-advisor#Application`, questions 1-4).
 
-| Situação | Framework | Por que |
+| Situation | Framework | Why |
 |---|---|---|
-| Há dados de uso e métricas por iniciativa | **RICE** | Exige reach e impacto estimáveis |
-| Sem dados, decisão rápida | **ICE** (impact, confidence, ease) | Gut-check estruturado |
-| Escolha visual de portfólio | **Value × Effort** (2×2) | Quick wins vs apostas estratégicas |
-| Múltiplos critérios já acordados | **Weighted scoring** | Critérios com peso declarado |
-| Precisa arrancar escolha dura | **MoSCoW** | Forcing function |
-| Prazo e janela importam mais que valor | **Cost of Delay** | Urgência |
-| Objetivo → iniciativa | **Impact mapping** | Amarra feature a outcome |
-| Jornada do usuário | **Story mapping** | Fluxo narrativo |
-| Básico vs delighter | **Kano** | Classe de satisfação |
-| Lacuna de satisfação | **Opportunity scoring** | Importância × satisfação |
-| Cliente aloca budget | **Buy-a-Feature** | Preferência com restrição |
+| There is usage data and metrics per initiative | **RICE** | Requires estimable reach and impact |
+| No data, quick decision | **ICE** (impact, confidence, ease) | Structured gut-check |
+| Visual portfolio choice | **Value × Effort** (2×2) | Quick wins vs strategic bets |
+| Multiple criteria already agreed | **Weighted scoring** | Criteria with declared weight |
+| Needs to force a hard choice | **MoSCoW** | Forcing function |
+| Deadline and window matter more than value | **Cost of Delay** | Urgency |
+| Objective → initiative | **Impact mapping** | Ties feature to outcome |
+| User journey | **Story mapping** | Narrative flow |
+| Basic vs delighter | **Kano** | Satisfaction class |
+| Satisfaction gap | **Opportunity scoring** | Importance × satisfaction |
+| Customer allocates budget | **Buy-a-Feature** | Preference with constraint |
 
-Regras:
+Rules:
 
-- **Pré-product-market-fit com RICE é erro de encaixe**: não existe reach confiável antes de saber
-  quem é o cliente (`prioritization-advisor#Example 2: Bad Framework Match`).
-- Trocar de framework a cada ciclo é whiplash: ninguém aprende a ler o score
+- **Pre-product-market-fit with RICE is a fit error**: there is no reliable reach before knowing
+  who the customer is (`prioritization-advisor#Example 2: Bad Framework Match`).
+- Changing framework every cycle is whiplash: nobody learns to read the score
   (`prioritization-advisor#Pitfall 2: Framework Whiplash`).
-- Declare **quando reavaliar**: mudança de estágio, reorganização de time, mudança de stakeholder,
-  ou quando o framework começa a atrapalhar (`prioritization-advisor#Reassess When`).
+- Declare **when to reassess**: stage change, team reorganization, stakeholder change,
+  or when the framework starts getting in the way (`prioritization-advisor#Reassess When`).
 
 ## RICE
 
@@ -40,82 +41,83 @@ Regras:
 score = (Reach × Impact × Confidence) / Effort
 ```
 
-Escalas verificadas no material (`prioritization-advisor#Step 1: Define Scoring Criteria`):
+Scales verified in the material (`prioritization-advisor#Step 1: Define Scoring Criteria`):
 
-- **Reach** — quantos usuários por mês/trimestre.
-- **Impact** — 1 = mínimo, 2 = alto, 3 = massivo.
-- **Confidence** — 50% (dado fraco), 80% (dado bom), 100% (certeza).
-- **Effort** — pessoa-mês, incluindo design, engenharia e QA.
+- **Reach** — how many users per month/quarter.
+- **Impact** — 1 = minimal, 2 = high, 3 = massive.
+- **Confidence** — 50% (weak data), 80% (good data), 100% (certainty).
+- **Effort** — person-month, including design, engineering and QA.
 
-Regras de uso:
+Usage rules:
 
-- Pontue com PM, design e engenharia juntos; PM sozinho pontuando é pitfall explícito
+- Score with PM, design and engineering together; a PM scoring alone is an explicit pitfall
   (`prioritization-advisor#Pitfall 4: Solo PM Scoring`).
-- Não infle Confidence para fazer a iniciativa subir — é o campo que mais distorce
+- Do not inflate Confidence to make the initiative climb — it is the field that distorts the most
   (`prioritization-advisor#Step 2: Score Each Feature`).
-- Ordene por score, revise o top 10-20 com stakeholders e ajuste por estratégia; o score não captura
-  tudo (`prioritization-advisor#Step 4: Review and Adjust`).
-- Score é insumo, não veredito (`prioritization-advisor#Pitfall 3: Treating Scores as Gospel`).
+- Sort by score, review the top 10-20 with stakeholders and adjust by strategy; the score does not
+  capture everything (`prioritization-advisor#Step 4: Review and Adjust`).
+- A score is an input, not a verdict (`prioritization-advisor#Pitfall 3: Treating Scores as Gospel`).
 
-Template mínimo:
+Minimum template:
 
-| Iniciativa | Reach | Impact | Confidence | Effort | Score | Evidência de reach |
+| Initiative | Reach | Impact | Confidence | Effort | Score | Reach evidence |
 |---|---|---|---|---|---|---|
-| A | 1200 | 2 | 80% | 3 | 640 | funil, mês anterior |
-| B | 400 | 3 | 50% | 1 | 600 | entrevista (n=6) |
+| A | 1200 | 2 | 80% | 3 | 640 | funnel, previous month |
+| B | 400 | 3 | 50% | 1 | 600 | interview (n=6) |
 
-A coluna "evidência de reach" é o que impede a tabela de virar opinião com duas casas decimais.
+The "reach evidence" column is what keeps the table from becoming an opinion with two decimal places.
 
-## Direito de decisão (DACI)
+## Decision rights (DACI)
 
-RACI mapeia **trabalho**: responsible (faz), accountable (dono do resultado, uma pessoa),
-consulted (input antes), informed (sabe depois). DACI mapeia **uma decisão**: driver (conduz o
-processo, normalmente o PM), approver (uma pessoa que decide), contributors (trazem input e
-evidência), informed (`decision-rights-matrix#RACI and DACI`).
+RACI maps **work**: responsible (does it), accountable (owns the result, one person),
+consulted (input before), informed (knows after). DACI maps **one decision**: driver (runs the
+process, usually the PM), approver (one person who decides), contributors (bring input and
+evidence), informed (`decision-rights-matrix#RACI and DACI`).
 
-O que sobrevive a qualquer variante (RAPID, modelo de consentimento): **um decisor**.
+What survives any variant (RAPID, consent model): **one decision maker**.
 
-Regras:
+Rules:
 
-- Dois accountable = a matriz não decidiu nada. Se a resposta honesta é "os dois", **divida a
-  decisão**: "o que construir" é do PM, "como construir" é da engenharia
+- Two accountable = the matrix decided nothing. If the honest answer is "both", **split the
+  decision**: "what to build" belongs to the PM, "how to build" belongs to engineering
   (`decision-rights-matrix#One Accountable Person`).
-- Não mapeie tudo. Comece pelas 5-8 decisões onde já existe atrito
+- Do not map everything. Start with the 5-8 decisions where friction already exists
   (`decision-rights-matrix#Pick the Decisions That Hurt`):
 
-  | Decisão | Conflito típico |
+  | Decision | Typical conflict |
   |---|---|
-  | O que entra no roadmap | pedido de vendas vs estratégia vs capacidade |
-  | Preço e regra de desconto | vendas vs produto vs finanças |
-  | Escopo e requisitos | produto vs engenharia |
-  | Go / no-go de lançamento | produto vs vendas vs suporte vs jurídico |
-  | Entrada/saída de portfólio (inclui descontinuação) | produto vs finanças vs liderança |
-  | Compromisso específico com cliente | vendas vs engenharia |
+  | What goes into the roadmap | sales request vs strategy vs capacity |
+  | Price and discount rule | sales vs product vs finance |
+  | Scope and requirements | product vs engineering |
+  | Launch go / no-go | product vs sales vs support vs legal |
+  | Portfolio entry/exit (includes discontinuation) | product vs finance vs leadership |
+  | Specific commitment to a customer | sales vs engineering |
 
-- Separe três coisas que as pessoas confundem: **quem decide**, **quem precisa ser consultado**
-  (input ouvido ≠ concordância) e **quem pode vetar** (raro, e só por motivo declarado, como
-  jurídico ou segurança) (`decision-rights-matrix#Decide Vs. Input Vs. Veto`).
-- Consulted agindo como approver é o conflito mais comum; approver decidindo sem consultar é o
-  segundo (`decision-rights-matrix#Pitfall 2: Consulted Acting as Approver`).
-- Nomeie quem escalou e para onde, antes de precisar (`decision-rights-matrix#Step 3: Define Forums and Escalation`).
+- Separate three things that people confuse: **who decides**, **who must be consulted**
+  (input heard ≠ agreement) and **who can veto** (rare, and only for a declared reason, such as
+  legal or security) (`decision-rights-matrix#Decide Vs. Input Vs. Veto`).
+- Consulted acting as approver is the most common conflict; approver deciding without consulting is
+  the second (`decision-rights-matrix#Pitfall 2: Consulted Acting as Approver`).
+- Name who escalated and where to, before you need it (`decision-rights-matrix#Step 3: Define Forums and Escalation`).
 
 ### Decision log
 
-Uma linha por decisão, no mesmo lugar sempre (`decision-rights-matrix#Step 4: Set the Log`):
+One line per decision, always in the same place (`decision-rights-matrix#Step 4: Set the Log`):
 
 ```text
-data | decisão | approver | consultados | evidência usada | o que reabriria
+date | decision | approver | consulted | evidence used | what would reopen it
 ```
 
-Sem log, a decisão é reaberta por quem não estava na sala — e a próxima reunião recomeça do zero.
+Without a log, the decision is reopened by whoever was not in the room — and the next meeting starts
+from zero.
 
 ## Pitfalls
 
-- **Framework nenhum**: prioridade vira quem grita mais alto (`prioritization-advisor#Pitfall 5: No Framework at All`).
-- **Score como verdade**: o número decide sozinho e a estratégia desaparece (`Pitfall 3`).
-- **PM pontuando sozinho**: score sem engenharia é estimativa de effort inventada (`Pitfall 4`).
-- **HiPPO**: executivo define roadmap e o framework vira teatro
+- **No framework**: priority becomes whoever shouts loudest (`prioritization-advisor#Pitfall 5: No Framework at All`).
+- **Score as truth**: the number decides by itself and the strategy disappears (`Pitfall 3`).
+- **PM scoring alone**: a score without engineering is a made-up effort estimate (`Pitfall 4`).
+- **HiPPO**: an executive defines the roadmap and the framework becomes theater
   (`roadmap-planning#Pitfall 2: Prioritizing by HiPPO`).
-- **Mapear tudo**: matriz de 40 linhas que ninguém mantém (`Pitfall 4: Mapping Everything`).
-- **Designação sem acordo**: papel atribuído no documento e não confirmado com a pessoa
+- **Mapping everything**: a 40-line matrix that nobody maintains (`Pitfall 4: Mapping Everything`).
+- **Assignment without agreement**: a role assigned in the document and not confirmed with the person
   (`decision-rights-matrix#Pitfall 3: Assignments Nobody Agreed`).

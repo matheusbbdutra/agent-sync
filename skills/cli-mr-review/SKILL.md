@@ -1,72 +1,72 @@
 ---
 name: cli-mr-review
-description: "Use when reviewing or collecting MR/PR via glab (GitLab) or gh (GitHub). Coleta e revisão de MR/PR via glab (GitLab) ou gh (GitHub) com detecção automática de host self-hosted."
+description: "Use when reviewing or collecting MR/PR via glab (GitLab) or gh (GitHub). Collection and review of MR/PR via glab (GitLab) or gh (GitHub) with automatic self-hosted host detection."
 ---
 
-# Skill: revisão de MR/PR via glab/gh
+# Skill: MR/PR review via glab/gh
 
-## Quando preferir este caminho ao `mr-reviewer` padrão
+## When to prefer this path over the default `mr-reviewer`
 
-- O usuário **já tem** `glab` ou `gh` autenticado e quer evitar config JSON extra.
-- O host é self-hosted e foi configurado em `~/.config/glab-cli/config.yml` ou `gh auth login`.
-- Compatibilidade com **GitLab 12 self-hosted antigo não é requisito** — `glab` segue a API v4 moderna.
+- The user **already has** `glab` or `gh` authenticated and wants to avoid extra JSON config.
+- The host is self-hosted and was configured in `~/.config/glab-cli/config.yml` or `gh auth login`.
+- Compatibility with **old self-hosted GitLab 12 is not a requirement** — `glab` follows the modern v4 API.
 
-Quando **NÃO** usar: GitLab 12, ambientes sem `glab`/`gh` no PATH, ou quando o usuário pede explicitamente `mr-review-local` (HTTP puro, zero deps).
+When **NOT** to use: GitLab 12, environments without `glab`/`gh` on the PATH, or when the user explicitly asks for `mr-review-local` (pure HTTP, zero deps).
 
-## Workflow resumido
+## Summarized workflow
 
-1. Detectar provider: pergunta direta ao usuário OU infere do remote (`gitlab.com`/`github.com` no host).
-2. Resolver `repo` (path do checkout local) e `mr-iid` (IID/número).
-3. Executar `mr-collect-cli -provider <gitlab|github> -repo <path> -mr-iid <id> [-host <url>]`.
-4. Consumir o JSON `reviewChange` da mesma forma que `mr-review-local` produz.
+1. Detect provider: direct question to the user OR infer from the remote (`gitlab.com`/`github.com` in the host).
+2. Resolve `repo` (local checkout path) and `mr-iid` (IID/number).
+3. Run `mr-collect-cli -provider <gitlab|github> -repo <path> -mr-iid <id> [-host <url>]`.
+4. Consume the `reviewChange` JSON the same way `mr-review-local` produces it.
 
 ## Troubleshooting
 
-| Sintoma | Causa provável | Ação |
+| Symptom | Probable cause | Action |
 |---|---|---|
-| `glab: command not found` | `glab` não instalado | Instalar via `brew install glab` / `apt install glab` / [releases](https://gitlab.com/gitlab-org/cli/-/releases). Sem fallback automático — usuário precisa instalar. |
-| `401 Unauthorized` | Token ausente/expirado | `glab auth login --hostname <url>` ou `gh auth login`. Não pedir para colar token no chat — flag `--token` não existe no fluxo seguro. |
-| `mr not found` (GitLab) | IID errado OU projeto errado | Confirmar via `glab mr list --source-branch <branch>` para listar MRs abertas do branch. |
-| `Could not resolve host` | `-host` typo OU self-hosted não configurado | Verificar `~/.config/glab-cli/config.yml` tem a entrada `[host "https://gitlab.empresa.com"]`. |
-| Patch vem vazio | Diff muito grande OU MR é apenas rename | `mr-collect-cli -max-bytes` (default 256KB). Se ainda vazio, consultar UI web. |
-| Erro `subcomando glab X não está na allowlist` | Bug ou tentativa de execução de merge/approve | Read-only POR CONSTRUÇÃO: o binário rejeita. Reportar como finding se vier do agente, nunca do usuário legítimo. |
+| `glab: command not found` | `glab` not installed | Install via `brew install glab` / `apt install glab` / [releases](https://gitlab.com/gitlab-org/cli/-/releases). No automatic fallback — the user must install it. |
+| `401 Unauthorized` | Missing/expired token | `glab auth login --hostname <url>` or `gh auth login`. Do not ask to paste the token in the chat — the `--token` flag does not exist in the secure flow. |
+| `mr not found` (GitLab) | Wrong IID OR wrong project | Confirm via `glab mr list --source-branch <branch>` to list the branch's open MRs. |
+| `Could not resolve host` | `-host` typo OR self-hosted not configured | Check that `~/.config/glab-cli/config.yml` has the entry `[host "https://gitlab.empresa.com"]`. |
+| Patch comes up empty | Diff too large OR the MR is only a rename | `mr-collect-cli -max-bytes` (default 256KB). If still empty, consult the web UI. |
+| Error `subcomando glab X não está na allowlist` [error: glab subcommand X is not in the allowlist] | Bug or attempt to run merge/approve | Read-only BY CONSTRUCTION: the binary rejects it. Report as a finding if it comes from the agent, never from the legitimate user. |
 
-## Self-hosted: como o host é detectado
+## Self-hosted: how the host is detected
 
-`mr-collect-cli` lê `git -C <repo> remote get-url origin` e parseia com duas regex:
+`mr-collect-cli` reads `git -C <repo> remote get-url origin` and parses it with two regexes:
 
 - `git@gitlab.empresa.com:group/proj.git` → host `gitlab.empresa.com`
 - `https://gitlab.empresa.com/group/proj.git` → host `gitlab.empresa.com`
 - `http://gitlab.empresa.com:8080/group/proj.git` → host `gitlab.empresa.com:8080`
 
-Para forçar host: `-host https://gitlab.empresa.com` (override do parse).
+To force the host: `-host https://gitlab.empresa.com` (overrides the parse).
 
-## Segurança
+## Security
 
-- Token vem do credential helper / env var configurado pelo próprio `glab auth login` / `gh auth login`. O binário **não lê** nem **persiste** tokens.
-- Allowlist hardcoded de subcomandos: `view`, `diff`. Qualquer outro (`merge`, `approve`, `close`, etc.) falha antes do `exec.Command`.
-- Redaction via `internal/secretscan` no patch antes de emitir JSON (mesma proteção que `mr-review-local`).
+- The token comes from the credential helper / env var configured by `glab auth login` / `gh auth login` itself. The binary **does not read** nor **persist** tokens.
+- Hardcoded allowlist of subcommands: `view`, `diff`. Any other (`merge`, `approve`, `close`, etc.) fails before `exec.Command`.
+- Redaction via `internal/secretscan` in the patch before emitting JSON (same protection as `mr-review-local`).
 
-## Verificação rápida
+## Quick verification
 
 ```bash
-# Binário disponível?
-which mr-collect-cli || echo "rode: make install"
+# Binary available?
+which mr-collect-cli || echo "run: make install"
 
-# glab autenticado?
+# glab authenticated?
 glab auth status
 
-# gh autenticado?
+# gh authenticated?
 gh auth status
 
-# Coleta funciona (GitLab)?
+# Does collection work (GitLab)?
 mr-collect-cli -provider gitlab -repo /path/to/checkout -mr-iid 42
 
-# Coleta funciona (GitHub)?
+# Does collection work (GitHub)?
 mr-collect-cli -provider github -repo /path/to/checkout -mr-iid 42
 ```
 
-## Referências
+## References
 
-- [code-reviewer](reference/code-review-checklist.md) — catálogo de checagem por domínio na revisão de uma mudança
-- [review-standard](reference/review-standard.md) — critério de aprovação, severidade do achado (`Nit:` vs bloqueante), tamanho de mudança, prazo de resposta, conflito e escalada
+- [code-reviewer](reference/code-review-checklist.md) — per-domain check catalogue when reviewing a change
+- [review-standard](reference/review-standard.md) — approval criterion, finding severity (`Nit:` vs blocking), change size, response deadline, conflict and escalation
