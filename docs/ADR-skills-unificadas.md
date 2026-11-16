@@ -105,8 +105,8 @@ O problema que motivou a poda não era quantidade, era **granularidade errada**:
       `visual-design-system/reference/consumer-fintech.md` (ui-ux-pro-max, impeccable).
 - [x] Nomes antigos removidos de `skills/backend/reference/{go,ts,php}.md` (15 substituições:
       3 H1, 6 headers `## De <skill>` e 7 instruções de roteamento).
-- [ ] Decisão registrada como `D-N` em `.agent-sync/session-state.json` via
-      `agent-sync state write` + `state render` — **aberto**.
+- [x] Decisão registrada como `D-140` em `.agent-sync/session-state.json` via
+      `agent-sync state write` + `state render`. A remoção do impeccable hook ficou em `D-141`.
 
 ## Dívida conhecida (rastreada, não bloqueia a decisão)
 
