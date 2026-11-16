@@ -1143,19 +1143,27 @@ func Summary(cache *Cache, maxTokens int) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "🧭 Top hubs (%d símbolos, %d arquivos):\n", len(hubs), len(cache.Files))
 	approxTokens := 0
+	written := 0
 	for _, h := range hubs {
 		line := fmt.Sprintf("   %s → score=%d files=%d\n", h.symbol, h.score, h.files)
 		if maxTokens > 0 {
-			t := len(strings.Fields(line))
+			// Tokens aproximados por heuristica de 4 bytes/token, igual ao --brief.
+			// Antes contava palavras (len(strings.Fields)) e entregava ~2,4x o
+			// valor pedido: o mesmo flag tinha duas semanticas no binario.
+			t := len(line) / 4
+			t = max(t, 1)
 			if approxTokens+t > maxTokens {
 				break
 			}
 			approxTokens += t
 		}
 		b.WriteString(line)
-		if maxTokens > 0 && approxTokens >= maxTokens {
-			break
-		}
+		written++
+	}
+	// Truncamento silencioso faria o leitor achar que viu todos os hubs.
+	if written < len(hubs) {
+		fmt.Fprintf(&b, "   ... truncado em ~%d tokens: %d de %d hubs (use --max-tokens 0 para ver tudo)\n",
+			maxTokens, written, len(hubs))
 	}
 	return b.String()
 }

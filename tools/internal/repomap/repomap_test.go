@@ -1,6 +1,7 @@
 package repomap
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -260,6 +261,44 @@ func TestSummaryOrdenaPorScore(t *testing.T) {
 	}
 	if !strings.Contains(out, "A") {
 		t.Errorf("summary deveria listar A, obtido:\n%s", out)
+	}
+}
+
+// O corte precisa ser visivel: truncar em silencio faria o leitor achar que
+// viu todos os hubs do repositorio.
+func TestSummaryRespeitaMaxTokensEAvisaTruncamento(t *testing.T) {
+	r := newFakeRepo(t)
+	var decls, calls strings.Builder
+	decls.WriteString("package a\n\n")
+	calls.WriteString("package b\n\nfunc Use() {\n")
+	for i := 0; i < 60; i++ {
+		fmt.Fprintf(&decls, "func F%02d() {}\n", i)
+		fmt.Fprintf(&calls, "\tF%02d()\n", i)
+	}
+	calls.WriteString("}\n")
+	r.write(t, "internal/a/a.go", decls.String())
+	r.write(t, "internal/b/b.go", calls.String())
+	if _, _, err := Update(r.root, r.cache); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(r.cache)
+	if err != nil || c == nil {
+		t.Fatal(err)
+	}
+
+	full := Summary(c, 0)
+	capped := Summary(c, 50)
+	if !strings.Contains(full, "F00") {
+		t.Fatalf("sem limite deveria listar todos os hubs:\n%s", full)
+	}
+	if len(capped) >= len(full) {
+		t.Errorf("capped (%d bytes) deveria ser menor que full (%d bytes)", len(capped), len(full))
+	}
+	if !strings.Contains(capped, "truncado") {
+		t.Errorf("corte silencioso: esperava aviso de truncamento em:\n%s", capped)
+	}
+	if !strings.Contains(capped, "hubs (use --max-tokens 0") {
+		t.Errorf("aviso deveria dizer quantos hubs ficaram de fora e como ver tudo:\n%s", capped)
 	}
 }
 

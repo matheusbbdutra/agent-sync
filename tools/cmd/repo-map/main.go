@@ -3,7 +3,7 @@
 //
 //	repo-map --update [--quiet]                  // re-parseia deltas (mtime/size)
 //	repo-map --focus <caminho> [--depth N]       // subgrafo focado em um arquivo
-//	repo-map --summary [--max-tokens N]          // top hubs de chamadas/imports
+//	repo-map --summary [--max-tokens N]          // top hubs de chamadas/imports (default 1000 tokens)
 //
 // O cache fica em <root>/.agent-sync/cache/repomap.json por padrão e é
 // versionado (campo "version": 1).
@@ -54,7 +54,7 @@ func parseFlags(args []string) (*config, error) {
 	mcp := fs.Bool("mcp", false, "Inicia servidor MCP (stdio) expondo o grafo de código")
 	depth := fs.Int("depth", 1, "Profundidade do subgrafo (1 = direto, 2 = inclui importadores dos importadores)")
 	summary := fs.Bool("summary", false, "Retorna os símbolos centrais do projeto")
-	maxTokens := fs.Int("max-tokens", 0, "Em --summary/--brief, limita a saída a ~N tokens (0 = sem limite)")
+	maxTokens := fs.Int("max-tokens", 1000, "Em --summary/--brief, limita a saida a ~N tokens (default 1000; 0 = sem limite)")
 	showVersion := fs.Bool("version", false, "Mostra a versão do cache e sai")
 	telemetryFile := fs.String("telemetry-file", "", "Caminho do arquivo JSONL para gravar métricas de telemetria MCP (ou opt-in via AGENT_SYNC_GRAPH_TELEMETRY=1)")
 	auditRemoval := fs.String("audit-removal", "", "Varre o repositório em busca de refs textuais a <target> e devolve ledger JSON (A-73). Aceita diretório ou arquivo.")

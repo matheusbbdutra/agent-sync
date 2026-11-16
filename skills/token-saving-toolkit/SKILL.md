@@ -15,7 +15,7 @@ Mapa estrutural e relacional do repositório com cache incremental determinísti
 - **Suporte multi-linguagem nativo:** Go (`.go`), TypeScript/JavaScript (`.ts`, `.tsx`, `.js`, `.jsx`), PHP (`.php`) e Python (`.py`).
 - **Comandos principais:**
   - `repo-map --focus <caminho/arquivo>`: Subgrafo textual em torno do arquivo (símbolos declarados, imports e chamadas/importers).
-  - `repo-map --summary`: Top hubs estruturais do projeto (símbolos mais referenciados no repositório).
+  - `repo-map --summary`: Top hubs estruturais do projeto (símbolos mais referenciados no repositório). Limitado a ~1000 tokens por default: quando corta, a última linha diz quantos hubs ficaram de fora. Use `--max-tokens N` para ajustar ou `--max-tokens 0` para ver tudo (1236 hubs ≈ 14k tokens neste repo — não faça isso por curiosidade).
   - `repo-map --update`: Re-indexa silenciosamente apenas os arquivos modificados (delta).
 
 ### 2. `ast-outline`
