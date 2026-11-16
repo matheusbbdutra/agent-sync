@@ -1,39 +1,39 @@
 ---
 name: agent-learn
-description: "Analisa o histórico de execuções recentes em session-event.jsonl e decisões em STATE.md para identificar padrões recorrentes de falhas e propor melhorias pragmáticas nas regras e skills. Use when the user asks 'aprenda com os erros', 'extraia lições', 'learn from failures', 'quais padrões podemos melhorar', ou ao final de sessões longas."
+description: "Analyzes the recent execution history in session-event.jsonl and the decisions in STATE.md to identify recurring failure patterns and propose pragmatic improvements to the rules and skills. Use when the user asks 'learn from the mistakes', 'extract lessons', 'learn from failures', 'which patterns can we improve', or at the end of long sessions."
 ---
 
 # Agent Learn
 
-Skill analítica para minerar histórico de sessões, refinar heurísticas e propor evolução contínua das regras globais (`rules/global-rules.md`) e ferramentas.
+Analytical skill to mine session history, refine heuristics and propose the continuous evolution of the global rules (`rules/global-rules.md`) and tools.
 
-## Procedimento
+## Procedure
 
-1. **Leitura de Eventos**: Analise as últimas entradas de `.agent-sync/session-event.jsonl` (ou execute `agent-sync event stats`).
-2. **Padrões de Erro**: Identifique:
-   - Loops de ferramentas ou retries frequentes.
-   - Hipóteses refutadas sem documentação de causa raiz.
-   - Comandos bloqueados por guards (`bash-guardian`, `shell-validate`).
-   - Gaps de suporte cross-CLI entre as 5 ferramentas.
-3. **Decisões Recentes**: Cruze com `STATE.md` (seção Decisões D-N) para evitar propor o que já foi formalizado.
-4. **Proposta Pragmática**: Formule 1-2 propostas enxutas (novo bullet em `rules/global-rules.md` ou ajuste de gatilho em skill existente).
+1. **Event Reading**: Analyze the latest entries of `.agent-sync/session-event.jsonl` (or run `agent-sync event stats`).
+2. **Error Patterns**: Identify:
+   - Tool loops or frequent retries.
+   - Hypotheses refuted without documentation of the root cause.
+   - Commands blocked by guards (`bash-guardian`, `shell-validate`).
+   - Cross-CLI support gaps between the 5 tools.
+3. **Recent Decisions**: Cross-check with `STATE.md` (Decisions D-N section) to avoid proposing what has already been formalized.
+4. **Pragmatic Proposal**: Formulate 1-2 lean proposals (a new bullet in `rules/global-rules.md` or a trigger adjustment in an existing skill).
 
-## Formato de Saída
+## Output Format
 
 ```markdown
-### Padrões Detectados
-- **Padrão X**: Ocorrência em sessões Y e Z. Causa raiz comprovada.
+### Detected Patterns
+- **Pattern X**: Occurrence in sessions Y and Z. Proven root cause.
 
-### Proposta de Ação (Pragmática)
-- **Arquivo Alvo**: `rules/global-rules.md` (ou skill específica)
-- **Diff Sugerido**:
+### Action Proposal (Pragmatic)
+- **Target File**: `rules/global-rules.md` (or specific skill)
+- **Suggested Diff**:
   ```diff
-  + <novo princípio conciso>
+  + <concise new principle>
   ```
-- **Justificativa**: Evita reincidência com mínimo impacto operacional.
+- **Justification**: Prevents recurrence with minimal operational impact.
 ```
 
-## Diretrizes
+## Guidelines
 
-- Nunca aplique mudanças silenciosamente; apresente a proposta e aguarde aprovação do usuário.
-- Priorize sempre o pragmatismo e a simplicidade (mínimo texto funcional).
+- Never apply changes silently; present the proposal and wait for user approval.
+- Always prioritize pragmatism and simplicity (minimum functional text).

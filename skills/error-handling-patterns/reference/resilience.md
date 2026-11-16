@@ -1,151 +1,151 @@
-# Resilience (retry, timeout, circuit breaker e degradacao)
+# Resilience (retry, timeout, circuit breaker and degradation)
 
-> Politica, nao implementacao. Codigo de circuit breaker, backoff e fallback ja existe em `implementation-playbook.md` (Patterns 1-3); aqui ficam as decisoes que o codigo precisa respeitar.
-> Onde a resiliencia vive (gateway/mesh x codigo) esta em `api-design-principles/reference/api-operations.md` §11.
-> Citacoes usam o marcador `p.N` do digest de origem.
+> Policy, not implementation. Circuit breaker, backoff and fallback code already exists in `implementation-playbook.md` (Patterns 1-3); what stays here are the decisions the code has to respect.
+> Where resilience lives (gateway/mesh x code) is in `api-design-principles/reference/api-operations.md` §11.
+> Citations use the `p.N` marker from the source digest.
 
-## 1. Premissas: trate as falacias de distribuicao como fatos do design
+## 1. Assumptions: treat the fallacies of distribution as design facts
 
-- O livro agrupa as oito falacias de computacao distribuida em p.134 (Mastering API Architecture). A regra acionavel nao e recita-las, e converter cada uma em premissa testavel (p.134).
-- Latencia: meca media e p95/p99 antes de aprovar fluxo com chamada remota; 10 chamadas x 100 ms adicionam 1 s ao fluxo (Fundamentals, p.137).
-- Latencia de cauda, nao media, define a viabilidade do requisito de resposta (p.137).
-- Banda: payload grande em chamada frequente e acoplamento disfarcado — 2.000 req/s de um contrato de 500 kb viram 1 Gb/s (p.138).
-- Topologia: comece sincrono; assincronismo entra so com requisito concreto (descompasso de escala, tolerancia a falha do consumidor, buffer de pico) (p.277).
-- Assincronismo traz custo proprio: sincronizacao de dados, deadlock, race condition e depuracao dificil (p.277).
-- Consequencia: "a rede e rapida" e "o servico responde" nao sao premissas validas; cada uma precisa de numero medido no proprio ambiente (p.137).
+- The book groups the eight fallacies of distributed computing on p.134 (Mastering API Architecture). The actionable rule is not to recite them, but to convert each one into a testable premise (p.134).
+- Latency: measure average and p95/p99 before approving a flow with a remote call; 10 calls x 100 ms add 1 s to the flow (Fundamentals, p.137).
+- Tail latency, not average, defines the viability of the response requirement (p.137).
+- Bandwidth: a large payload on a frequent call is disguised coupling — 2.000 req/s of a 500 kb contract becomes 1 Gb/s (p.138).
+- Topology: start synchronous; asynchrony enters only with a concrete requirement (scale mismatch, consumer fault tolerance, peak buffer) (p.277).
+- Asynchrony brings its own cost: data synchronization, deadlock, race condition and hard debugging (p.277).
+- Consequence: "the network is fast" and "the service responds" are not valid premises; each one needs a number measured in your own environment (p.137).
 
-## 2. Retry: so quando a operacao e segura para repetir
+## 2. Retry: only when the operation is safe to repeat
 
-- Antes de configurar retry, decida a semantica de 5xx por operacao: o efeito foi aplicado ou nao? (Mastering API, p.45)
-- O caso do livro e o teste: em sistema de pagamento, um 500 significa que o pagamento passou? Sem resposta documentada, retry cego duplica efeito (p.45).
-- Operacao nao idempotente sem chave de idempotencia nao recebe retry automatico; o retry vira decisao do cliente com idempotency key (p.45; mecanica em `api-design-principles/reference/rest-best-practices.md`).
-- Operacao idempotente (leitura, PUT, DELETE) tolera repeticao, mas o retry automatico continua condicionado a semantica de 5xx documentada (p.45).
-- Erro 4xx nao e retentavel: repetir comportamento de cliente so multiplica chamada invalida (p.170).
-- Retry na borda e no mesh, nao em cada servico: comportamento por linguagem diverge e amplifica falha em cascata (p.129).
-- Retry sem limite superior de tentativas transforma incidente de dependencia em incidente de plataforma (p.129).
+- Before configuring retry, decide the 5xx semantics per operation: was the effect applied or not? (Mastering API, p.45)
+- The book's case is the test: in a payment system, does a 500 mean the payment went through? Without a documented answer, blind retry duplicates the effect (p.45).
+- A non-idempotent operation without an idempotency key gets no automatic retry; the retry becomes the client's decision with an idempotency key (p.45; mechanics in `api-design-principles/reference/rest-best-practices.md`).
+- An idempotent operation (read, PUT, DELETE) tolerates repetition, but automatic retry stays conditional on the documented 5xx semantics (p.45).
+- A 4xx error is not retryable: repeating client behavior only multiplies invalid calls (p.170).
+- Retry at the edge and in the mesh, not in each service: per-language behavior diverges and amplifies cascading failure (p.129).
+- Retry without an upper bound on attempts turns a dependency incident into a platform incident (p.129).
 
-Tabela de decisao por resposta (p.45, p.170):
+Decision table per response (p.45, p.170):
 
-| Resposta | Operacao idempotente | Operacao nao idempotente | Fonte |
+| Response | Idempotent operation | Non-idempotent operation | Source |
 | --- | --- | --- | --- |
-| 5xx com efeito nao aplicado, documentado | retry com limite | retry com idempotency key | p.45 |
-| 5xx com efeito aplicado, documentado | nao retentar; tratar como sucesso parcial | nao retentar | p.45 |
-| 4xx | nao retentar | nao retentar | p.170 |
-| timeout | retry com limite (efeito incerto) | nao retentar; reconciliar estado | p.45 |
+| 5xx with effect not applied, documented | retry with limit | retry with idempotency key | p.45 |
+| 5xx with effect applied, documented | do not retry; treat as partial success | do not retry | p.45 |
+| 4xx | do not retry | do not retry | p.170 |
+| timeout | retry with limit (uncertain effect) | do not retry; reconcile state | p.45 |
 
-## 3. Timeout: orcamento do fluxo, nao numero isolado
+## 3. Timeout: flow budget, not an isolated number
 
-- Timeout e orcamento: multiplique a latencia p95 de cada hop pelo numero de chamadas encadeadas do fluxo antes de escolher o valor (p.137).
-- O timeout do chamador nao pode exceder o tempo restante do fluxo; caso contrario, quem espera ja desistiu quando a resposta chega (derivado de p.137).
-- Hops encadeados com timeout uniforme somam; definir por hop sem olhar o total reproduz o calculo de p.137 ao contrario.
-- Timeout maior que o do cliente e inutil: a resposta nao chega a ninguem (derivado de p.137).
-- Timeout nao substitui circuit breaker: um protege o chamador da espera, o outro protege o chamado da carga (§4) (p.129).
+- A timeout is a budget: multiply the p95 latency of each hop by the number of chained calls in the flow before choosing the value (p.137).
+- The caller's timeout must not exceed the remaining time of the flow; otherwise whoever waits has already given up when the response arrives (derived from p.137).
+- Chained hops with a uniform timeout add up; defining it per hop without looking at the total reproduces the calculation of p.137 backwards.
+- A timeout larger than the client's is useless: the response reaches no one (derived from p.137).
+- A timeout does not replace a circuit breaker: one protects the caller from waiting, the other protects the callee from load (§4) (p.129).
 
-Derive o timeout nesta ordem (p.137):
+Derive the timeout in this order (p.137):
 
-1. liste os hops do fluxo critico;
-2. meca p95 (e p99) de cada hop no ambiente real;
-3. some os p95 para obter o orcamento total do fluxo;
-4. distribua o orcamento por hop, com folga para o hop mais lento;
-5. recuse o design se a soma estourar o requisito de resposta do usuario.
+1. list the hops of the critical flow;
+2. measure p95 (and p99) of each hop in the real environment;
+3. add the p95s to get the total budget of the flow;
+4. distribute the budget per hop, with slack for the slowest hop;
+5. reject the design if the sum blows the response requirement of the user.
 
-## 4. Circuit breaker: abrir para permitir recuperacao
+## 4. Circuit breaker: open to allow recovery
 
-- Objetivo declarado: abrir o circuito para falhar rapido e permitir que o servico se recupere (Mastering API, p.129).
-- Dispare em falha repetida de chamada critica, nao em erro isolado (p.129).
-- Enquanto aberto, a resposta e degradada por decisao de produto (§6), nunca erro generico quando havia alternativa barata (p.129).
-- Nao combine circuit breaker com retry sem limite: retry infinito impede a recuperacao que o circuito tenta garantir (p.129).
-- Implemente na camada comum (gateway/mesh) para ter semantica identica em todos os servicos (p.129).
-- Codigo de referencia do mecanismo (estados closed/open/half-open) ja esta em `implementation-playbook.md`; nao reimplemente por servico (p.129).
+- Stated goal: open the circuit to fail fast and allow the service to recover (Mastering API, p.129).
+- Trip on repeated failure of a critical call, not on an isolated error (p.129).
+- While open, the response is degraded by product decision (§6), never a generic error when a cheap alternative existed (p.129).
+- Do not combine a circuit breaker with retry without a limit: infinite retry prevents the recovery the circuit tries to guarantee (p.129).
+- Implement it in the shared layer (gateway/mesh) to have identical semantics in every service (p.129).
+- Reference code for the mechanism (closed/open/half-open states) already exists in `implementation-playbook.md`; do not reimplement it per service (p.129).
 
-Estados e o que cada um exige (mecanismo em `implementation-playbook.md`, Pattern 1):
+States and what each one requires (mechanism in `implementation-playbook.md`, Pattern 1):
 
-| Estado | Comportamento | O que precisa estar definido | Fonte |
+| State | Behavior | What has to be defined | Source |
 | --- | --- | --- | --- |
-| fechado | chama o servico normalmente | limiar de falha | p.129 |
-| aberto | falha rapido, sem chamar | resposta degradada por cenario | p.129 |
-| meio-aberto | testa recuperacao | numero de sucessos para fechar | p.129 |
+| closed | calls the service normally | failure threshold | p.129 |
+| open | fails fast, without calling | degraded response per scenario | p.129 |
+| half-open | tests recovery | number of successes to close | p.129 |
 
-- A transicao precisa de um criterio objetivo (limiar de falha, numero de sucessos); circuito sem criterio abre e fecha por ruido (p.129).
+- The transition needs an objective criterion (failure threshold, number of successes); a circuit without a criterion opens and closes on noise (p.129).
 
-## 5. Falha em cascata: os tres vetores
+## 5. Cascading failure: the three vectors
 
-- **Retry amplificado**: N chamadores retentando contra dependencia lenta multiplicam carga por N (p.129).
-- **Timeout divergente**: servicos com timeouts diferentes mantem a dependencia sob carga por mais tempo do que o necessario (p.129).
-- **Chamada interna sem limite**: loop entre servicos derruba a plataforma de dentro para fora — "friendly fire DoS" (p.189).
-- Contramedida para os tres: limite e monitoracao de erro tambem nas chamadas internas, nao so na borda (p.189).
-- Ausencia de protecao nao e neutra: muitas aplicacoes e gateways nao implementam limite por default e o modo de falha fica indefinido (p.189).
+- **Amplified retry**: N callers retrying against a slow dependency multiply load by N (p.129).
+- **Divergent timeout**: services with different timeouts keep the dependency under load for longer than necessary (p.129).
+- **Internal call without a limit**: a loop between services takes the platform down from the inside out — "friendly fire DoS" (p.189).
+- Countermeasure for the three: limit and error monitoring on internal calls too, not only at the edge (p.189).
+- Absence of protection is not neutral: many applications and gateways do not implement a limit by default and the failure mode stays undefined (p.189).
 
-## 6. Fallback e degradacao: decisao de produto, tomada antes do pico
+## 6. Fallback and degradation: product decision, made before the peak
 
-- O fallback e decisao de produto: o exemplo do livro e renderizar a agenda completa do evento em vez da agenda pessoal (p.129).
-- Escreva a resposta degradada por cenario (dependencia fora, dado indisponivel, cota estourada) antes do incidente, nao durante (p.129).
-- Declare se o componente falha aberto (libera) ou fechado (bloqueia); API financeira tende a fail closed (p.159).
-- Componente de seguranca que falha aberto em silencio protege no teste e nao protege na falha (p.110).
-- Fallback tambem precisa de limite: aplicar o mesmo principio de limite interno de p.189 evita que a degradacao vire o segundo incidente (derivado de p.189).
-- Degradacao precisa ser observavel como estado; se o fallback nao aparece na metrica, o time nao sabe que esta nele (§8) (p.170).
+- Fallback is a product decision: the book's example is rendering the full agenda of the event instead of the personal agenda (p.129).
+- Write the degraded response per scenario (dependency down, data unavailable, quota exceeded) before the incident, not during it (p.129).
+- Declare whether the component fails open (releases) or closed (blocks); a financial API tends to fail closed (p.159).
+- A security component that fails open silently protects in the test and does not protect on failure (p.110).
+- Fallback also needs a limit: applying the same internal limit principle of p.189 prevents degradation from becoming the second incident (derived from p.189).
+- Degradation has to be observable as a state; if the fallback does not appear in the metric, the team does not know it is in it (§8) (p.170).
 
-## 7. Aplicacao com modelo: falha, fallback e degradacao
+## 7. Application with a model: failure, fallback and degradation
 
-- Gateway/router de modelo existe para degradar: rotear para modelo alternativo, retentar apos espera curta ou tratar a falha com elegancia (AI Engineering, p.479).
-- Router deve ser rapido e barato; um router tao caro quanto o modelo nao e camada de degradacao (p.477).
-- Adicione a camada de gateway quando a dor aparecer (rate limit de provedor, multiplicacao de modelos), nao no primeiro dia (p.470).
-- Enumere os modos de falha antes de escolher a degradacao: tool invalida, parametro invalido, valor errado, goal nao atingido, reflection error (o agente declara concluido sem estar), ausencia de tool para o dominio (p.318, p.319).
-- Cada modo de falha pede resposta diferente: retry resolve falha transitoria, nao resolve goal nao atingido (p.318).
-- Logue toda chamada de tool com entrada e saida; sem isso nao se sabe qual modo de falha dominou (p.320).
-- Nao trate "funcionou" como metrica: meca a frequencia de cada modo de falha (p.318).
+- A model gateway/router exists to degrade: route to an alternative model, retry after a short wait or handle the failure with elegance (AI Engineering, p.479).
+- The router must be fast and cheap; a router as expensive as the model is not a degradation layer (p.477).
+- Add the gateway layer when the pain appears (provider rate limit, multiplication of models), not on the first day (p.470).
+- Enumerate the failure modes before choosing the degradation: invalid tool, invalid parameter, wrong value, goal not reached, reflection error (the agent declares it is done without being done), absence of a tool for the domain (p.318, p.319).
+- Each failure mode calls for a different response: retry solves a transient failure, it does not solve a goal not reached (p.318).
+- Log every tool call with input and output; without that you do not know which failure mode dominated (p.320).
+- Do not treat "it worked" as a metric: measure the frequency of each failure mode (p.318).
 
-### 7.1 Degradacao de guardrail e de validacao
+### 7.1 Guardrail and validation degradation
 
-- Mantenha guardrails na entrada **e** na saida mesmo em modo degradado: remover os dois amplia o risco exatamente na pior hora (p.271).
-- Acompanhe violation rate junto com false refusal rate: degradacao de guardrail move os dois numeros, e so um deles aparece no dashboard (p.268).
-- Um guardrail que recusa tudo tem violation rate zero e sistema inutil — metrica unica esconde esse estado (p.268).
-- O par de numeros so faz sentido lido junto: violation rate cai e false refusal sobe quando o guardrail fica mais agressivo (p.268).
-- Degradacao de guardrail precisa de prazo: desligar sem data de retorno transforma excecao em configuracao permanente (derivado de p.271).
+- Keep guardrails on the input **and** on the output even in degraded mode: removing both widens the risk at exactly the worst time (p.271).
+- Track violation rate together with false refusal rate: guardrail degradation moves both numbers, and only one of them shows on the dashboard (p.268).
+- A guardrail that refuses everything has violation rate zero and a useless system — a single metric hides that state (p.268).
+- The pair of numbers only makes sense read together: violation rate falls and false refusal rises when the guardrail gets more aggressive (p.268).
+- Guardrail degradation needs a deadline: turning it off without a return date turns an exception into permanent configuration (derived from p.271).
 
-## 8. Meça a degradacao, nao so a falha
+## 8. Measure degradation, not only failure
 
-- Desenhe as metricas a partir dos modos de falha que se quer pegar, nao do que a ferramenta expoe por default (p.487).
-- Logue configuracao, prompt final, saida e tool calls com IDs e reconstrua trace por request com tempo e custo por passo (p.490).
-- Mudanca silenciosa de modelo, de provedor ou de template e falha sem erro: sem log de configuracao ela nao aparece (p.492).
-- Reporte latencia por percentil; a media esconde a cauda que define a experiencia (p.434).
-- Conte goodput (requests que cumprem o SLO) em vez de throughput bruto; "dobramos o throughput" com SLO violado nao e melhoria (p.435).
-- Para modelo, latencia total = TTFT + TPOT x tokens de saida; meca as duas partes separadas (p.433).
-- Do lado da API, segmente erro por classe (5xx servico, 4xx cliente, serie de 401/403 ataque) e ajuste alerta por janela de atividade (Mastering API, p.170, p.171).
+- Design the metrics from the failure modes you want to catch, not from what the tool exposes by default (p.487).
+- Log configuration, final prompt, output and tool calls with IDs and reconstruct the trace per request with time and cost per step (p.490).
+- A silent change of model, of provider or of template is a failure without an error: without a configuration log it does not appear (p.492).
+- Report latency per percentile; the average hides the tail that defines the experience (p.434).
+- Count goodput (requests that meet the SLO) instead of raw throughput; "we doubled the throughput" with the SLO violated is not an improvement (p.435).
+- For a model, total latency = TTFT + TPOT x output tokens; measure the two parts separately (p.433).
+- On the API side, segment the error by class (5xx service, 4xx client, a series of 401/403 attack) and tune the alert per activity window (Mastering API, p.170, p.171).
 
-- Acompanhe MTTD (tempo ate detectar), MTTR (tempo ate recuperar) e CFR (taxa de falha do cliente): sao os numeros que dizem se a degradacao funcionou (p.486).
-- MTTD alto com MTTR baixo significa problema de deteccao, nao de correcao (p.486, p.487).
+- Track MTTD (time to detect), MTTR (time to recover) and CFR (customer failure rate): these are the numbers that say whether the degradation worked (p.486).
+- High MTTD with low MTTR means a detection problem, not a correction problem (p.486, p.487).
 
-## 9. Anti-padroes
+## 9. Anti-patterns
 
-- **Retry cego em operacao nao idempotente**: efeito duplicado (pagamento, transferencia) (p.45).
-- **Retry sem limite**: impede a recuperacao que o circuit breaker tentaria (p.129).
-- **Timeout uniforme por hop**: soma dos hops excede o orcamento do fluxo (p.137).
-- **Circuit breaker por servico**: semantica divergente entre linguagens (p.129).
-- **Fallback decidido no incidente**: erro generico onde havia alternativa barata (p.129).
-- **Fail open silencioso**: protecao que desaparece na falha (p.110, p.159).
-- **Degradacao sem metrica**: ninguem sabe que o sistema esta em modo degradado (p.170, p.487).
-- **Media de latencia**: cauda longa invisivel (p.434).
-- **Throughput sem SLO**: numero grande com experiencia pior (p.435).
-- **"Funcionou" como teste**: modo de falha nao medido continua acontecendo (p.318).
-- **Assincronismo por default**: custo de deadlock, race e depuracao sem requisito que pague (p.277).
+- **Blind retry on a non-idempotent operation**: duplicated effect (payment, transfer) (p.45).
+- **Retry without a limit**: prevents the recovery the circuit breaker would try (p.129).
+- **Uniform timeout per hop**: the sum of the hops exceeds the flow budget (p.137).
+- **Circuit breaker per service**: semantics diverging across languages (p.129).
+- **Fallback decided in the incident**: generic error where there was a cheap alternative (p.129).
+- **Silent fail open**: protection that disappears on failure (p.110, p.159).
+- **Degradation without a metric**: nobody knows the system is in degraded mode (p.170, p.487).
+- **Average latency**: long tail invisible (p.434).
+- **Throughput without SLO**: a big number with a worse experience (p.435).
+- **"It worked" as a test**: an unmeasured failure mode keeps happening (p.318).
+- **Asynchrony by default**: cost of deadlock, race and debugging with no requirement that pays for it (p.277).
 
 ## 10. Checklist
 
-- [ ] A semantica de 5xx por operacao esta documentada (efeito aplicado ou nao) (p.45).
-- [ ] Toda operacao com retry e idempotente ou tem idempotency key (p.45).
-- [ ] Retry tem limite de tentativas e vive na camada comum (p.129).
-- [ ] O timeout de cada hop respeita o orcamento total do fluxo (p.137).
-- [ ] Circuit breaker abre em falha repetida e tem resposta degradada definida (p.129).
-- [ ] Chamada interna tem limite e monitoracao de erro (p.189).
-- [ ] Fail open/fail closed esta declarado por componente (p.159).
-- [ ] O fallback e decisao escrita, com cota propria e estado observavel (p.129, p.189).
-- [ ] Modos de falha enumerados e medidos por frequencia (p.318).
-- [ ] Latencia reportada em percentil e goodput contra SLO (p.434, p.435).
-- [ ] Configuracao e trace logados o suficiente para reconstruir o request (p.490, p.492).
+- [ ] The 5xx semantics per operation are documented (effect applied or not) (p.45).
+- [ ] Every operation with retry is idempotent or has an idempotency key (p.45).
+- [ ] Retry has an attempt limit and lives in the shared layer (p.129).
+- [ ] The timeout of each hop respects the total budget of the flow (p.137).
+- [ ] The circuit breaker opens on repeated failure and has a defined degraded response (p.129).
+- [ ] The internal call has a limit and error monitoring (p.189).
+- [ ] Fail open/fail closed is declared per component (p.159).
+- [ ] The fallback is a written decision, with its own quota and observable state (p.129, p.189).
+- [ ] Failure modes enumerated and measured by frequency (p.318).
+- [ ] Latency reported per percentile and goodput against the SLO (p.434, p.435).
+- [ ] Configuration and trace logged enough to reconstruct the request (p.490, p.492).
 
-## Fontes
+## Sources
 
-- **Mastering API Architecture — Design, Operate, and Evolve API-Based Systems** (James Gough, Daniel Bryant, Matthew Auburn), cap. 1 "Error Handling" (p.45), cap. 3 "API Gateways" (p.110), cap. 4 "Reliability" e "The 8 Fallacies of Distributed Computing" (p.129, p.134), cap. 5 "Deploying and Releasing APIs" (p.159, p.170, p.171), cap. 6 "Operational Security" (p.189, p.190).
-- **Fundamentals of Software Architecture — An Engineering Approach** (Mark Richards, Neal Ford), cap. 9 "Foundations" (p.137), cap. 17 "Microservices" (p.277).
-- **AI Engineering — Building Applications with Foundation Models** (Chip Huyen), cap. 6 "Agent Failure Modes and Evaluation" (p.318, p.319, p.320), cap. 9 "Inference Performance Metrics" (p.433, p.434, p.435), cap. 10 "AI Engineering Architecture" (p.470, p.477, p.479) e "Monitoring and Observability" (p.487, p.490, p.492).
+- **Mastering API Architecture — Design, Operate, and Evolve API-Based Systems** (James Gough, Daniel Bryant, Matthew Auburn), ch. 1 "Error Handling" (p.45), ch. 3 "API Gateways" (p.110), ch. 4 "Reliability" and "The 8 Fallacies of Distributed Computing" (p.129, p.134), ch. 5 "Deploying and Releasing APIs" (p.159, p.170, p.171), ch. 6 "Operational Security" (p.189, p.190).
+- **Fundamentals of Software Architecture — An Engineering Approach** (Mark Richards, Neal Ford), ch. 9 "Foundations" (p.137), ch. 17 "Microservices" (p.277).
+- **AI Engineering — Building Applications with Foundation Models** (Chip Huyen), ch. 6 "Agent Failure Modes and Evaluation" (p.318, p.319, p.320), ch. 9 "Inference Performance Metrics" (p.433, p.434, p.435), ch. 10 "AI Engineering Architecture" (p.470, p.477, p.479) and "Monitoring and Observability" (p.487, p.490, p.492).

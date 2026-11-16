@@ -1,75 +1,75 @@
-# Evidência sobre hooks: o que foi medido, não opinado
+# Evidence on hooks: what was measured, not opined
 
-Duas fontes públicas com número. Use para escolher **que emoção** o hook puxa e para justificar
-teste A/B — não para prometer CTR.
+Two public sources with numbers. Use them to choose **which emotion** the hook pulls and to justify
+an A/B test — not to promise CTR.
 
-## 1. Upworthy Research Archive — 32.487 testes A/B de manchete
+## 1. Upworthy Research Archive — 32.487 headline A/B tests
 
-| Fato | Valor |
+| Fact | Value |
 |---|---|
-| Experimentos (package tests) | **32.487** |
-| Braços/pacotes de experimento | **150.817** |
-| Período | **24/jan/2013 – 30/abr/2015** |
-| Impressões | **538.272.878** |
-| Cliques | **8.182.674** |
+| Experiments (package tests) | **32.487** |
+| Arms/experiment packages | **150.817** |
+| Period | **24/Jan/2013 – 30/Apr/2015** |
+| Impressions | **538.272.878** |
+| Clicks | **8.182.674** |
 
-Fonte: *The Upworthy Research Archive, a time series of 32,487 experiments in U.S. media*,
+Source: *The Upworthy Research Archive, a time series of 32,487 experiments in U.S. media*,
 Scientific Data (2021), `https://www.nature.com/articles/s41597-021-00934-7`.
 
-O que isso permite afirmar: existe um corpus grande de manchetes **randomizadas com CTR medido**.
-O que **não** permite: prever seu CTR. É manchete de mídia americana, de 2013-2015, para leitor
-geral — a distribuição de atenção não é a de um feed profissional em 2026.
+What this allows you to state: there is a large corpus of headlines **randomized with measured CTR**.
+What it **does not** allow: predicting your CTR. It is U.S. media headlines, from 2013-2015, for the
+general reader — the attention distribution is not that of a professional feed in 2026.
 
-Uso correto: a lição é o **loop** — duas variantes, mesma audiência, vencedor fica. Diferença entre
-manchetes do mesmo texto no archive é grande justamente porque **palavra escolhida** move mais que
-template.
+Correct use: the lesson is the **loop** — two variants, same audience, the winner stays. The difference
+between headlines of the same text in the archive is large precisely because the **chosen word** moves
+more than the template.
 
-## 2. Berger & Milkman — emoção e viralidade
+## 2. Berger & Milkman — emotion and virality
 
-Estudo: *What Makes Online Content Viral?* (Journal of Marketing Research, 2012; versão MSI Report
+Study: *What Makes Online Content Viral?* (Journal of Marketing Research, 2012; MSI Report version
 10-114, `https://www.msi.org/wp-content/uploads/2020/06/MSI_Report_10-114.pdf`).
 
-Método, para você pesar a evidência:
+Method, so that you can weigh the evidence:
 
-- **6.956 artigos** do New York Times, publicados entre **30/ago/2008 e 30/nov/2008**, capturados por
-  crawler a cada 15 minutos.
-- Variável dependente: entrar na lista **"most emailed"** do NYT — **20%** dos artigos entraram.
-- Emoções específicas codificadas por **3 avaliadores independentes e cegos** para as hipóteses,
-  escala Likert de 5 pontos, em subamostra aleatória de **2.566 artigos** (α > .70).
-- Valência/emocionalidade medida por análise textual com lista de **7.630 palavras**.
-- Regressão logística com efeito fixo de dia, erros-padrão agrupados por dia.
+- **6.956 articles** from the New York Times, published between **30/Aug/2008 and 30/Nov/2008**, captured
+  by a crawler every 15 minutes.
+- Dependent variable: making the NYT **"most emailed"** list — **20%** of the articles made it.
+- Specific emotions coded by **3 independent raters blind** to the hypotheses,
+  5-point Likert scale, in a random subsample of **2.566 articles** (α > .70).
+- Valence/emotionality measured by text analysis with a list of **7.630 words**.
+- Logistic regression with day fixed effects, standard errors clustered by day.
 
-Achados:
+Findings:
 
-| Emoção / traço | Efeito na chance de viralizar |
+| Emotion / trait | Effect on the chance of going viral |
 |---|---|
-| Conteúdo emocional (positivo **ou** negativo) | **+** |
-| Valência positiva | **+** (positivo viraliza mais que negativo) |
+| Emotional content (positive **or** negative) | **+** |
+| Positive valence | **+** (positive goes viral more than negative) |
 | Awe | **+** |
-| Surpresa | **+** |
-| Raiva | **+** — preditor mais forte: **+1 DP → 1,5× mais chance** de entrar na lista |
-| Ansiedade | **+** |
-| Tristeza | **−** |
-| Nojo | sem relação significativa |
+| Surprise | **+** |
+| Anger | **+** — strongest predictor: **+1 SD → 1,5× more chance** of making the list |
+| Anxiety | **+** |
+| Sadness | **−** |
+| Disgust | no significant relationship |
 
-## Regras que saem daí
+## Rules that come out of it
 
-1. **Escolha a emoção antes de escrever a frase.** Hook não é "impactante" em abstrato: é awe,
-   surpresa, raiva ou ansiedade. Diga qual você está mirando e escreva para ela.
-2. **Tristeza derruba compartilhamento.** Post técnico que abre em tom de lamento (“depois de meses
-   perdidos…”) pede pena, não alcance. Se a história é de fracasso, o hook é a **lição**, não a dor.
-3. **Raiva viaja, mas tem preço.** Para audiência técnica, o equivalente defensável é a *contrarian
-   claim com evidência* — raiva de uma prática, nunca de uma pessoa nomeada.
-4. **Surpresa é o mais barato de produzir com honestidade**: número que contradiz a intuição, ou a
-   parte que ninguém conta. É o hook que menos depende de marca pessoal.
-5. **Teste em par.** Duas variantes, mesma audiência e mesmo horário. Sem par, você não está
-   medindo hook — está publicando.
-6. **Não transfira número entre plataformas.** “1,5×” é chance relativa de entrar numa lista de
-   e-mails em 2008, não CTR no LinkedIn. Efeito relativo orienta escolha; valor absoluto é ficção.
+1. **Choose the emotion before writing the sentence.** A hook is not "impactful" in the abstract: it is
+   awe, surprise, anger or anxiety. Say which one you are aiming at and write for it.
+2. **Sadness brings sharing down.** A technical post that opens in a tone of lament (“after months
+   lost…”) asks for pity, not reach. If the story is one of failure, the hook is the **lesson**, not the pain.
+3. **Anger travels, but it has a price.** For a technical audience, the defensible equivalent is the
+   *contrarian claim with evidence* — anger at a practice, never at a named person.
+4. **Surprise is the cheapest to produce with honesty**: a number that contradicts intuition, or the
+   part that nobody tells. It is the hook that depends least on personal brand.
+5. **Test in pairs.** Two variants, same audience and same time. Without a pair, you are not
+   measuring a hook — you are publishing.
+6. **Do not transfer a number between platforms.** “1,5×” is the relative chance of making an e-mail
+   list in 2008, not CTR on LinkedIn. The relative effect guides the choice; the absolute value is fiction.
 
-## O que ainda não está medido aqui
+## What is not measured here yet
 
-- Efeito de **comprimento do hook** e do ponto de corte por plataforma: os limites estão em
-  `social-check/references/platform-limits.md`, mas o efeito de cada corte não foi medido.
-- Diferença de hook entre LinkedIn, Reddit e X com dado público: não encontrei dataset equivalente
-  ao archive para essas plataformas. Se você rodar seus próprios pares, você vira a fonte.
+- Effect of **hook length** and of the cutoff point per platform: the limits are in
+  `social-check/references/platform-limits.md`, but the effect of each cutoff was not measured.
+- Difference in hook between LinkedIn, Reddit and X with public data: I did not find a dataset equivalent
+  to the archive for those platforms. If you run your own pairs, you become the source.

@@ -1,31 +1,31 @@
 # api-documenter
 
-> Absorvida por `openapi-spec-generation` (2026-11-16). Conteúdo original preservado.
+> Absorbed by `openapi-spec-generation` (2026-11-16). Original content preserved.
 
 You are an expert API documentation specialist mastering modern developer experience through comprehensive, interactive, and AI-enhanced documentation.
 
 ## Use this skill when
 
-- Vai criar/atualizar uma spec OpenAPI/AsyncAPI.
-- Monta developer portal ou SDK docs.
-- Precisa gerar exemplos de código (curl/SDK) a partir de spec.
+- You are creating/updating an OpenAPI/AsyncAPI spec.
+- You are assembling a developer portal or SDK docs.
+- You need to generate code examples (curl/SDK) from a spec.
 
 ## Do not use this skill when
 
-- Tarefa é puramente implementação backend (use `backend/reference/go.md`/`reference/ts.md`).
-- Mudança é puramente markdown/changelog (sem nova spec).
-- Não há API surface ou endpoint envolvido.
+- The task is purely backend implementation (use `backend/reference/go.md`/`reference/ts.md`).
+- The change is purely markdown/changelog (no new spec).
+- There is no API surface or endpoint involved.
 
-## Mecânica neste repo
+## Mechanics in this repo
 
-1. **Spec canônica.** OpenAPI 3.1 em `openapi.yaml` ou `openapi.json`. YAML preferido (diff-friendly).
-2. **Validação.** Use `redocly lint` ou `swagger-cli validate` no CI. Falha = bloqueia merge.
-3. **Exemplos.** Todo endpoint público tem `example` no schema. Sem exemplo = request/response ambíguo.
-4. **Auth.** Esquema `securitySchemes` declarados uma vez; aplicados por `security:` no operation. Bearer/JWT via OAuth2.
-5. **Versionamento.** Path-based (`/v1/`, `/v2/`); breaking change = nova major + ADR linkando.
-6. **Erros.** RFC 7807 (Problem Details). Status code + `type` + `detail` + `instance`.
+1. **Canonical spec.** OpenAPI 3.1 in `openapi.yaml` or `openapi.json`. YAML preferred (diff-friendly).
+2. **Validation.** Use `redocly lint` or `swagger-cli validate` in CI. Failure = blocks merge.
+3. **Examples.** Every public endpoint has an `example` in the schema. No example = ambiguous request/response.
+4. **Auth.** `securitySchemes` schemes declared once; applied per operation via `security:`. Bearer/JWT via OAuth2.
+5. **Versioning.** Path-based (`/v1/`, `/v2/`); breaking change = new major + ADR linking it.
+6. **Errors.** RFC 7807 (Problem Details). Status code + `type` + `detail` + `instance`.
 
-## Templates mínimos
+## Minimum templates
 
 ```yaml
 openapi: 3.1.0
@@ -42,8 +42,8 @@ components:
 
 ## Anti-patterns
 
-- Endpoint sem `operationId` (gera SDK quebrado).
-- Status code errado (200 para erro, 404 para auth failure).
-- Schema sem `additionalProperties: false` quando o objeto é fechado.
-- Spec sem exemplos concretos (apenas description).
-- Versionamento via header (preferir path).
+- Endpoint without `operationId` (generates a broken SDK).
+- Wrong status code (200 for an error, 404 for auth failure).
+- Schema without `additionalProperties: false` when the object is closed.
+- Spec without concrete examples (description only).
+- Versioning via header (prefer path).

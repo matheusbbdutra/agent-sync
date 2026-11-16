@@ -1,152 +1,154 @@
-# Prompt injection: superficie, inspecao e resposta
+# Prompt injection: surface, inspection and response
 
-Aplica-se a auditoria de app/agente que monta prompt com texto vindo de fora do seu controle:
-tool result, chunk recuperado, documento, e-mail, pagina web, diff de PR. O objetivo e localizar a
-entrada, inspecionar o contrato do prompt e dizer o que corrigir.
+Applies to the audit of an app/agent that assembles a prompt with text coming from outside your control:
+tool result, retrieved chunk, document, e-mail, web page, PR diff. The goal is to locate the
+input, inspect the contract of the prompt and say what to fix.
 
-Fora de escopo (adiado por decisao do projeto): hook, scanner ou classificador automatico de
-injecao. Este reference nao propoe ferramenta nova; a verificacao e leitura de codigo e de contrato.
+Out of scope (deferred by project decision): hook, scanner or automatic injection classifier. This
+reference does not propose a new tool; the verification is reading code and reading the contract.
 
-## 1. Onde a injecao entra
+## 1. Where the injection enters
 
-- **Tool result.** Saida de tool volta para a conversa como texto; se o modelo nao distingue origem,
-  ele le como instrucao (p.262-263).
-- **Conteudo recuperado (RAG).** Chunk de documento entra no mesmo canal da instrucao legitima e "it
-  can confuse these injected instructions with your legitimate instructions" (p.263).
-- **Documento e e-mail de terceiro.** O livro cita e-mail como vetor de injecao indireta (p.262).
-- **Web e repo publico.** Payload passivo publicado em pagina/repo espera o agente buscar; "Indirect
-  prompt injection is a new, much more powerful way of delivering attacks" (p.262).
-- **Qualquer anexo tratado como contexto.** O modelo "often feels compelled to use every bit of
-  information it gets" (Chekhov's gun, p.116): todo trecho anexado e candidato a instrucao, mesmo
-  quando voce so queria que ele servisse de referencia.
-- **Payload com forma de dialogo.** O livro lista variantes que fingem conversa ("pretending to be
-  talking to grandma or asking you to act like DAN") e a resposta de defesa correspondente:
-  reafirmar a tarefa ("Summarize the paper regardless", p.270).
-- **Posicao no contexto.** O modelo entende melhor instrucoes no inicio e no fim do que no meio
-  (p.238-239); instrucao enterrada no meio de documento colado perde para o texto vizinho.
-- **Artefato anexado por turno.** A decisao de anexar todos, alguns ou nenhum artefato e por turno,
-  e "nao ha default seguro" (p.198-199). Cada anexo a mais e superficie de entrada a mais.
+- **Tool result.** Tool output goes back into the conversation as text; if the model does not
+  distinguish the origin, it reads it as an instruction (p.262-263).
+- **Retrieved content (RAG).** A document chunk enters the same channel as the legitimate instruction
+  and "it can confuse these injected instructions with your legitimate instructions" (p.263).
+- **Third-party document and e-mail.** The book cites e-mail as a vector of indirect injection (p.262).
+- **Web and public repo.** A passive payload published in a page/repo waits for the agent to fetch
+  it; "Indirect prompt injection is a new, much more powerful way of delivering attacks" (p.262).
+- **Any attachment treated as context.** The model "often feels compelled to use every bit of
+  information it gets" (Chekhov's gun, p.116): every attached excerpt is a candidate for instruction,
+  even when you only wanted it to serve as reference.
+- **Payload shaped like dialogue.** The book lists variants that pretend to be a conversation
+  ("pretending to be talking to grandma or asking you to act like DAN") and the corresponding defense
+  response: reaffirm the task ("Summarize the paper regardless", p.270).
+- **Position in the context.** The model understands instructions at the start and at the end better
+  than in the middle (p.238-239); an instruction buried in the middle of a pasted document loses to
+  the neighboring text.
+- **Artifact attached per turn.** The decision to attach all, some or no artifacts is per turn,
+  and "nao ha default seguro" ["there is no safe default"] (p.198-199). Each extra attachment is one
+  more entry surface.
 
-## 2. O que inspecionar
+## 2. What to inspect
 
-Liste primeiro os pontos de entrada; sem essa lista, a auditoria mede intencao em vez de superficie.
+List the entry points first; without that list, the audit measures intention instead of surface.
 
-| Item a inspecionar | Pergunta objetiva | Evidencia |
+| Item to inspect | Objective question | Evidence |
 | --- | --- | --- |
-| Inventario de entradas | todo texto externo que chega ao prompt esta listado? (tool result, chunk, web, anexo, diff, log) | p.262 |
-| Hierarquia de autoridade | system > user > modelo > tool output esta declarada e respeitada? | p.262-263 |
-| Reafirmacao depois do conteudo | a instrucao critica e repetida **depois** do texto colado? | p.270 |
-| Escopo da tarefa | o prompt diz o que fazer com o documento, em afirmacao positiva? | p.270, p.102 |
-| Aprovacao de acao com efeito | comando impactante exige aprovacao humana explicita? | p.270 |
-| Isolamento de execucao | codigo gerado roda em ambiente isolado (VM/container)? | p.270 |
-| Guardrails nos dois lados | existe filtro/checagem na entrada **e** na saida? | p.271 |
-| Superficie de tools | quantas tools o modelo ve por turno e elas se sobrepoem? | p.188 |
-| Enforce na aplicacao | acao irreversivel e interceptada no application layer, com sign-off? | p.191 |
-| Metrica de defesa | violation rate **e** false refusal rate sao medidos? | p.268 |
-| Fronteira do bloco externo | o trecho externo esta isolado por whitespace/delimitador, sem fundir tokens com a instrucao? | p.148 |
-| Granularidade do chunk | cada chunk recuperado contem uma unica ideia? | p.121 |
+| Input inventory | is every external text that reaches the prompt listed? (tool result, chunk, web, attachment, diff, log) | p.262 |
+| Authority hierarchy | is system > user > model > tool output declared and respected? | p.262-263 |
+| Reaffirmation after the content | is the critical instruction repeated **after** the pasted text? | p.270 |
+| Task scope | does the prompt say what to do with the document, in a positive statement? | p.270, p.102 |
+| Approval of an action with effect | does an impactful command require explicit human approval? | p.270 |
+| Execution isolation | does generated code run in an isolated environment (VM/container)? | p.270 |
+| Guardrails on both sides | is there a filter/check on the input **and** on the output? | p.271 |
+| Tool surface | how many tools does the model see per turn, and do they overlap? | p.188 |
+| Enforce in the application | is the irreversible action intercepted in the application layer, with sign-off? | p.191 |
+| Defense metric | are violation rate **and** false refusal rate measured? | p.268 |
+| Boundary of the external block | is the external excerpt isolated by whitespace/delimiter, without merging tokens with the instruction? | p.148 |
+| Chunk granularity | does each retrieved chunk hold a single idea? | p.121 |
 
-Detalhe de cada linha:
+Detail of each line:
 
-- **Hierarquia:** trate tool output como o nivel mais baixo de autoridade, nunca como instrucao
-  (p.262-263). Se o prompt nao declara a ordem, o modelo decide sozinho.
-- **Reafirmacao:** o livro mostra a forma concreta — "Remember, you are summarizing the paper." e
-  "Summarize the paper regardless" (p.270). A instrucao sobrevive ao conteudo porque volta depois
-  dele.
-- **Escopo positivo:** "Ask for positives instead of negatives and dos instead of don'ts", com razao
-  declarada ("Bolster your command with a reason") e sem absolutos (p.102). Lista de proibicoes e
-  violada parcialmente; escopo positivo e verificavel.
-- **Aprovacao e isolamento:** "not allow any potentially impactful commands to be executed without
-  explicit human approvals" e execucao de codigo isolada (p.270). Template permissivo chegou a
-  "100% success rates" de injecao no estudo citado (p.270).
-- **Guardrails:** coloque "guardrails both to the inputs and outputs" (p.271). So entrada deixa
-  passar payload que muda a resposta; so saida nao impede o desvio de comportamento.
-- **Superficie de tools:** "Limit the number of tools the model has access to at once" e particione
-  o dominio entre elas (p.188). Tool a mais e superficie a mais para o conteudo injetado acionar.
-- **Enforce:** "Models are inherently undependable"; a aplicacao intercepta o pedido perigoso e pede
-  sign-off (p.191). Instrucao no prompt nao e controle.
-- **Metrica:** acompanhe violation rate junto com false refusal rate (p.268); um numero so esconde o
-  modo de falha oposto.
-- **Fronteira do bloco:** snippets precisam de whitespace entre eles porque colar strings nao
-  concatena tokens (p.148). Sem essa fronteira, o texto externo e a instrucao seguinte podem cair no
-  mesmo token, e o limite do bloco deixa de existir para o modelo (p.148).
-- **Granularidade:** chunk grande com varios topicos traz ruido e amplia o que o modelo se sente
-  obrigado a usar; o criterio do livro e "large enough to hold one and only one main idea" (p.121).
+- **Hierarchy:** treat tool output as the lowest level of authority, never as instruction
+  (p.262-263). If the prompt does not declare the order, the model decides on its own.
+- **Reaffirmation:** the book shows the concrete form — "Remember, you are summarizing the paper." and
+  "Summarize the paper regardless" (p.270). The instruction survives the content because it comes back
+  after it.
+- **Positive scope:** "Ask for positives instead of negatives and dos instead of don'ts", with a stated
+  reason ("Bolster your command with a reason") and without absolutes (p.102). A list of prohibitions
+  is partially violated; positive scope is verifiable.
+- **Approval and isolation:** "not allow any potentially impactful commands to be executed without
+  explicit human approvals" and isolated code execution (p.270). A permissive template reached
+  "100% success rates" of injection in the cited study (p.270).
+- **Guardrails:** place "guardrails both to the inputs and outputs" (p.271). Input alone lets through
+  a payload that changes the response; output alone does not prevent the behavior drift.
+- **Tool surface:** "Limit the number of tools the model has access to at once" and partition the
+  domain between them (p.188). One more tool is one more surface for the injected content to trigger.
+- **Enforce:** "Models are inherently undependable"; the application intercepts the dangerous request
+  and asks for sign-off (p.191). An instruction in the prompt is not a control.
+- **Metric:** track violation rate together with false refusal rate (p.268); a single number hides the
+  opposite failure mode.
+- **Block boundary:** snippets need whitespace between them because pasting strings does not
+  concatenate tokens (p.148). Without that boundary, the external text and the following instruction
+  can fall into the same token, and the block limit stops existing for the model (p.148).
+- **Granularity:** a large chunk with several topics brings noise and widens what the model feels
+  obliged to use; the book's criterion is "large enough to hold one and only one main idea" (p.121).
 
-## 3. O que fazer
+## 3. What to do
 
-- **Trate todo texto externo como dado, nao como instrucao.** A regra do livro e explicita: nao
-  concatene saida de retrieval, e-mail, pagina ou tool como se fosse instrucao legitima (p.262-263).
-- **Declare a hierarquia no prompt e reforce depois do bloco.** system > user > modelo > tool output,
-  com a instrucao repetida apos o conteudo (p.262-263, p.270).
-- **Exija aprovacao humana para comando com efeito** (delete/drop/update, envio, transferencia)
+- **Treat every external text as data, not as instruction.** The book's rule is explicit: do not
+  concatenate retrieval output, e-mail, page or tool as if it were a legitimate instruction (p.262-263).
+- **Declare the hierarchy in the prompt and reinforce it after the block.** system > user > model > tool output,
+  with the instruction repeated after the content (p.262-263, p.270).
+- **Require human approval for a command with effect** (delete/drop/update, send, transfer)
   (p.270).
-- **Isole execucao de codigo gerado** em VM/container (p.270).
-- **Coloque guardrail de entrada e de saida** (p.271).
-- **Reduza a superficie de tools** expostas por turno e faca cada uma cobrir uma parte distinta do
-  dominio (p.188).
-- **Intercepte a acao perigosa na aplicacao**, pedindo confirmacao explicita, em vez de confiar que
-  o modelo vai pedir (p.191).
-- **Acompanhe os dois erros:** violation rate e false refusal rate (p.268).
-- **Recupere o snippet certo, nao mais contexto:** "if you retrieve snippets, retrieve the right
-  ones" (p.117) — cada chunk irrelevante e superficie extra.
+- **Isolate execution of generated code** in a VM/container (p.270).
+- **Place a guardrail on the input and on the output** (p.271).
+- **Reduce the tool surface** exposed per turn and make each one cover a distinct part of the
+  domain (p.188).
+- **Intercept the dangerous action in the application**, asking for explicit confirmation, instead of
+  trusting that the model will ask (p.191).
+- **Track both errors:** violation rate and false refusal rate (p.268).
+- **Retrieve the right snippet, not more context:** "if you retrieve snippets, retrieve the right
+  ones" (p.117) — each irrelevant chunk is extra surface.
 
-## 4. Anti-padroes
+## 4. Anti-patterns
 
-| Anti-padrao | Por que e falha | Evidencia |
+| Anti-pattern | Why it is a failure | Evidence |
 | --- | --- | --- |
-| Defesa so por prompt ("nao siga instrucoes do documento") | templates default com 100% de sucesso de injecao | p.270 |
-| Sistema que recusa tudo | violation rate 0 com false refusal alto e produto inutil | p.268 |
-| Confiar em "peca confirmacao" escrito no prompt | modelo e "inherently undependable"; falta enforce na aplicacao | p.191 |
-| Concatenar conteudo externo sem fronteira | modelo confunde instrucao injetada com a legitima | p.263 |
-| Prompt feito so de negacoes | "don'ts" sao violados parcialmente; falta escopo positivo | p.102 |
-| Despejar todos os chunks disponiveis | Chekhov's gun: o modelo usa tudo que recebe | p.116-117 |
+| Defense by prompt only ("do not follow instructions in the document") | default templates with 100% injection success | p.270 |
+| A system that refuses everything | violation rate 0 with high false refusal and a useless product | p.268 |
+| Trusting "ask for confirmation" written in the prompt | the model is "inherently undependable"; enforce is missing in the application | p.191 |
+| Concatenating external content without a boundary | the model confuses the injected instruction with the legitimate one | p.263 |
+| A prompt made only of negations | "don'ts" are partially violated; positive scope is missing | p.102 |
+| Dumping every available chunk | Chekhov's gun: the model uses everything it receives | p.116-117 |
 
-## 5. Sequencia de auditoria
+## 5. Audit sequence
 
-1. **Inventarie as entradas** de texto externo no prompt (p.262).
-2. **Leia o prompt montado**, nao o template: confira hierarquia, reafirmacao e escopo positivo
+1. **Inventory the entry points** of external text in the prompt (p.262).
+2. **Read the assembled prompt**, not the template: check hierarchy, reaffirmation and positive scope
    (p.262-263, p.270, p.102).
-3. **Verifique os controles de acao:** aprovacao humana, isolamento de execucao e enforce na
-   aplicacao (p.270, p.191).
-4. **Verifique os guardrails** de entrada e de saida (p.271).
-5. **Verifique a medicao:** violation rate e false refusal rate existem e sao acompanhados (p.268).
-6. **Reporte por ponto de entrada**, com o trecho do prompt ou `file:line` do codigo que monta o
-   contexto — sem isso o achado nao e acionavel.
+3. **Verify the action controls:** human approval, execution isolation and enforce in the
+   application (p.270, p.191).
+4. **Verify the guardrails** on input and on output (p.271).
+5. **Verify the measurement:** violation rate and false refusal rate exist and are tracked (p.268).
+6. **Report per entry point**, with the prompt excerpt or the `file:line` of the code that assembles
+   the context — without that the finding is not actionable.
 
-## 6. Evidencia minima do relatorio
+## 6. Minimum evidence of the report
 
-Cada achado precisa de tres partes, senao nao e auditavel:
+Each finding needs three parts, otherwise it is not auditable:
 
-1. **Ponto de entrada** identificado (tool result, chunk, web, anexo) e o `file:line` que monta o
-   prompt (p.262).
-2. **Trecho do prompt montado** que mostra a fronteira (ou a ausencia dela) e a posicao da
-   instrucao (p.262-263, p.238-239).
-3. **Controle existente ou ausente**, com a pagina que fundamenta a regra: aprovacao humana e
-   isolamento (p.270), guardrails (p.271), enforce na aplicacao (p.191), medicao (p.268).
+1. **Entry point** identified (tool result, chunk, web, attachment) and the `file:line` that assembles
+   the prompt (p.262).
+2. **Excerpt of the assembled prompt** that shows the boundary (or its absence) and the position of
+   the instruction (p.262-263, p.238-239).
+3. **Existing or missing control**, with the page that grounds the rule: human approval and
+   isolation (p.270), guardrails (p.271), enforce in the application (p.191), measurement (p.268).
 
-Nao reporte "possivel injecao" sem apontar o caminho de entrada e o controle que falhou: o risco e
-uma propriedade do fluxo, nao do texto do payload.
+Do not report "possible injection" without pointing out the entry path and the control that failed:
+the risk is a property of the flow, not of the payload text.
 
-## 7. O que este reference nao faz
+## 7. What this reference does not do
 
-- Nao define regex, assinatura ou classificador de payload: deteccao automatica esta fora do escopo
-  aprovado (adiada).
-- Nao substitui revisao de seguranca de aplicacao (XSS, SSRF, CSRF): ver
-  [backend-security-coder](backend-security-coder.md) e
+- Does not define a regex, signature or payload classifier: automatic detection is outside the approved
+  scope (deferred).
+- Does not replace the application security review (XSS, SSRF, CSRF): see
+  [backend-security-coder](backend-security-coder.md) and
   [frontend-security-coder](frontend-security-coder.md).
-- Nao promete cobertura total: o livro trata defesa como reducao de risco medida por violation rate
-  e false refusal rate, nao como eliminacao (p.268).
+- Does not promise total coverage: the book treats defense as risk reduction measured by violation rate
+  and false refusal rate, not as elimination (p.268).
 
-## Fontes
+## Sources
 
-- AI Engineering — Building Applications with Foundation Models (Chip Huyen) — cap. 5, Defensive
-  Prompt Engineering (p.262-263: injecao indireta, confusao entre instrucao injetada e legitima;
-  p.268: violation rate e false refusal rate; p.270: aprovacao humana, isolamento de execucao,
-  reafirmacao da tarefa, templates com 100% de sucesso; p.271: guardrails de entrada e saida).
-- Prompt Engineering for LLMs (John Berryman, Albert Ziegler) — cap. 5 (p.116-117: Chekhov's gun e
-  recuperar o snippet certo; p.121: chunk com uma unica ideia); cap. 6 (p.102: positivos em vez de
-  negativos, razao declarada, evitar absolutos; p.148: colar strings nao concatena tokens, fronteira
-  por whitespace); cap. 8 (p.188: limitar tools por turno e particionar dominio; p.191: intercepcao e
-  sign-off na application layer; p.198-199: curadoria de artefatos por turno); cap. 5 / contexto
-  longo (p.238-239: instrucao no inicio e no fim, nao no meio).
+- AI Engineering — Building Applications with Foundation Models (Chip Huyen) — ch. 5, Defensive
+  Prompt Engineering (p.262-263: indirect injection, confusion between injected and legitimate
+  instruction; p.268: violation rate and false refusal rate; p.270: human approval, execution
+  isolation, task reaffirmation, templates with 100% success; p.271: input and output guardrails).
+- Prompt Engineering for LLMs (John Berryman, Albert Ziegler) — ch. 5 (p.116-117: Chekhov's gun and
+  retrieving the right snippet; p.121: chunk with a single idea); ch. 6 (p.102: positives instead of
+  negatives, stated reason, avoiding absolutes; p.148: pasting strings does not concatenate tokens,
+  boundary by whitespace); ch. 8 (p.188: limiting tools per turn and partitioning the domain; p.191:
+  interception and sign-off in the application layer; p.198-199: artifact curation per turn); ch. 5 /
+  long context (p.238-239: instruction at the start and at the end, not in the middle).

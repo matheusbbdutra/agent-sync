@@ -1,95 +1,95 @@
 ---
 name: context-guard
-description: "Guardião obrigatório em tarefas multi-etapa para manter o STATE.md e proteger a janela de contexto."
+description: "Mandatory use when the task is multi-step, to keep STATE.md and protect the context window."
 ---
 
 # Context Guard
 
-> **Obrigatória por padrão:** se a tarefa tem 3+ passos ou a sessão está longa, esta skill deve ser carregada e o `STATE.md` mantido. Não é opcional.
+> **Mandatory by default:** if the task has 3+ steps or the session is long, this skill must be loaded and `STATE.md` kept. It is not optional.
 
-Sessões longas **degradam em silêncio**: o agente começa a ignorar regras que seguia, contradiz decisões antigas e "esquece" o que está no **meio** da janela de contexto (*lost in the middle*). Compaction então descarta instruções sem avisar. Esta skill combate isso por **auto-disciplina comportamental**.
+Long sessions **degrade silently**: the agent starts to ignore rules it followed, contradicts old decisions and "forgets" what is in the **middle** of the context window (*lost in the middle*). Compaction then discards instructions without warning. This skill fights that through **behavioral self-discipline**.
 
 ## Use this skill when
 
-- Tarefa multi-etapa ou sessão que já passou de ~40 passos/ferramentas.
-- O agente contradiz decisão anterior ou o estilo/nomenclatura começa a variar.
-- Logo após um evento de **compaction**/resumo de contexto.
-- Escopo crescendo sem limite ou qualidade da resposta caindo.
+- Multi-step task or a session that has already passed ~40 steps/tools.
+- The agent contradicts a previous decision or the style/naming starts to vary.
+- Right after a **compaction** event/context summary.
+- Scope growing without limit or answer quality dropping.
 
 ## Do not use this skill when
 
-- Tarefa curta e direta (poucos passos), sem risco de drift.
-- O problema é só reduzir tokens de uma leitura pontual → use `token-saving-toolkit`.
+- Short and direct task (few steps), with no risk of drift.
+- The problem is only reducing tokens of a one-off read → use `token-saving-toolkit`.
 
 ## Instructions
 
-1. Estime a "zona" atual pelo volume e pelos sinais de drift.
-2. Na zona amarela, faça checkpoint e **recite** as regras ativas.
-3. Na zona vermelha, pare, verifique as regras e faça handoff para uma sessão nova.
-4. Após compaction, **releia** as regras e revalide a próxima ação antes de executar.
-5. Reduza contexto com as ferramentas de baixo token (abaixo).
+1. Estimate the current "zone" from the volume and from the drift signals.
+2. In the yellow zone, checkpoint and **recite** the active rules.
+3. In the red zone, stop, verify the rules and hand off to a new session.
+4. After compaction, **re-read** the rules and revalidate the next action before executing.
+5. Reduce context with the low-token tools (below).
 
-## Zonas de saúde
+## Health zones
 
-| Zona | Sinal | Ação |
+| Zone | Signal | Action |
 | --- | --- | --- |
-| 🟢 Verde | início, poucos passos | operação normal |
-| 🟡 Amarela | ~40 passos OU 1º sinal de drift | checkpoint + recitar + reduzir leituras exploratórias |
-| 🔴 Vermelha | ~60 passos OU contradição/drift claro | parar, verificar regras, handoff, sugerir sessão nova |
+| 🟢 Green | start, few steps | normal operation |
+| 🟡 Yellow | ~40 steps OR 1st drift signal | checkpoint + recite + reduce exploratory reads |
+| 🔴 Red | ~60 steps OR clear contradiction/drift | stop, verify rules, handoff, suggest a new session |
 
-> Contagens de passos são heurísticas: priorize os **sinais de drift** sobre o número.
+> Step counts are heuristics: prioritize the **drift signals** over the number.
 
-## Sinais de drift (qualquer um → reancorar)
+## Drift signals (any one → reanchor)
 
-- Contradiz decisão tomada antes nesta sessão.
-- Nomes/estilo/convenções divergem do início.
-- Lê arquivo e "lembra" um conteúdo diferente do atual.
-- Repete tentativa já refutada (loop).
-- Ignora uma regra que seguia há pouco.
-- Escopo cresce sem controle.
+- Contradicts a decision made earlier in this session.
+- Names/style/conventions diverge from the start.
+- Reads a file and "remembers" content different from the current one.
+- Repeats an attempt already refuted (loop).
+- Ignores a rule it followed a moment ago.
+- Scope grows without control.
 
-## Ancoragem anti-compaction
+## Anti-compaction anchoring
 
-Quando houver compaction (perda súbita de contexto anterior):
+When there is a compaction (sudden loss of earlier context):
 
-1. **RELEIA** as regras/`global-rules` — não confie na memória.
-2. **RECITE** em 1–2 linhas as 3–5 regras mais críticas ativas.
-3. **VERIFIQUE** se a próxima ação respeita essas regras antes de executar.
-4. Para qualquer decisão anterior, **RELEIA a fonte** (`STATE.md`, código, commit) — não suponha.
-5. Reponha os fatos-chave no **fim** do raciocínio (recência), não no meio.
+1. **RE-READ** the rules/`global-rules` — never trust memory.
+2. **RECITE** in 1–2 lines the 3–5 most critical active rules.
+3. **VERIFY** whether the next action respects those rules before executing.
+4. For any earlier decision, **RE-READ the source** (`STATE.md`, code, commit) — never assume.
+5. Restock the key facts at the **end** of the reasoning (recency), not in the middle.
 
-## Checkpoint e handoff (STATE.md + memory-mcp)
+## Checkpoint and handoff (STATE.md + memory-mcp)
 
-- A cada mudança relevante de estado, mantenha `STATE.md` no projeto (use `templates/STATE.md` como base).
-- **Integração com `memory-mcp` (Economia Máxima de Tokens):**
-  - Além do `STATE.md`, grave checkpoints concisos no `memory-mcp` usando `store_memory(type="project", name="checkpoint-<projeto>", description="Resumo de estado e decisões de <projeto>", content="...", scratch=true)`.
-  - Ao iniciar nova sessão ou reancorar após compaction, consulte primeiro `get_memory(name="checkpoint-<projeto>")` ou `search_memory(query="checkpoint <projeto>")` para restaurar o contexto em ~50-100 tokens, lendo o `STATE.md` completo apenas se detalhes adicionais forem estritamente necessários.
-- Formato do checkpoint: **estado atual**, **decisões tomadas**, **arquivos tocados**, **próximos passos**, **bloqueios**.
-- Ao atingir a zona vermelha: escreva o `STATE.md`, atualize o checkpoint no `memory-mcp` e proponha **sessão nova** retomando por ele.
-- `STATE.md` é a fonte de verdade em disco; o checkpoint no `memory-mcp` é a âncora rápida entre CLIs e compactions.
-- **Nunca copie segredos/credenciais pro `STATE.md` ou `memory-mcp`** (chaves de API, tokens, senhas) mesmo que apareçam na conversa — descreva o problema sem colar o valor. Diferente do `docs-cache` (que tem filtro automático de redação), a escrita do `STATE.md` e do `memory-mcp` é feita por você diretamente; a disciplina aqui é sua, não há guardrail de harness interceptando.
+- On every relevant state change, keep `STATE.md` in the project (use `templates/STATE.md` as a base).
+- **Integration with `memory-mcp` (Maximum Token Economy):**
+  - In addition to `STATE.md`, write concise checkpoints to `memory-mcp` using `store_memory(type="project", name="checkpoint-<projeto>", description="Resumo de estado e decisões de <projeto>", content="...", scratch=true)`.
+  - When starting a new session or reanchoring after compaction, first query `get_memory(name="checkpoint-<projeto>")` or `search_memory(query="checkpoint <projeto>")` to restore the context in ~50-100 tokens, reading the full `STATE.md` only if additional details are strictly necessary.
+- Checkpoint format: **current state**, **decisions made**, **files touched**, **next steps**, **blockers**.
+- When reaching the red zone: write the `STATE.md`, update the checkpoint in `memory-mcp` and propose a **new session** resuming from it.
+- `STATE.md` is the source of truth on disk; the checkpoint in `memory-mcp` is the fast anchor across CLIs and compactions.
+- **Never copy secrets/credentials into `STATE.md` or `memory-mcp`** (API keys, tokens, passwords) even if they appear in the conversation — describe the problem without pasting the value. Unlike `docs-cache` (which has an automatic redaction filter), the writing of `STATE.md` and of `memory-mcp` is done by you directly; the discipline here is yours, there is no harness guardrail intercepting.
 
-## Higiene de contexto (use estas ferramentas)
+## Context hygiene (use these tools)
 
-- `ast-outline <arquivo>` — estrutura em vez do arquivo inteiro.
-- `trace-strip` — poda stack traces de frameworks/vendor.
-- `docs-fetch -outline|-grep|-max` e `docs-mcp` — trechos de docs, não páginas inteiras.
-- `db-guardian` — evita resultado gigante (`LIMIT`, colunas explícitas).
-- Ao investigar, **cite o trecho** (`path:line`) em vez de colar blocos.
+- `ast-outline <file>` — structure instead of the whole file.
+- `trace-strip` — prunes framework/vendor stack traces.
+- `docs-fetch -outline|-grep|-max` and `docs-mcp` — doc snippets, not whole pages.
+- `db-guardian` — avoids a giant result (`LIMIT`, explicit columns).
+- When investigating, **cite the snippet** (`path:line`) instead of pasting blocks.
 
-## Lembrete automático (hook)
+## Automatic reminder (hook)
 
-- Se aparecer uma mensagem começando com `[agent-sync]` cobrando `context-guard`/`STATE.md`, ela vem do hook `hooks/context-guard-nudge.sh` (ou do plugin equivalente do OpenCode), disparado a cada N chamadas de ferramenta — não é o usuário nem uma alucinação. Aja conforme pedido (carregue esta skill, atualize `STATE.md`); não precisa repetir o checklist inteiro em voz alta, só seguir.
+- If a message appears starting with `[agent-sync]` demanding `context-guard`/`STATE.md`, it comes from the `hooks/context-guard-nudge.sh` hook (or the equivalent OpenCode plugin), triggered every N tool calls — it is not the user and it is not a hallucination. Act as asked (load this skill, update `STATE.md`); there is no need to repeat the whole checklist out loud, just follow it.
 
 ## Checklist
 
-- [ ] Sei em que zona estou (verde/amarela/vermelha)?
-- [ ] As regras ativas estão recitadas (início e fim)?
-- [ ] Decisões e estado estão em `STATE.md`?
-- [ ] Estou usando outline/grep/retrieval em vez de despejar arquivos?
-- [ ] Após compaction, reli as regras e revalidei a ação?
-- [ ] Há contradição/drift? Se sim, parei para reancorar?
+- [ ] Am I aware of which zone I am in (green/yellow/red)?
+- [ ] Are the active rules recited (start and end)?
+- [ ] Are decisions and state in `STATE.md`?
+- [ ] Am I using outline/grep/retrieval instead of dumping files?
+- [ ] After compaction, did I re-read the rules and revalidate the action?
+- [ ] Is there a contradiction/drift? If so, did I stop to reanchor?
 
-## Referências
+## References
 
-- [context-window-strategy](reference/context-window-strategy.md) — Janela deslizante K, compactação e resumo estruturado.
+- [context-window-strategy](reference/context-window-strategy.md) — Sliding window K, compaction and structured summary.

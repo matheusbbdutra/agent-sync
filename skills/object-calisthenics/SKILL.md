@@ -1,38 +1,38 @@
 ---
 name: object-calisthenics
-description: "As 9 regras de Object Calisthenics de Jeff Bay para guiar código coeso e sem aninhamento."
+description: "Use when applying the 9 Object Calisthenics rules by Jeff Bay to guide cohesive code without nesting."
 ---
 
 # Object Calisthenics
 
-Conjunto de 9 restrições para exercitar bom design orientado a objetos. São um **exercício**, não um dogma: aplique-as para revelar problemas de design e negociadamente relaxe onde não fizer sentido (o pragmatismo vence a regra).
+A set of 9 constraints to exercise good object-oriented design. They are an **exercise**, not a dogma: apply them to reveal design problems and negotiate relaxing them where they make no sense (pragmatism beats the rule).
 
 ## Use this skill when
 
-- Refatorar métodos longos, com muitos níveis de indentação ou `else` em cascata.
-- Combater modelo anêmico (classes só com getters/setters e lógica nos serviços).
-- Reduzir acoplamento e melhorar testabilidade.
-- Revisar código novo antes de enviar para revisão.
+- Refactoring long methods, with many levels of indentation or cascading `else`.
+- Fighting the anemic model (classes with only getters/setters and logic in the services).
+- Reducing coupling and improving testability.
+- Reviewing new code before sending it to review.
 
 ## Do not use this skill when
 
-- O trecho é uma função pura e trivial, sem estado de domínio.
-- A restrição aumentaria a complexidade sem ganho real (ex.: wrappers sem comportamento).
-- O time não tem testes que garantam o refactor.
+- The snippet is a pure and trivial function, with no domain state.
+- The constraint would increase complexity with no real gain (e.g.: wrappers with no behavior).
+- The team has no tests that guarantee the refactor.
 
 ## Instructions
 
-1. Escolha a regra que ataca a dor atual (ex.: começar por "sem `else`" e "um nível de indentação").
-2. Aplique uma regra por vez, mantendo os testes verdes (refactor em fatias pequenas).
-3. Extraia métodos/objetos com nomes de domínio intencionais.
-4. Relaxe conscientemente quando a regra conflitar com clareza ou performance.
+1. Choose the rule that attacks the current pain (e.g.: start with "no `else`" and "one level of indentation").
+2. Apply one rule at a time, keeping the tests green (refactor in small slices).
+3. Extract methods/objects with intentional domain names.
+4. Consciously relax when the rule conflicts with clarity or performance.
 
-## As 9 regras
+## The 9 rules
 
-### 1. Apenas um nível de indentação por método
+### 1. Only one level of indentation per method
 
-- **Por quê:** força extração de métodos com responsabilidade única.
-- **Antes:**
+- **Why:** it forces extraction of methods with a single responsibility.
+- **Before:**
   ```python
   def calcular(pedido):
       total = 0
@@ -41,72 +41,72 @@ Conjunto de 9 restrições para exercitar bom design orientado a objetos. São u
               total += item.preco
       return total
   ```
-- **Depois:** extraia `total_de_ativos(itens)` e o laço fica em um método próprio.
-- **Como aplicar:** guard clauses para validação; extraia loop/condição para um método nomeado.
+- **After:** extract `total_de_ativos(itens)` and the loop stays in a method of its own.
+- **How to apply:** guard clauses for validation; extract the loop/condition into a named method.
 
-### 2. Não use `else`
+### 2. Do not use `else`
 
-- **Por quê:** reduz ramos e melhora o fluxo linear.
-- **Antes:** `if x: return a else: return b`
-- **Depois:** `if x: return a` seguido de `return b`.
-- **Padrões:** early return, polimorfismo/Strategy, valor default.
+- **Why:** it reduces branches and improves the linear flow.
+- **Before:** `if x: return a else: return b`
+- **After:** `if x: return a` followed by `return b`.
+- **Patterns:** early return, polymorphism/Strategy, default value.
 
-### 3. Envolva primitivos e strings
+### 3. Wrap primitives and strings
 
-- **Por quê:** dá tipo, validação e comportamento ao valor (Value Object).
-- **Exemplo:** `Dinheiro`, `Email`, `CPF`, `Periodo` em vez de `float`/`str`.
-- **Ganho:** invariantes centralizadas e assinatura autoexplicativa.
+- **Why:** it gives type, validation and behavior to the value (Value Object).
+- **Example:** `Dinheiro`, `Email`, `CPF`, `Periodo` instead of `float`/`str`.
+- **Gain:** centralized invariants and a self-explanatory signature.
 
-### 4. Um ponto por linha (Lei de Demeter)
+### 4. One dot per line (Law of Demeter)
 
-- **Por quê:** evita acoplamento a estruturas internas de outros objetos.
-- **Antes:** `pedido.cliente.endereco.cidade.uf`
-- **Depois:** `pedido.uf_de_entrega()` (o dono da informação responde).
-- **Regra prática:** só chame métodos do próprio objeto, de parâmetros ou de objetos criados localmente.
+- **Why:** it avoids coupling to the internal structures of other objects.
+- **Before:** `pedido.cliente.endereco.cidade.uf`
+- **After:** `pedido.uf_de_entrega()` (the owner of the information answers).
+- **Rule of thumb:** only call methods of the object itself, of parameters or of locally created objects.
 
-### 5. Não abreviações
+### 5. No abbreviations
 
-- **Por quê:** nomes são documentação; abreviações geram ambiguidade.
-- **Evite:** `usr`, `calc`, `qtd`, `tp`.
-- **Prefira:** `usuario`, `calcular`, `quantidade`, `tipo`.
+- **Why:** names are documentation; abbreviations create ambiguity.
+- **Avoid:** `usr`, `calc`, `qtd`, `tp`.
+- **Prefer:** `usuario`, `calcular`, `quantidade`, `tipo`.
 
-### 6. Mantenha entidades pequenas
+### 6. Keep entities small
 
-- **Alvo:** regras ≤ ~50 linhas, arquivos ≤ ~100 linhas, pacotes ≤ ~10 arquivos.
-- **Uso:** sinal de alerta para dividir; não é meta cega.
+- **Target:** rules ≤ ~50 lines, files ≤ ~100 lines, packages ≤ ~10 files.
+- **Use:** a warning sign to split; it is not a blind goal.
 
-### 7. No máximo duas variáveis de instância por classe
+### 7. At most two instance variables per class
 
-- **Por quê:** classes com muitos campos costumam ter múltiplas responsabilidades.
-- **Como aplicar:** agrupe campos coesos em Value Objects (ex.: `Endereco` em vez de rua/nº/cidade/cep).
-- **Cuidado:** entidades de persistência às vezes justificam exceções.
+- **Why:** classes with many fields usually have multiple responsibilities.
+- **How to apply:** group cohesive fields into Value Objects (e.g.: `Endereco` instead of street/nº/city/zip).
+- **Careful:** persistence entities sometimes justify exceptions.
 
-### 8. Use coleções de primeira classe
+### 8. Use first-class collections
 
-- **Por quê:** encapsula operações sobre coleções e evita laços repetidos.
-- **Antes:** `List<Item>` espalhado com `for` somando, filtrando, contando.
-- **Depois:** classe `Itens` com `total()`, `ativos()`, `quantidade()`.
+- **Why:** it encapsulates operations over collections and avoids repeated loops.
+- **Before:** `List<Item>` spread around with `for` summing, filtering, counting.
+- **After:** class `Itens` with `total()`, `ativos()`, `quantidade()`.
 
-### 9. Não use getters/setters (Tell, Don't Ask)
+### 9. Do not use getters/setters (Tell, Don't Ask)
 
-- **Por quê:** expor estado convida a lógica externa e a modelo anêmico.
-- **Antes:** `conta.set_saldo(conta.get_saldo() - valor)`
-- **Depois:** `conta.debitar(valor)` (comportamento no dono do dado).
-- **Exceção:** DTOs de fronteira, serialização e frameworks.
+- **Why:** exposing state invites external logic and the anemic model.
+- **Before:** `conta.set_saldo(conta.get_saldo() - valor)`
+- **After:** `conta.debitar(valor)` (behavior in the owner of the data).
+- **Exception:** boundary DTOs, serialization and frameworks.
 
-## Checklist de aplicação
+## Application checklist
 
-- [ ] Cada método tem no máximo um nível de indentação?
-- [ ] Não há `else` desnecessário?
-- [ ] Primitivos de domínio estão em Value Objects?
-- [ ] Cada linha faz no máximo um "ponto"?
-- [ ] Nomes sem abreviações e revelando intenção?
-- [ ] Classes e arquivos dentro do tamanho-alvo?
-- [ ] Comportamento está no objeto dono do dado (sem getters/setters)?
+- [ ] Does each method have at most one level of indentation?
+- [ ] Are there no unnecessary `else`?
+- [ ] Are domain primitives in Value Objects?
+- [ ] Does each line make at most one "dot"?
+- [ ] Names without abbreviations and revealing intent?
+- [ ] Classes and files within the target size?
+- [ ] Is behavior in the object that owns the data (no getters/setters)?
 
-Regras são ferramentas de diagnóstico: se aplicá-las piorar a clareza, **documente a exceção** e siga em frente.
+Rules are diagnostic tools: if applying them worsens clarity, **document the exception** and move on.
 
-## Referências
+## References
 
-- [code-refactoring-refactor-clean](reference/code-refactoring-refactor-clean.md) — Plano de refactor, code smells e slices incrementais.
-- [refactoring-catalog](reference/refactoring-catalog.md) — catálogo de refactorings nomeados, mapa `smell → move`, movimentos específicos de Go, quando **não** refatorar e protocolo de segurança.
+- [code-refactoring-refactor-clean](reference/code-refactoring-refactor-clean.md) — Refactor plan, code smells and incremental slices.
+- [refactoring-catalog](reference/refactoring-catalog.md) — catalog of named refactorings, `smell → move` map, Go-specific moves, when **not** to refactor and the safety protocol.
