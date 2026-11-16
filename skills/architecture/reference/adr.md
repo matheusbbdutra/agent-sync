@@ -1,9 +1,6 @@
----
-name: architecture-decision-records
-description: "Use when documenting significant architectural choices (lib selection, schema, communication patterns). Criação e manutenção de Architecture Decision Records (ADRs) estruturados."
----
+# Architecture Decision Records (ADR)
 
-# Architecture Decision Records
+> Absorvida por architecture (2026-11-16). Conteúdo original preservado (convenções locais `docs/ADR-*`, `D-N`/`A-N` mantidas).
 
 Padrões enxutos para registrar contexto, opções e consequências de decisões técnicas estruturantes.
 

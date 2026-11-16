@@ -90,7 +90,7 @@ Next validate: (eu: tool…) | (user: comando/ação…)
 | Bug / root cause | `debugging-strategies` |
 | Reduzir tokens na inspeção | `token-saving-toolkit` |
 | Delegar a outro CLI/modelo | `agent-delegate` |
-| Arquitetura / DDD / padrões | `arch-context-check` primeiro |
+| Arquitetura / DDD / padrões | `architecture` |
 
 ## Fechamento
 

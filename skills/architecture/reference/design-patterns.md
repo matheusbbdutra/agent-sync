@@ -1,9 +1,6 @@
----
-name: design-patterns
-description: "Catálogo de padrões de projeto GoF aplicados pragmaticamente para evitar duplicação."
----
-
 # Padrões de Projeto (GoF) e de Domínio
+
+> Absorvida por architecture (2026-11-16). Conteúdo original preservado.
 
 Um padrão é **vocabulário compartilhado**, não uma meta. Aplique só quando houver uma dor concreta (variação, acoplamento ou duplicação). A regra de ouro: **composição sobre herança** e **depender de abstrações, não de implementações**.
 

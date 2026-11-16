@@ -15,11 +15,11 @@ Camada de **princípios** para código de servidor, válida em qualquer stack do
 
 ## Quando NÃO dispara
 
-- Desenho de sistema, camadas macro, ADR → `architecture-patterns`, `architecture-decision-records`, `architect-review`.
+- Desenho de sistema, camadas macro, ADR → `architecture`.
 - Teste E2E de navegador/UI → `e2e-testing-patterns`.
 - Refactor puro de forma (método longo, `else` em cascata) → `object-calisthenics`.
 - Tuning de SQL/índice isolado → `sql-optimization-patterns`.
-- Contrato público de API (OpenAPI) → `openapi-spec-generation`; modelagem de domínio → `ddd`.
+- Contrato público de API (OpenAPI) → `openapi-spec-generation`; modelagem de domínio → `architecture` (reference/domain-modeling.md).
 
 ## 1. Fronteiras (dependency rule aplicada a código)
 
