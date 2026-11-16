@@ -33,11 +33,16 @@
 - Trate sempre a causa raiz comprovada, nunca apenas paliativos.
 - Em caso de falha/bug, registre o que desencadeou, a causa comprovada e como evitar reincidência para não entrar em loops de tentativa e erro.
 - Antes de declarar pronto, verifique na prática (testes/typecheck reais) ou declare explicitamente o que não pôde ser testado.
+- **`ok` do runtime ≠ efeito aplicado**: `hyprctl eval`/`hyprctl reload` retornam `ok` só por aceitar o comando. Sempre releia o estado real (`hyprctl monitors all -j`) após cada passo; outputs desativados não aparecem em `hyprctl monitors -j`.
+- **Ordem importa em mutação de layout**: desativar monitor à esquerda dispara auto-relayout que sobrescreve posição aplicada depois → reposicione o monitor remanescente ANTES de desativar.
+- **Hyprland Lua**: `disabled = true` não é revertido por `mode`/`position`; reativar exige `disabled = false` explícito.
 
 ## 6. Contexto & Janela (Anti-Degradação)
 - Em tarefas multi-etapa (3+ passos) ou sessões longas: use a skill `context-guard` e mantenha o `STATE.md` atualizado.
 - **Memória Enxuta**: Ao gravar no memory-mcp (`store_memory` ou `record_event`), registre apenas fatos e regras acionáveis em formato ultra-conciso (máx 2-3 linhas ou ~180 caracteres). Nunca registre diários, tentativas falhas descartadas ou código transitório já deletado.
 - Evite despejar arquivos inteiros no contexto (prefira outlines, buscas cirúrgicas e trechos delimitados).
+- **Delegação é o default em task ≥2 etapas**: antes do primeiro `edit`/`bash` de task que toque ≥3 arquivos, ≥2 módulos ou gere saída >100 linhas, dispare `subagent` no pipeline `research∥scout → plan (pai) → worker → review fresco → validate`; o pai mantém plano, decisão e aceite. Task trivial (1 arquivo, <10 tool calls) segue no pai. Research com web exige `async: true`. Ref: `agent-delegate` §Subagentes nativos.
+- **Leitura paralela, escrita serial**: 1 writer por cwd; `fork` só quando o brief não substituir o histórico.
 - Ao final de cada turno, finalize com 1-2 frases resumindo o que mudou e o que falta.
 
 ## 7. Convenções de Processo Agêntico
@@ -45,4 +50,12 @@ Detalhe e racional em `docs/ADR-convencoes-processo-agentico.md` (zero runtime, 
 - **Proposta-Primeiro**: propor regra/refactor = só texto no chat. Escrever em disco só com imperativo explícito (`aplique`, `faça`, `execute`) — espelha §3.
 - **Regra 3X**: 3 recusas consecutivas do mesmo guardrail → congela, resume o histórico e escala ao usuário em vez de insistir numa 4ª tentativa.
 - **Modo Sticky**: sessão continua no agente corrente até `exit`/troca explícita (latente — sem caso de uso no agent-sync hoje).
+
+## 8. Ferramentas & Incidentes Operacionais
+Cada item abaixo nasceu de incidente real; são regras duras, não preferências.
+- **Android — teste instrumentado nunca em base real**: `connectedAndroidTest`/`uninstall`/`pm clear` apagam os dados do app (2026-11-14: 1091 despesas → 0, recuperado só por reimport de CSV). Isole com build type de teste (`applicationIdSuffix` + `testBuildType`) ou instale o APK de teste e rode `am instrument` direto; backup exportado e conferido antes de qualquer run.
+- **Worktree sujo — proibido reverter por comando**: nunca `git checkout -- <path>`, `git restore` ou `git stash` para "desfazer formatação" com trabalho não-commitado presente (2026-11-14: alterações de UI perdidas de um arquivo `M`). Corrija o trecho com `edit`; reverter exige pedido explícito do usuário.
+- **Hermes/RN — `hermes-dec` é o contorno**: `~/.local/venvs/hermes/bin/{hbc-file-parser,hbc-disassembler,hbc-decompiler}` decodifica bundle Hermes (v98 pleno; v99 best-effort), e `strings -n 6` complementa copy/rotas. Nunca inferir layout, cor ou hierarquia a partir do bytecode.
+- **Rename de pacote Android — preserve componentes com permissão**: FQCN de `Service`/`Receiver` declarado no manifest é a chave da permissão concedida. Mantenha o FQCN antigo com uma subclasse shim, aponte o manifest para ele (nome absoluto) e valide com `aapt2 dump xmltree` comparando o dump antes/depois; `requestRebind`/`ComponentName` devem mirar o shim, não a classe nova.
+- **Android — UI de emulador via `mobile-mcp` + `adb emu`, adb puro só onde não há contorno**: tap/swipe/árvore/screenshot/launch usam `mobile_*` (parâmetro `device` = nome do AVD, ex. `financas`, nunca `emulator-5554`), não `input tap` + `uiautomator dump` + parse Python. `adb emu sms send` posta notificação real (substitui `cmd notification post`) e `adb emu resize-display` cobre o `wm size` do Play. `logcat -s`/`dumpsys`/`settings` ficam em adb. Não trocar de emulador (Waydroid/redroid/gRPC): os gaps são da plataforma Android, não do emulador.
 

@@ -1,11 +1,31 @@
 ---
 name: agent-delegate
-description: "Critérios para delegar tarefas entre CLIs e modelos conforme complexidade e tokens."
+description: "Critérios e workflow para delegar tarefas a subagentes/CLIs com contexto isolado, conforme complexidade, tokens e volume de saída."
 ---
 
 # Delegação entre agentes/CLIs
 
-Responda em PT-BR, objetivo (AGENTS.md global). Esta skill não cria orquestração automática — é um checklist para decidir se/para onde/como delegar. Infra de suporte: memória compartilhada (`memory-mcp`) + modos print/session que cada CLI já expõe.
+Responda em PT-BR, objetivo (AGENTS.md global). Esta skill não cria orquestração automática — é um checklist para decidir se/para onde/como delegar. Infra de suporte: memória compartilhada (`memory-mcp`) + subagentes nativos do host + modos print/session que cada CLI já expõe.
+
+## Subagentes nativos (isolar contexto)
+
+Dentro do Pi, o caminho default é o tool `subagent` — `delegate-run` fica para cruzar CLI. Regra de bolso: **se o output que voltaria ao chat é maior que o brief, delegue**.
+
+| Ponto | Agente | Paralelo | Retorno ao pai |
+| --- | --- | --- | --- |
+| Pesquisa web/docs, comparar propostas | `researcher` | 2-4 | `research.md` + resumo ≤1.5k tokens |
+| Mapear módulos/arquivos | `scout` | 1 por seam | `context.md` com `file:line` |
+| Implementar 1 ponto | `worker` | não (1 writer/cwd) | diff + como validou |
+| Revisar diff/plano | `reviewer` | sim (contexto fresco) | achados por severidade |
+| Saída volumosa (testes/logs) | qualquer | sim | só veredito + artefato |
+
+Pipeline: **PLAN** (pai) → **RESEARCH∥** → **RECON∥** → **IMPLEMENT** (serial) → **REVIEW** (fresco) → **ACCEPT** (pai).
+
+Brief mínimo: objetivo · cwd/ref · autoridade (pode/não pode editar) · evidências · critério de sucesso · validação · artefato de saída · quando parar/perguntar.
+
+Contrato de retorno: status, resumo ≤1.5k tokens, caminho do artefato, evidência (`file:line` / comando). Nunca colar log inteiro — o pai lê o artefato.
+
+Subagente **não herda skills nem o AGENTS.md global** por padrão: embuta as restrições críticas no brief ou ligue `inheritGlobalContext`/`inheritSkills` no agente.
 
 ## Modos de execução
 
