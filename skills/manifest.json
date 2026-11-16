@@ -217,6 +217,10 @@
       "id": "llm-eval",
       "domain": "agent-discipline",
       "bundleRef": "agent-core"
+    },
+    {
+      "id": "llm-integration",
+      "domain": "ai-engineering"
     }
   ]
 }
