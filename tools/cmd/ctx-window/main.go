@@ -56,7 +56,6 @@ Usage:
   ctx-window archive [--tool <name>] [--content <text>] [--stdin] <session>  archive a tool result (≥ archiveDefaultAt bytes) to <session>/archive/
   ctx-window expand [--list | --search <q> | <id>] <session>   list/search/retrieve archived tool results
   ctx-window activity [--json] <session>      classify current activity mode (code/debug/review/infra/general) from last 10 tool calls
-  ctx-window bash-compress [--json] --cmd <command> [--content <text>] [--stdin]  compress safe-readonly bash output (whitelist: ls/cat/find/grep/...)
   ctx-window benchmark <dataset>             runs empirical battery (placeholder)
   ctx-window track-docs [--snapshot-dir DIR] scans Cursor + Antigravity docs/forum/issues
                                                for token-field reappearance (K reopen signal).
@@ -113,8 +112,6 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runExpand(rest, stdout, stderr)
 	case "activity":
 		return runActivity(rest, stdout, stderr)
-	case "bash-compress":
-		return runBashCompress(rest, os.Stdin, stdout, stderr)
 	case "benchmark":
 		return runBenchmark(rest, stdout, stderr)
 	case "gain":
@@ -340,34 +337,6 @@ func runGain(args []string, stdout, stderr io.Writer) error {
 	}
 	WriteGainMarkdown(stdout, entries)
 	return nil
-}
-
-func runBashCompress(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	fs := flag.NewFlagSet("bash-compress", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	asJSON := fs.Bool("json", false, "emit BashCompressResult as JSON")
-	cmd := fs.String("cmd", "", "bash command (required)")
-	content := fs.String("content", "", "command output to compress (or use --stdin)")
-	useStdin := fs.Bool("stdin", false, "read output from stdin")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	if strings.TrimSpace(*cmd) == "" {
-		return errors.New("--cmd is required")
-	}
-	body := *content
-	if *useStdin {
-		b, err := io.ReadAll(stdin)
-		if err != nil {
-			return fmt.Errorf("read stdin: %w", err)
-		}
-		body = string(b)
-	}
-	if body == "" {
-		return errors.New("--content (or --stdin) is required and cannot be empty")
-	}
-	res := CompressBashOutput(*cmd, body)
-	return res.Write(stdout, *asJSON)
 }
 
 func runQuality(args []string, stdout, stderr io.Writer) error {

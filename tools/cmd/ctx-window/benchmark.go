@@ -39,7 +39,6 @@ func runBenchmark(args []string, stdout, stderr io.Writer) error {
 	results = append(results, benchQuality()...)
 	results = append(results, benchSkeleton()...)
 	results = append(results, benchArchive()...)
-	results = append(results, benchBashCompress()...)
 	if *asJSON {
 		return writeBenchJSON(stdout, results)
 	}
@@ -174,35 +173,6 @@ func benchArchive() []benchResult {
 	return out
 }
 
-func benchBashCompress() []benchResult {
-	cases := []struct {
-		name string
-		cmd  string
-		body string
-	}{
-		{"ls-short", "ls -la", "foo.go\nbar.go"},
-		{"ls-medium", "ls -la", strings.Repeat("file.go\n", 50)},
-		{"cat-big", "cat big.log", strings.Repeat("line\n", 200)},
-		{"npm-skip", "npm install", strings.Repeat("info\n", 100)},
-		{"pipe-skip", "ls | grep foo", strings.Repeat("foo\n", 50)},
-	}
-	var out []benchResult
-	for _, c := range cases {
-		start := time.Now()
-		res := CompressBashOutput(c.cmd, c.body)
-		ns := time.Since(start).Nanoseconds()
-		out = append(out, benchResult{
-			Feature:      "bash_compress",
-			Dataset:      c.name,
-			OrigBytes:    res.OrigBytes,
-			OutBytes:     res.OutBytes,
-			ReductionPct: res.ReductionPct,
-			LatencyUs:    ns / 1000,
-		})
-	}
-	return out
-}
-
 func writeBenchMarkdown(out io.Writer, results []benchResult) {
 	fmt.Fprintln(out, "# ctx-window benchmark (Phase 0)")
 	fmt.Fprintln(out)
@@ -220,7 +190,6 @@ func writeBenchMarkdown(out io.Writer, results []benchResult) {
 	fmt.Fprintln(out, "- `quality` reporta score (0-100) na coluna out_bytes; reduction_pct = score.")
 	fmt.Fprintln(out, "- `loop_detect` é zero-copy (não modifica), só mede latência.")
 	fmt.Fprintln(out, "- `archive` abaixo de archiveThreshold (4KB) passa verbatim.")
-	fmt.Fprintln(out, "- `bash_compress` skip para unsafe patterns (npm, pipe) — esperado.")
 }
 
 func writeBenchJSON(out io.Writer, results []benchResult) error {
