@@ -12,7 +12,7 @@ You are an expert API documentation specialist mastering modern developer experi
 
 ## Do not use this skill when
 
-- Tarefa é puramente implementação backend (use `golang-pro`/`python-pro`/etc).
+- Tarefa é puramente implementação backend (use `backend/reference/go.md`/`reference/ts.md`).
 - Mudança é puramente markdown/changelog (sem nova spec).
 - Não há API surface ou endpoint envolvido.
 

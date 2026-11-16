@@ -83,6 +83,6 @@ Você pesquisa em **fontes oficiais** antes de afirmar qualquer coisa sobre bibl
 
 ## Referências do repositório
 
-- Integração Symfony/Doctrine: `symfony`, `doctrine`, `phpunit-symfony`.
+- Integração Symfony/Doctrine: `backend/reference/php.md`.
 - Avaliação de MCP dedicado a docs: `mcp-advisor`.
 - [search-specialist](reference/search-specialist.md) — Operadores de busca, filtragem de domínio e verificação factual.

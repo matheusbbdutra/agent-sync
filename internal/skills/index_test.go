@@ -196,13 +196,14 @@ func TestRunSkillsIndexRealManifest(t *testing.T) {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 
-	const expectedTotal = 57
-	const expectedInstalled = 57
-	if r.Total != expectedTotal {
-		t.Errorf("Total=%d, esperado %d (cobertura total)", r.Total, expectedTotal)
+	// Invariante de cobertura, nao snapshot: o catalogo e podado com frequencia.
+	// Total != Installed significaria entrada no manifest sem diretorio (missing)
+	// ou diretorio sem entrada (orphan), ja cobertos abaixo por Missing/Orphan==0.
+	if r.Total == 0 {
+		t.Fatal("Total=0, manifest vazio")
 	}
-	if r.Installed != expectedInstalled {
-		t.Errorf("Installed=%d, esperado %d (todas declaradas no manifest)", r.Installed, expectedInstalled)
+	if r.Total != r.Installed {
+		t.Errorf("Total=%d, Installed=%d (esperado igual: toda entrada declarada precisa existir)", r.Total, r.Installed)
 	}
 	if r.Missing != 0 {
 		t.Errorf("Missing=%d, esperado 0", r.Missing)

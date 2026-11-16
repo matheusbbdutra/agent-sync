@@ -17,7 +17,7 @@ Responda em PT-BR, objetivo (AGENTS.md global). O harness já faz ReAct “cru�
 ## Do not use this skill when
 
 - Tarefa curta e direta (1–2 passos, resposta óbvia).
-- Só falta carregar skill de domínio (`symfony`, `ddd`, etc.) — carregue essa, não este protocolo.
+- Só falta carregar skill de domínio (`backend`, `architecture`, etc.) — carregue essa, não este protocolo.
 - Problema é saúde da janela/drift → `context-guard`.
 - Bug com playbook de debug → carregue também `debugging-strategies`.
 

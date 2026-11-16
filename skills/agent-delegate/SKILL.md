@@ -63,7 +63,7 @@ Testado em 2026-09-12: orquestrar `agy --print` (ou com `--dangerously-skip-perm
 3. Escolher alvo pelo **perfil de permissão** (tabela acima), depois pelo modelo/custo.
 4. Escolher modo `print` vs `session` conforme a tabela.
 5. Default quando a tarefa é mecânica e o alvo não importa: **`opencode run`**.
-6. **Se a tarefa é de linguagem/stack coberta por uma skill compartilhada** deste repo de skills (ex.: `golang-pro`, `typescript-pro`, `python-pro`, `object-calisthenics`, `design-patterns`) — embuta o conteúdo relevante dessa skill no prompt de delegação, não só a tarefa nua. O alvo (CLI diferente) não necessariamente carrega essas skills automaticamente; embutir garante que ele siga os mesmos padrões de qualidade que esta sessão seguiria. **Status: a testar** — ainda não validado em delegação real (pendente desde 2026-09-17); na próxima delegação de tarefa Go, ler `golang-pro` inteira e colar as seções relevantes (não só o nome) no prompt do `delegate-run`, e registrar aqui o resultado.
+6. **Se a tarefa é de linguagem/stack coberta por uma skill compartilhada** deste repo de skills (ex.: `backend`, `object-calisthenics`, `architecture`) — embuta o conteúdo relevante dessa skill no prompt de delegação, não só a tarefa nua. O alvo (CLI diferente) não necessariamente carrega essas skills automaticamente; embutir garante que ele siga os mesmos padrões de qualidade que esta sessão seguiria. **Status: a testar** — ainda não validado em delegação real (pendente desde 2026-09-17); na próxima delegação de tarefa Go, ler `backend/reference/go.md` inteira e colar as seções relevantes (não só o nome) no prompt do `delegate-run`, e registrar aqui o resultado.
 
 Ao gravar memórias: `agent` = `claude-code` | `codex` | `antigravity` | `opencode`.
 
