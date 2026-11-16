@@ -1,62 +1,62 @@
 # Review Rubric
 
-> Absorvida por architecture (2026-11-16). Conteúdo original preservado: método de revisão, atribuição de impacto, gates, boas práticas e armadilhas.
+> Absorbed by architecture (2026-11-16). Original content preserved: review method, impact attribution, gates, good practices and pitfalls.
 
-Referência carregada por `../SKILL.md` §4. Persona, catálogo de tecnologias e exemplos de prompt da origem não são instrução e foram descartados.
+Reference loaded by `../SKILL.md` §4. The origin's persona, technology catalog and prompt examples are not instruction and were discarded.
 
-## 1. Método (8 passos, nesta ordem)
+## 1. Method (8 steps, in this order)
 
-1. **Contexto** — levante o estado atual: fronteiras existentes, restrições conhecidas, decisão já registrada. Cite `path:line`.
-2. **Impacto** — atribua Alto, Médio ou Baixo (tabela abaixo) antes de opinar. Impacto não declarado vira gosto.
-3. **Aderência** — confira se a proposta respeita a dependency rule e os princípios de `../SKILL.md` §2.
-4. **Violações** — identifique anti-padrão concreto, não impressão geral.
-5. **Recomendação** — proponha refatoração nomeada e delimitada, com o trade-off de cada opção.
-6. **Escala** — diga o que acontece com 10× o volume, o time e a frequência de deploy.
-7. **Registro** — exija ADR quando a mudança toca contrato, fronteira ou tecnologia ([adr.md](adr.md)).
-8. **Próximo passo** — feche com ação verificável (comando, teste, gate) e o que ainda é hipótese.
+1. **Context** — raise the current state: existing boundaries, known constraints, decision already recorded. Cite `path:line`.
+2. **Impact** — assign High, Medium or Low (table below) before giving an opinion. Undeclared impact becomes taste.
+3. **Adherence** — check whether the proposal respects the dependency rule and the principles of `../SKILL.md` §2.
+4. **Violations** — identify a concrete anti-pattern, not a general impression.
+5. **Recommendation** — propose a named and delimited refactoring, with the trade-off of each option.
+6. **Scale** — say what happens with 10× the volume, the team and the deploy frequency.
+7. **Record** — require an ADR when the change touches contract, boundary or technology ([adr.md](adr.md)).
+8. **Next step** — close with a verifiable action (command, test, gate) and what is still a hypothesis.
 
-## 2. Atribuição de impacto
+## 2. Impact attribution
 
-| Impacto | Critério | Efeito no veredito |
+| Impact | Criterion | Effect on the verdict |
 |---|---|---|
-| Alto | muda contrato público, fronteira de contexto, modelo de dados compartilhado ou tecnologia de persistência | exige plano de validação determinístico **antes** de aprovar |
-| Médio | novo módulo, nova dependência externa, mudança de camada | aprova com condição e ADR |
-| Baixo | detalhe interno, renomeação, extração local | aprova com teste que cobre o comportamento |
+| High | changes public contract, context boundary, shared data model or persistence technology | requires a deterministic validation plan **before** approving |
+| Medium | new module, new external dependency, layer change | approves with condition and ADR |
+| Low | internal detail, renaming, local extraction | approves with a test that covers the behavior |
 
-## 3. Rubrica de qualidade (eixos)
+## 3. Quality rubric (axes)
 
-- **Fronteiras** — cada contexto tem dono, deploy e modelo próprios? Regra sem dono único é blocker.
-- **Acoplamento** — o núcleo importa infraestrutura? Tipo de fornecedor aparece na regra de negócio? Falta ACL?
-- **Escalabilidade** — gargalo declarado é o real (N+1, transação longa, lock, chamada serializada) ou é palpite?
-- **Consistência** — transação respeita o limite do agregado? Existe consumidor idempotente e compensação?
-- **Testabilidade** — a regra roda sem banco, HTTP e rede? Se precisa de infraestrutura, a dependência aponta para o lado errado.
-- **Origem da afirmação** — cada achado diz se vem da skill, de decisão registrada em memória/ADR ou de análise nova do código (`path:line`). Opinião sem fonte não entra no relatório.
+- **Boundaries** — does each context have its own owner, deploy and model? A rule without a single owner is a blocker.
+- **Coupling** — does the core import infrastructure? Does a vendor type appear in the business rule? Is an ACL missing?
+- **Scalability** — is the declared bottleneck the real one (N+1, long transaction, lock, serialized call) or is it a guess?
+- **Consistency** — does the transaction respect the aggregate's boundary? Is there an idempotent consumer and compensation?
+- **Testability** — does the rule run without database, HTTP and network? If it needs infrastructure, the dependency points to the wrong side.
+- **Origin of the claim** — each finding says whether it comes from the skill, from a decision recorded in memory/ADR or from new analysis of the code (`path:line`). Opinion without a source does not enter the report.
 
-## 4. Gates de aprovação
+## 4. Approval gates
 
-Reprova sem discussão:
+Fails without discussion:
 
-- Aprovar mudança de impacto Alto sem plano de validação (`go test`, smoke, critério de aceite).
-- Achado sem evidência `path:line` ou sem alternativa com trade-off.
-- Suposição de comportamento não verificada no código apresentada como fato.
-- Hipótese pendente entregue como conclusão; premissa descartada reintroduzida sem justificativa.
+- Approving a High-impact change without a validation plan (`go test`, smoke, acceptance criterion).
+- Finding without `path:line` evidence or without an alternative with a trade-off.
+- Assumption of behavior not verified in the code presented as fact.
+- Pending hypothesis delivered as conclusion; discarded premise reintroduced without justification.
 
-## 5. O que o review deve confirmar
+## 5. What the review must confirm
 
-1. **Dependency rule** — dependência sempre aponta para dentro.
-2. **Interface segregation** — interfaces pequenas e focadas, não `interface`-Deus.
-3. **Regra no domínio** — framework fora do núcleo.
-4. **Teste independente** — núcleo testável sem infraestrutura.
-5. **Bounded context** — fronteira de domínio explícita.
-6. **Linguagem ubíqua** — terminologia consistente entre código e negócio.
-7. **Controller fino** — delega ao caso de uso.
-8. **Modelo rico** — comportamento junto do dado.
+1. **Dependency rule** — dependency always points inward.
+2. **Interface segregation** — small and focused interfaces, not an `interface`-God.
+3. **Rule in the domain** — framework out of the core.
+4. **Independent test** — core testable without infrastructure.
+5. **Bounded context** — explicit domain boundary.
+6. **Ubiquitous language** — consistent terminology between code and business.
+7. **Thin controller** — delegates to the use case.
+8. **Rich model** — behavior next to the data.
 
-## 6. Armadilhas comuns
+## 6. Common pitfalls
 
-- **Modelo anêmico** — entidade só com dado; regra num `service` gigante.
-- **Acoplamento a framework** — regra de negócio dependendo do framework.
-- **Controller gordo** — regra de negócio no handler HTTP.
-- **Vazamento de repository** — objeto do ORM exposto para fora do adaptador.
-- **Abstração ausente** — dependência concreta dentro do núcleo.
-- **Over-engineering** — Clean Architecture aplicada a CRUD simples.
+- **Anemic model** — entity with only data; rule in a giant `service`.
+- **Framework coupling** — business rule depending on the framework.
+- **Fat controller** — business rule in the HTTP handler.
+- **Repository leak** — ORM object exposed out of the adapter.
+- **Missing abstraction** — concrete dependency inside the core.
+- **Over-engineering** — Clean Architecture applied to simple CRUD.

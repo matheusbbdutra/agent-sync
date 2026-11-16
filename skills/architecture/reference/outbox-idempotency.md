@@ -1,186 +1,186 @@
-# Outbox e idempotencia (entrega at-least-once)
+# Outbox and idempotency (at-least-once delivery)
 
-> Referencia carregada por `../SKILL.md` §6 (consistencia e transacoes). O assunto aqui e **o caminho da mensagem**: como um evento sai do banco e chega ao consumidor sem duplicar efeito.
-> Nao duplica: consistencia entre agregados e compensacao ficam no `SKILL.md` §6; retry, timeout e circuit breaker ficam em `error-handling-patterns/reference/resilience.md` §2-§5; contrato de recurso e `Idempotency-Key` na borda HTTP ficam em `api-design-principles/reference/rest-best-practices.md`.
-> Fonte e spec externa, nao livro: cada afirmacao tecnica aponta a URL verificada em `## Fontes`. Inferencia do autor esta marcada como **[inferencia]**.
+> Reference loaded by `../SKILL.md` §6 (consistency and transactions). The subject here is **the path of the message**: how an event leaves the database and reaches the consumer without duplicating effect.
+> It does not duplicate: consistency between aggregates and compensation stay in `SKILL.md` §6; retry, timeout and circuit breaker stay in `error-handling-patterns/reference/resilience.md` §2-§5; resource contract and `Idempotency-Key` at the HTTP edge stay in `api-design-principles/reference/rest-best-practices.md`.
+> Source is an external spec, not a book: each technical claim points to the URL verified in `## Sources`. Author's inference is marked as **[inference]**.
 
-## 1. O problema: dual write
+## 1. The problem: dual write
 
-Publicar um evento e mudar o estado sao **dois sistemas distintos**. Qualquer ordem deixa uma janela:
+Publishing an event and changing the state are **two distinct systems**. Any order leaves a window:
 
-| Ordem | Falha | Resultado |
+| Order | Failure | Result |
 | --- | --- | --- |
-| commit, depois publish | publish falha ou processo cai | estado mudou, evento nao existe: consumidor nunca sabe (perda silenciosa) |
-| publish, depois commit | commit falha | evento anuncia estado que nao existe no banco (fantasma) |
+| commit, then publish | publish fails or the process dies | state changed, event does not exist: the consumer never knows (silent loss) |
+| publish, then commit | commit fails | the event announces a state that does not exist in the database (ghost) |
 
-- O nome do problema e `dual write`: a AWS Prescriptive Guidance define o padrao como resposta a "the dual write operations issue that occurs in distributed systems when a single operation involves both a database write operation and a message or event notification".
-- Inverter a ordem nao resolve; escolhe o tipo de inconsistencia.
-- 2PC nao e a saida: no catalogo de microservices.io, "it is not viable to use a traditional distributed transaction (2PC) that spans the database and the message broker", porque "the database and/or the message broker might not support 2PC".
-- Havendo CDC disponivel, a AWS cita "an outbox table or change data capture (CDC)" como as duas implementacoes do mesmo objetivo. CDC e a variante sem relay proprio (§3).
+- The name of the problem is `dual write`: AWS Prescriptive Guidance defines the pattern as the answer to "the dual write operations issue that occurs in distributed systems when a single operation involves both a database write operation and a message or event notification".
+- Inverting the order does not solve it; it chooses the type of inconsistency.
+- 2PC is not the way out: in the microservices.io catalog, "it is not viable to use a traditional distributed transaction (2PC) that spans the database and the message broker", because "the database and/or the message broker might not support 2PC".
+- Where CDC is available, AWS cites "an outbox table or change data capture (CDC)" as the two implementations of the same goal. CDC is the variant with no relay of its own (§3).
 
-## 2. A tabela outbox
+## 2. The outbox table
 
-Participantes nomeados no padrao (microservices.io): **Sender** (o servico que envia), **Database** (guarda entidades e outbox), **Message outbox** ("if it's a relational database, this is a table that stores the messages to be sent"), **Message relay** e **Message broker**.
+Participants named in the pattern (microservices.io): **Sender** (the service that sends), **Database** (stores entities and the outbox), **Message outbox** ("if it's a relational database, this is a table that stores the messages to be sent"), **Message relay** and **Message broker**.
 
-Regra central: o `INSERT` na outbox acontece na **mesma transacao local** do `UPDATE`/`INSERT` de negocio. Se a transacao commita, existem estado e mensagem; se da rollback, nao existe nenhum dos dois. A atomicidade vem do banco, nao do broker.
+Central rule: the `INSERT` in the outbox happens in the **same local transaction** as the business `UPDATE`/`INSERT`. If the transaction commits, state and message exist; if it rolls back, neither of the two exists. Atomicity comes from the database, not from the broker.
 
-Colunas minimas (**[inferencia]** de engenharia, nao texto de spec):
+Minimum columns (**[inference]** from engineering, not spec text):
 
-| Coluna | Para que |
+| Column | What for |
 | --- | --- |
-| `id` | identidade da mensagem; vira `message_id` no broker e base da chave de idempotencia |
-| `aggregate_id` | chave de particao e fronteira de ordenacao (§9) |
-| `type` | roteamento e schema do payload |
-| `payload` | corpo serializado |
-| `created_at` | lag do relay, auditoria, janela de retencao |
-| `published_at` (nullable) | `NULL` = pendente; indice parcial nessa coluna e o que sustenta o polling |
-| `attempts`, `last_error` | diagnostico; alimenta a decisao de DLQ (§8) |
+| `id` | identity of the message; becomes `message_id` in the broker and the basis of the idempotency key |
+| `aggregate_id` | partition key and ordering boundary (§9) |
+| `type` | routing and payload schema |
+| `payload` | serialized body |
+| `created_at` | relay lag, audit, retention window |
+| `published_at` (nullable) | `NULL` = pending; the partial index on this column is what sustains the polling |
+| `attempts`, `last_error` | diagnostics; feeds the DLQ decision (§8) |
 
-- Indice parcial em `published_at IS NULL` evita varredura na tabela que so cresce.
-- Retencao e limpeza das linhas publicadas sao requisito, nao faxina opcional: tabela infinita degrada o polling.
+- A partial index on `published_at IS NULL` avoids a scan on the table that only grows.
+- Retention and cleanup of the published rows are a requirement, not optional housekeeping: an infinite table degrades the polling.
 
-## 3. Relay: polling ou tailing do log
+## 3. Relay: polling or log tailing
 
-Duas formas de mover a linha da outbox para o broker (microservices.io documenta ambas como padroes separados):
+Two ways of moving the outbox row to the broker (microservices.io documents both as separate patterns):
 
-- **Polling publisher**: o relay consulta a outbox em intervalo fixo, publica o que esta pendente e marca.
-- **Transaction log tailing**: "Tail the database transaction log and publish each message/event inserted into the outbox to the message broker". O mecanismo depende do banco: MySQL binlog, Postgres WAL, AWS DynamoDB table streams.
+- **Polling publisher**: the relay queries the outbox at a fixed interval, publishes what is pending and marks it.
+- **Transaction log tailing**: "Tail the database transaction log and publish each message/event inserted into the outbox to the message broker". The mechanism depends on the database: MySQL binlog, Postgres WAL, AWS DynamoDB table streams.
 
-| Criterio | Polling | Log tailing |
+| Criterion | Polling | Log tailing |
 | --- | --- | --- |
-| Latencia | limitada pelo intervalo | proxima do tempo real |
-| Custo no banco | query periodica, mesmo sem mensagem | leitura do log |
-| Complexidade operacional | baixa | alta (formato de log, posicao, permissoes) |
-| Acoplamento | so SQL | binlog/WAL/streams do fornecedor |
+| Latency | limited by the interval | close to real time |
+| Cost on the database | periodic query, even with no message | log read |
+| Operational complexity | low | high (log format, position, permissions) |
+| Coupling | SQL only | vendor binlog/WAL/streams |
 
-Ordem de operacao que evita duplicar em massa (**[inferencia]**):
+Operating order that avoids mass duplication (**[inference]**):
 
-1. publica no broker;
-2. so depois marca `published_at`;
-3. se o processo cair entre 1 e 2, a republicacao acontece — e aceitavel, porque o consumidor e idempotente (§5).
+1. publish to the broker;
+2. only then mark `published_at`;
+3. if the process dies between 1 and 2, the republication happens — and it is acceptable, because the consumer is idempotent (§5).
 
-Marcar antes de publicar troca "duplicata" por "perda": pior negocio. Escolha deliberada, nunca default.
+Marking before publishing trades "duplicate" for "loss": a worse deal. A deliberate choice, never a default.
 
-Com mais de uma instancia do relay, duas instancias podem pegar a mesma linha. Precisa de claim por linha (`SELECT ... FOR UPDATE SKIP LOCKED` no Postgres) ou lock equivalente — sem isso, o relay vira gerador de duplicata. **[inferencia]**
+With more than one instance of the relay, two instances can pick the same row. It needs a per-row claim (`SELECT ... FOR UPDATE SKIP LOCKED` in Postgres) or an equivalent lock — without that, the relay becomes a duplicate generator. **[inference]**
 
-## 4. Anti-padrao: publicar no broker dentro da transacao
+## 4. Anti-pattern: publishing to the broker inside the transaction
 
-O erro tem forma reconhecivel: `BEGIN` → `INSERT` de negocio → `publish` no broker → `COMMIT`.
+The error has a recognizable shape: `BEGIN` → business `INSERT` → `publish` to the broker → `COMMIT`.
 
-Por que quebra:
+Why it breaks:
 
-- **Commit pode falhar depois do publish**: o broker ja recebeu o evento de um estado que o rollback desfez. A transacao do banco nao desfaz o que saiu pela rede.
-- **O publish nao participa do commit**: sucesso do broker nao e condicao de sucesso do banco, nem o contrario. E o mesmo dual write, so que escondido dentro de um bloco `BEGIN/COMMIT`.
-- **I/O de rede dentro do lock**: a transacao segura lock de linha enquanto espera o broker; latencia do broker virou latencia de escrita e, sob carga, pool de conexoes esgotado.
-- **Retry do publish dentro da transacao** duplica o evento sem que o banco saiba.
-- **Nenhum ganho real**: se o broker participasse da transacao, seria 2PC — exatamente o que o padrao rejeita por falta de suporte.
+- **The commit can fail after the publish**: the broker has already received the event of a state that the rollback undid. The database transaction does not undo what left through the network.
+- **The publish does not take part in the commit**: broker success is not a condition of database success, nor the other way around. It is the same dual write, only hidden inside a `BEGIN/COMMIT` block.
+- **Network I/O inside the lock**: the transaction holds a row lock while it waits for the broker; broker latency became write latency and, under load, an exhausted connection pool.
+- **A retry of the publish inside the transaction** duplicates the event without the database knowing.
+- **No real gain**: if the broker took part in the transaction, it would be 2PC — exactly what the pattern rejects for lack of support.
 
-Regra derivada (**[inferencia]** a partir do acima): **nenhum I/O de rede na transacao de escrita**. Commit curto, broker depois, fora da transacao, via outbox.
+Derived rule (**[inference]** from the above): **no network I/O in the write transaction**. Short commit, broker afterwards, outside the transaction, via outbox.
 
-## 5. At-least-once e por que isso obriga idempotencia no consumidor
+## 5. At-least-once and why it forces idempotency on the consumer
 
-O relay nao consegue garantir entrega unica: ele pode publicar e falhar antes de marcar, ou o broker pode entregar duas vezes.
+The relay cannot guarantee a single delivery: it can publish and fail before marking, or the broker can deliver twice.
 
-- Duplicata no broker e real em fila standard. A documentacao de exactly-once do SQS diz: "Unlike standard queues, FIFO queues don't introduce duplicate messages" — a frase so faz sentido porque a standard **pode** duplicar.
-- Mesmo FIFO so elimina duplicata de **envio** dentro do intervalo de deduplicacao: "If you retry the `SendMessage` action within the 5-minute deduplication interval, Amazon SQS doesn't introduce any duplicates into the queue."
-- Consequencia de design: o caminho e **at-least-once**; o efeito tem de ser **once**. Entrega unica ponta a ponta entre sistemas independentes nao e alcancavel em geral — o que se alcanca e processamento unico no consumidor. **[inferencia]** consolidada, consistente com o texto do SQS.
+- A duplicate in the broker is real in a standard queue. The SQS exactly-once documentation says: "Unlike standard queues, FIFO queues don't introduce duplicate messages" — the sentence only makes sense because the standard one **can** duplicate.
+- Even FIFO only eliminates **send** duplicates within the deduplication interval: "If you retry the `SendMessage` action within the 5-minute deduplication interval, Amazon SQS doesn't introduce any duplicates into the queue."
+- Design consequence: the path is **at-least-once**; the effect has to be **once**. A single end-to-end delivery between independent systems is not achievable in general — what is achieved is single processing at the consumer. **[inference]** consolidated, consistent with the SQS text.
 
-Portanto: deduplicacao no consumidor **nao e otimizacao, e requisito do padrao**. Quem adota outbox sem idempotencia no consumidor trocou perda silenciosa por duplicata silenciosa.
+Therefore: deduplication at the consumer **is not an optimization, it is a requirement of the pattern**. Whoever adopts outbox without idempotency at the consumer traded silent loss for silent duplication.
 
-## 6. Chave de idempotencia
+## 6. Idempotency key
 
-Nao e o `Idempotency-Key` do HTTP. Sao coisas diferentes, com escopos diferentes:
+It is not the HTTP `Idempotency-Key`. They are different things, with different scopes:
 
-| Chave | Onde vive | Escopo |
+| Key | Where it lives | Scope |
 | --- | --- | --- |
-| `message_id` / `event_id` da outbox | envelope da mensagem | por mensagem publicada |
-| `Idempotency-Key` | request HTTP do cliente | por operacao request/response (§Fontes: Internet-Draft) |
+| `message_id` / `event_id` of the outbox | message envelope | per published message |
+| `Idempotency-Key` | client HTTP request | per request/response operation (§Sources: Internet-Draft) |
 
-Propriedades que a chave precisa ter:
+Properties the key needs to have:
 
-- **Derivada do fato, nao do transporte**: `event_id` gerado no `INSERT` da outbox sobrevive a retry do relay, a restart do consumidor e a replay de topico. Request id de HTTP nao sobrevive a nada disso.
-- **Estavel entre tentativas**: se a chave muda no retry, a deduplicacao nunca acerta.
-- **Escopada por consumidor**: cada consumidor tem seu proprio registro de dedupe; dois consumidores com a mesma chave nao se atrapalham. **[inferencia]**
-- **Granularidade do efeito**: dedupe por `message_id` protege contra reentrega; dedupe por chave natural do dominio (`pedido_id` + versao) protege tambem contra dois eventos diferentes que representam o mesmo fato. **[inferencia]**
+- **Derived from the fact, not from the transport**: `event_id` generated in the outbox `INSERT` survives a relay retry, a consumer restart and a topic replay. An HTTP request id survives none of that.
+- **Stable across attempts**: if the key changes on the retry, deduplication never gets it right.
+- **Scoped per consumer**: each consumer has its own dedupe record; two consumers with the same key do not get in each other's way. **[inference]**
+- **Granularity of the effect**: dedupe by `message_id` protects against redelivery; dedupe by the domain's natural key (`pedido_id` + version) also protects against two different events that represent the same fact. **[inference]**
 
-Sobre o header HTTP: `Idempotency-Key` ainda **nao e RFC**. O documento e `draft-ietf-httpapi-idempotency-key-header-08`, Internet-Draft ativo do WG httpapi, atualizado em 2026-10-22; o abstract descreve "The HTTP Idempotency-Key request header field can be used to make non-idempotent HTTP methods such as POST or PATCH fault-tolerant". Tratar como draft, nao como norma publicada.
+About the HTTP header: `Idempotency-Key` is still **not an RFC**. The document is `draft-ietf-httpapi-idempotency-key-header-08`, an active Internet-Draft of the httpapi WG, updated on 2026-10-22; the abstract describes "The HTTP Idempotency-Key request header field can be used to make non-idempotent HTTP methods such as POST or PATCH fault-tolerant". Treat it as a draft, not as a published standard.
 
-Pratica de fornecedor: o Stripe "saves the status code and body" da primeira request por chave e devolve o mesmo resultado na repeticao. A janela exata de retencao da chave **nao foi confirmada** no trecho que li (ver `## Fontes`).
+Vendor practice: Stripe "saves the status code and body" of the first request per key and returns the same result on the repetition. The exact retention window of the key **was not confirmed** in the excerpt I read (see `## Sources`).
 
-## 7. Deduplicacao no consumidor
+## 7. Deduplication at the consumer
 
-- Registro de dedupe: tabela `(consumer, idempotency_key)` com constraint `UNIQUE` e `processed_at`.
-- **O efeito e o registro de dedupe vao na mesma transacao.** Marcar "processado" fora da transacao recria o dual write no consumidor, um nivel abaixo.
-- Corrida entre duas entregas simultaneas: `INSERT` que viola o `UNIQUE` significa "outro ja processou". Tratar a violacao como sucesso idempotente, nao como erro.
-- **Janela**: dedupe infinito custa storage; janela curta deixa passar reprocesso tardio (replay de topico, redrive de DLQ depois de dias). A janela precisa cobrir o maior tempo de reprocesso que a operacao admite — nao um numero escolhido por habito. **[inferencia]**
-- Referencia concreta de janela curta: o SQS FIFO deduplica por 5 minutos. Se o redrive da DLQ acontece 1 hora depois, o broker nao deduplica nada: a protecao e a do consumidor.
-- Operacao idempotente e mais barata que dedupe: `UPSERT` com versao (`WHERE version < :nova`) dispensa tabela de dedupe quando o dominio tem versao monotonica. **[inferencia]**
+- Dedupe record: table `(consumer, idempotency_key)` with a `UNIQUE` constraint and `processed_at`.
+- **The effect and the dedupe record go in the same transaction.** Marking "processed" outside the transaction recreates the dual write at the consumer, one level down.
+- Race between two simultaneous deliveries: an `INSERT` that violates the `UNIQUE` means "another one already processed it". Treat the violation as idempotent success, not as an error.
+- **Window**: infinite dedupe costs storage; a short window lets a late reprocess through (topic replay, DLQ redrive after days). The window must cover the longest reprocess time that the operation admits — not a number chosen out of habit. **[inference]**
+- Concrete reference for a short window: SQS FIFO deduplicates for 5 minutes. If the DLQ redrive happens 1 hour later, the broker deduplicates nothing: the protection is the consumer's.
+- An idempotent operation is cheaper than dedupe: an `UPSERT` with version (`WHERE version < :nova`) dispenses with the dedupe table when the domain has a monotonic version. **[inference]**
 
-## 8. DLQ: o que vai e o que nunca vai
+## 8. DLQ: what goes and what never goes
 
-Mecanismo (SQS, redrive policy): "The redrive policy redirects messages to a dead-letter queue after the source queue fails to process a message a specified number of times", com `maxReceiveCount` default 10; a DLQ precisa estar "in the same AWS account and Region as the source queue".
+Mechanism (SQS, redrive policy): "The redrive policy redirects messages to a dead-letter queue after the source queue fails to process a message a specified number of times", with `maxReceiveCount` default 10; the DLQ must be "in the same AWS account and Region as the source queue".
 
-**Vai para a DLQ** — falha deterministica, que nao melhora com repeticao:
+**Goes to the DLQ** — deterministic failure, which does not improve with repetition:
 
-- poison pill: mensagem que derruba o handler toda vez;
-- schema incompativel: payload que o consumidor nao consegue desserializar;
-- referencia inexistente: `aggregate_id` que nao existe e nunca vai existir;
-- violacao de invariante de negocio que exige intervencao humana;
-- payload acima do limite aceito.
+- poison pill: a message that takes the handler down every time;
+- incompatible schema: payload that the consumer cannot deserialize;
+- non-existent reference: an `aggregate_id` that does not exist and never will;
+- violation of a business invariant that requires human intervention;
+- payload above the accepted limit.
 
-**Nunca vai para a DLQ** — e aqui esta a decisao que importa:
+**Never goes to the DLQ** — and here is the decision that matters:
 
-- **erro transitorio** (timeout de banco, 503 de dependencia, lock): retry com backoff resolve; mandar para DLQ transforma incidente de 30 s em fila manual de horas;
-- **erro que exige deploy**: a mensagem na DLQ continua quebrada depois do deploy; o caminho e corrigir, drenar e reprocessar, nao acumular;
-- **falha de configuracao do consumidor** (credencial, permissao, topico errado): e falha do sistema, nao da mensagem; DLQ mascara o problema;
-- **mensagem cuja causa ja foi corrigida**: reprocessar direto no topico de origem, sem passar pela DLQ.
+- **transient error** (database timeout, dependency 503, lock): a retry with backoff solves it; sending it to the DLQ turns a 30 s incident into a manual queue of hours;
+- **error that requires a deploy**: the message in the DLQ is still broken after the deploy; the path is to fix, drain and reprocess, not to accumulate;
+- **consumer configuration failure** (credential, permission, wrong topic): it is a failure of the system, not of the message; the DLQ masks the problem;
+- **message whose cause has already been fixed**: reprocess directly in the origin topic, without going through the DLQ.
 
-DLQ sem alarme, sem dono e sem processo de redrive e cemiterio de dados: as mensagens existem, ninguem sabe, e a retencao expira. Os tres itens sao pre-requisito, nao melhoria.
+A DLQ without an alarm, without an owner and without a redrive process is a data graveyard: the messages exist, nobody knows, and the retention expires. The three items are a prerequisite, not an improvement.
 
-## 9. Ordem de mensagem vs particao
+## 9. Message order vs partition
 
-- No Kafka, a particao e "an ordered, immutable sequence of records"; o offset identifica a posicao do record dentro dela.
-- Ordem so existe **dentro** da particao. Consumindo varias particoes, a ordem entre elas nao e garantida.
-- Consequencia direta: **a chave de particao define a fronteira de ordenacao**. Particionar por `aggregate_id` preserva a ordem dos eventos daquele agregado — e so dele.
-- Ordem global em topico raramente e o requisito real; ordem **por agregado** quase sempre e. Se o consumidor pede ordem global, vale perguntar qual invariante quebra sem ela. **[inferencia]**
-- Paralelismo dentro do consumidor desfaz a garantia: N threads na mesma particao processam fora de ordem. Ordem por agregado exige serializacao por chave, nao por topico. **[inferencia]**
-- Quando a ordem nao pode ser garantida (multiplas particoes, relay concorrente, replay), o substituto e **versao no payload**: o consumidor descarta evento com versao menor ou igual a aplicada. Troca ordenacao por convergencia. **[inferencia]**
+- In Kafka, the partition is "an ordered, immutable sequence of records"; the offset identifies the position of the record inside it.
+- Order only exists **inside** the partition. Consuming several partitions, the order between them is not guaranteed.
+- Direct consequence: **the partition key defines the ordering boundary**. Partitioning by `aggregate_id` preserves the order of that aggregate's events — and only of that one.
+- Global order in a topic is rarely the real requirement; **per-aggregate** order almost always is. If the consumer asks for global order, it is worth asking which invariant breaks without it. **[inference]**
+- Parallelism inside the consumer undoes the guarantee: N threads in the same partition process out of order. Per-aggregate order requires serialization by key, not by topic. **[inference]**
+- When the order cannot be guaranteed (multiple partitions, concurrent relay, replay), the substitute is **version in the payload**: the consumer discards an event with a version lower than or equal to the applied one. It trades ordering for convergence. **[inference]**
 
 ## 10. Checklist
 
-- [ ] `INSERT` na outbox na mesma transacao do estado; nenhum I/O de rede dentro da transacao.
-- [ ] Relay publica antes de marcar `published_at`; duplicata aceita, perda nao.
-- [ ] Relay com claim por linha quando ha mais de uma instancia.
-- [ ] `event_id` gerado no banco, estavel entre tentativas.
-- [ ] Consumidor com registro de dedupe na mesma transacao do efeito.
-- [ ] Janela de dedupe maior que o maior tempo de reprocesso admitido.
-- [ ] Politica de DLQ escrita: o que vai, o que nao vai, `maxReceiveCount`, dono, alarme, redrive.
-- [ ] Chave de particao = chave do agregado, quando ordem por agregado e requisito.
-- [ ] Versao no payload quando ordem nao e garantida.
-- [ ] Retencao e limpeza da outbox e da tabela de dedupe definidas.
+- [ ] `INSERT` in the outbox in the same transaction as the state; no network I/O inside the transaction.
+- [ ] The relay publishes before marking `published_at`; duplicate accepted, loss not.
+- [ ] Relay with a per-row claim when there is more than one instance.
+- [ ] `event_id` generated in the database, stable across attempts.
+- [ ] Consumer with a dedupe record in the same transaction as the effect.
+- [ ] Dedupe window larger than the longest admitted reprocess time.
+- [ ] Written DLQ policy: what goes, what does not go, `maxReceiveCount`, owner, alarm, redrive.
+- [ ] Partition key = aggregate key, when per-aggregate order is a requirement.
+- [ ] Version in the payload when order is not guaranteed.
+- [ ] Retention and cleanup of the outbox and of the dedupe table defined.
 
-## 11. Anti-padroes
+## 11. Anti-patterns
 
-- **Publish dentro do `BEGIN/COMMIT`**: dual write disfarcado de transacao.
-- **Marcar `published_at` antes do publish**: perda silenciosa garantida em falha.
-- **Outbox sem consumidor idempotente**: duplicata silenciosa; o problema so mudou de lugar.
-- **Dedupe fora da transacao do efeito**: dual write um nivel abaixo.
-- **DLQ como retry**: erro transitorio enterrado em fila manual.
-- **DLQ sem alarme**: mensagens expiram sem ninguem saber.
-- **Ordem global como requisito**: particao unica para resolver com serializacao o que deveria ser ordem por agregado.
-- **Tabela outbox sem limpeza**: polling degrada ate o relay parar de acompanhar.
+- **Publish inside the `BEGIN/COMMIT`**: dual write disguised as a transaction.
+- **Marking `published_at` before the publish**: silent loss guaranteed on failure.
+- **Outbox without an idempotent consumer**: silent duplication; the problem only changed places.
+- **Dedupe outside the transaction of the effect**: dual write one level down.
+- **DLQ as a retry**: transient error buried in a manual queue.
+- **DLQ without an alarm**: messages expire with nobody knowing.
+- **Global order as a requirement**: a single partition to solve with serialization what should be per-aggregate order.
+- **Outbox table without cleanup**: polling degrades until the relay stops keeping up.
 
-## Fontes
+## Sources
 
-- **Pattern: Transactional outbox** (microservices.io) — participantes, problema "How to atomically update the database and send messages to a message broker?", rejeicao de 2PC. https://microservices.io/patterns/data/transactional-outbox.html
-- **Pattern: Transaction log tailing** (microservices.io) — solution "Tail the database transaction log and publish each message/event inserted into the outbox"; MySQL binlog, Postgres WAL, DynamoDB streams. https://microservices.io/patterns/data/transaction-log-tailing.html (texto lido em espelho do mesmo padrao: https://gallery.lanxiaohe.com/patterns/data/transaction-log-tailing.html)
-- **Transactional outbox pattern — AWS Prescriptive Guidance** — "resolves the dual write operations issue"; outbox table ou CDC. https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html
-- **Exactly-once processing in Amazon SQS** — "Unlike standard queues, FIFO queues don't introduce duplicate messages"; intervalo de deduplicacao de 5 minutos. https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues-exactly-once-processing.html
-- **Using dead-letter queues in Amazon SQS** — redrive policy, mesma conta/Region. https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html
+- **Pattern: Transactional outbox** (microservices.io) — participants, problem "How to atomically update the database and send messages to a message broker?", rejection of 2PC. https://microservices.io/patterns/data/transactional-outbox.html
+- **Pattern: Transaction log tailing** (microservices.io) — solution "Tail the database transaction log and publish each message/event inserted into the outbox"; MySQL binlog, Postgres WAL, DynamoDB streams. https://microservices.io/patterns/data/transaction-log-tailing.html (text read in a mirror of the same pattern: https://gallery.lanxiaohe.com/patterns/data/transaction-log-tailing.html)
+- **Transactional outbox pattern — AWS Prescriptive Guidance** — "resolves the dual write operations issue"; outbox table or CDC. https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html
+- **Exactly-once processing in Amazon SQS** — "Unlike standard queues, FIFO queues don't introduce duplicate messages"; deduplication interval of 5 minutes. https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues-exactly-once-processing.html
+- **Using dead-letter queues in Amazon SQS** — redrive policy, same account/Region. https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html
 - **Capturing problematic messages in Amazon SQS** — redrive policy "after the source queue fails to process a message a specified number of times". https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/capturing-problematic-messages.html
 - **Understand the Amazon SQS dead-letter queue** (AWS re:Post) — `maxReceiveCount` default 10. https://repost.aws/knowledge-center/sqs-dead-letter-queue
-- **Apache Kafka — Introduction** — particao como "an ordered, immutable sequence of records"; offset. https://kafka.apache.org/24/getting-started/introduction/
+- **Apache Kafka — Introduction** — partition as "an ordered, immutable sequence of records"; offset. https://kafka.apache.org/24/getting-started/introduction/
 - **Red Hat Streams for Apache Kafka — consumer configuration tuning §4.3** — "Kafka only provides ordering guarantees for messages in a single partition". https://docs.redhat.com/en/documentation/red_hat_streams_for_apache_kafka/2.5/html/kafka_configuration_tuning/con-consumer-config-properties-str
-- **draft-ietf-httpapi-idempotency-key-header-08** — Internet-Draft ativo (nao RFC), abstract do `Idempotency-Key`. https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/
-- **Stripe API — Idempotent requests** — "saves the status code and body" da primeira request por chave. https://docs.stripe.com/api/idempotent_requests
-- **Nao confirmado**: janela exata de retencao da chave de idempotencia no Stripe; semantica literal de `MessageGroupId` no SQS FIFO.
+- **draft-ietf-httpapi-idempotency-key-header-08** — active Internet-Draft (not an RFC), abstract of `Idempotency-Key`. https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/
+- **Stripe API — Idempotent requests** — "saves the status code and body" of the first request per key. https://docs.stripe.com/api/idempotent_requests
+- **Not confirmed**: exact retention window of the idempotency key in Stripe; literal semantics of `MessageGroupId` in SQS FIFO.

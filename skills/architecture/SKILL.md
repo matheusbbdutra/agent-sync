@@ -1,105 +1,105 @@
 ---
 name: architecture
-description: "Use when modelar domínio complexo, decidir fronteiras ou revisar arquitetura. Gatilhos: DDD, bounded context (contexto delimitado), agregado/aggregate root, linguagem ubíqua, Clean Architecture, Hexagonal (portas e adaptadores), dependency rule entre camadas, ADR/decision record, monolito modular, decomposição em microsserviços, revisão arquitetural."
+description: "Use when modeling complex domains, deciding boundaries, or reviewing architecture. Triggers: DDD, bounded context (delimited context), aggregate/aggregate root, ubiquitous language, Clean Architecture, Hexagonal (ports and adapters), dependency rule between layers, ADR/decision record, modular monolith, decomposition into microservices, architectural review."
 ---
 
-# Arquitetura
+# Architecture
 
-Fronteira antes de padrão. Só existe decisão arquitetural quando há uma dor concreta: invariante difícil de manter, mudança que atravessa módulos, contrato instável entre times. Sem dor, aplicar padrão é custo puro.
+Boundary before pattern. An architectural decision exists only when there is a concrete pain: an invariant that is hard to maintain, a change that crosses modules, an unstable contract between teams. Without pain, applying a pattern is pure cost.
 
-## 0. Pré-voo (antes de propor qualquer coisa)
+## 0. Pre-flight (before proposing anything)
 
-1. **Skill especializada** — o assunto já tem dono? Ver §7 e carregue a vizinha em vez de reimplementar aqui. Não responda de memória genérica quando o repo já tem material curado.
-2. **Decisão vigente** — procure em `docs/ADR-*.md` e na memória do projeto. Contradizer decisão registrada exige discussão explícita, nunca omissão silenciosa.
-3. **Código real** — leia o trecho e cite `path:line`. Não descreva comportamento presumido.
-4. **Profundidade declarada** — responda §1 antes de modelar: domínio CRUD não recebe DDD.
+1. **Specialized skill** — does the subject already have an owner? See §7 and load the neighboring skill instead of reimplementing it here. Do not answer from generic memory when the repo already has curated material.
+2. **Decision in force** — look in `docs/ADR-*.md` and in the project memory. Contradicting a recorded decision requires explicit discussion, never silent omission.
+3. **Real code** — read the excerpt and cite `path:line`. Do not describe presumed behavior.
+4. **Declared depth** — answer §1 before modeling: a CRUD domain does not receive DDD.
 
-Toda resposta separa três origens: o que vem desta skill, o que vem de decisão registrada e o que é análise nova com `path:line`. Decisão aceita volta para a memória (`store_memory`, `type: project`, `scratch: false`, proveniência correta) — sem isso a consulta do passo 2 não a encontra depois.
+Every answer separates three origins: what comes from this skill, what comes from a recorded decision, and what is new analysis with `path:line`. An accepted decision goes back to memory (`store_memory`, `type: project`, `scratch: false`, correct provenance) — without that, the step 2 lookup does not find it later.
 
-## 1. DDD paga a conta?
+## 1. Does DDD pay the bill?
 
-| Sinal no domínio | Use DDD | Não use |
+| Signal in the domain | Use DDD | Do not use |
 |---|---|---|
-| Regras com exceções que mudam por contrato | sim | CRUD, telas, relatórios |
-| Mesmo termo, sentidos diferentes por área | sim | vocabulário único e estável |
-| Fronteiras de módulo/time em disputa | sim | app pequena, um time, sem fronteira |
-| Evolução do modelo prevista por anos | sim | protótipo descartável |
+| Rules with exceptions that change per contract | yes | CRUD, screens, reports |
+| Same term, different meanings per area | yes | single and stable vocabulary |
+| Module/team boundaries in dispute | yes | small app, one team, no boundary |
+| Model evolution foreseen for years | yes | disposable prototype |
 
-Detalhe estratégico e tático: [reference/domain-modeling.md](reference/domain-modeling.md). Carregue quando a tarefa envolver invariante, agregado ou bounded context. Quando a pergunta for **como dois contextos se relacionam** (quem é upstream, tradução, conformismo): [reference/context-mapping.md](reference/context-mapping.md).
+Strategic and tactical detail: [reference/domain-modeling.md](reference/domain-modeling.md). Load it when the task involves an invariant, an aggregate or a bounded context. When the question is **how two contexts relate** (who is upstream, translation, conformism): [reference/context-mapping.md](reference/context-mapping.md).
 
-## 2. Estilo arquitetural e dependency rule
+## 2. Architectural style and dependency rule
 
-- **Dependência aponta para dentro**: regra de negócio não conhece framework, banco nem HTTP.
-- **Hexagonal**: o núcleo expõe portas (interfaces) e a infraestrutura implementa adaptadores; trocar tecnologia vira trocar adaptador.
-- **Camadas por nome não são arquitetura**: `service/` e `utils/` com import cruzado livre mantêm o acoplamento intacto.
+- **Dependency points inward**: business rule knows no framework, no database and no HTTP.
+- **Hexagonal**: the core exposes ports (interfaces) and the infrastructure implements adapters; changing technology becomes changing the adapter.
+- **Layers by name are not architecture**: `service/` and `utils/` with free cross-import keep the coupling intact.
 
-Estrutura de pacotes em Go (`internal/`) e TypeScript, com o mesmo exemplo resolvido nas duas linguagens: [reference/architectural-styles.md](reference/architectural-styles.md).
+Package structure in Go (`internal/`) and TypeScript, with the same example solved in both languages: [reference/architectural-styles.md](reference/architectural-styles.md).
 
-## 3. Padrões de código (GoF e de domínio)
+## 3. Code patterns (GoF and domain)
 
-Padrão só entra com **eixo de variação real**. Sinais legítimos: `switch` que cresce a cada caso novo, tipo de fornecedor vazando para a regra de negócio, SDK de terceiro acoplado ao núcleo.
+A pattern only enters with a **real axis of variation**. Legitimate signals: a `switch` that grows with each new case, a vendor type leaking into the business rule, a third-party SDK coupled to the core.
 
-Catálogo, quando usar/evitar e checklist anti-over-engineering: [reference/design-patterns.md](reference/design-patterns.md).
+Catalog, when to use/avoid and anti-over-engineering checklist: [reference/design-patterns.md](reference/design-patterns.md).
 
-## 4. Revisão arquitetural
+## 4. Architectural review
 
-Ordene os achados por risco, não por gosto. Cada achado leva severidade, evidência `path:line` e alternativa com trade-off.
+Order the findings by risk, not by taste. Every finding carries severity, `path:line` evidence and an alternative with a trade-off.
 
-- **Blocker** — viola dependency rule, compartilha entidade/tabela entre contextos, invariante sem dono único.
-- **Risco** — N+1, transação atravessando agregados, contrato sem versão, acoplamento a fornecedor sem ACL.
-- **Débito aceitável** — atalho declarado, com gatilho de revisão.
+- **Blocker** — violates the dependency rule, shares an entity/table between contexts, invariant without a single owner.
+- **Risk** — N+1, transaction crossing aggregates, unversioned contract, coupling to vendor without an ACL.
+- **Acceptable debt** — declared shortcut, with a review trigger.
 
-Rubrica completa (qualidade, escalabilidade, consistência, gates): [reference/review-rubric.md](reference/review-rubric.md).
+Full rubric (quality, scalability, consistency, gates): [reference/review-rubric.md](reference/review-rubric.md).
 
-Quando a discussão for escala (performance vs escalabilidade, CAP, failover, shard, cache write-behind, back pressure): [reference/scalability-tradeoffs.md](reference/scalability-tradeoffs.md).
+When the discussion is about scale (performance vs scalability, CAP, failover, shard, write-behind cache, back pressure): [reference/scalability-tradeoffs.md](reference/scalability-tradeoffs.md).
 
-## 5. Registrar a decisão (ADR)
+## 5. Recording the decision (ADR)
 
-Decisão estruturante sem registro volta como discussão. A ADR cobre contexto, opções descartadas e consequências — inclusive as negativas.
+A structuring decision without a record comes back as a discussion. The ADR covers context, discarded options and consequences — including the negative ones.
 
-Neste repo: documento em `docs/ADR-<topico>.md`, ciclo `Proposto → Implementado → Aceito → Superado`, vínculo com `STATE.md`/`.agent-sync/session-state.json` por `D-N`/`A-N`.
+In this repo: document in `docs/ADR-<topico>.md`, cycle `Proposto → Implementado → Aceito → Superado` [Proposed → Implemented → Accepted → Superseded], link with `STATE.md`/`.agent-sync/session-state.json` through `D-N`/`A-N`.
 
-Template e anti-patterns: [reference/adr.md](reference/adr.md).
+Template and anti-patterns: [reference/adr.md](reference/adr.md).
 
-## 6. Consistência e transações
+## 6. Consistency and transactions
 
-- Invariante **dentro** do agregado: transação imediata, uma só.
-- Invariante **entre** agregados: consistência eventual por evento, com política de compensação.
-- Regra que precisa ser atômica entre dois "agregados" é sinal de que são um agregado só.
+- Invariant **inside** the aggregate: immediate transaction, a single one.
+- Invariant **between** aggregates: eventual consistency by event, with a compensation policy.
+- A rule that must be atomic between two "aggregates" is a sign that they are a single aggregate.
 
-## 7. Rotas (não duplicar aqui)
+## 7. Routes (do not duplicate here)
 
-| Assunto | Skill |
+| Subject | Skill |
 |---|---|
-| Decomposição, service boundaries, resiliência distribuída | `microservices-patterns` |
-| CQRS, projeções, read models | `cqrs-implementation` |
+| Decomposition, service boundaries, distributed resilience | `microservices-patterns` |
+| CQRS, projections, read models | `cqrs-implementation` |
 | Event sourcing, event store, replay | `cqrs-implementation` (reference/event-sourcing-architect.md) |
-| Regras de código: indentação, sem `else`, coleções de primeira classe | `object-calisthenics` |
-| Persistência, migration, transação de banco | `backend`, `sql-optimization-patterns` |
-| Contrato de API e versionamento | `api-design-principles`, `openapi-spec-generation` |
-| Idioma e idioms de Go/TS | `backend` (reference/go.md, reference/ts.md) |
-| Delegação a outro CLI com este contexto embutido | `agent-delegate` |
+| Code rules: indentation, no `else`, first-class collections | `object-calisthenics` |
+| Persistence, migration, database transaction | `backend`, `sql-optimization-patterns` |
+| API contract and versioning | `api-design-principles`, `openapi-spec-generation` |
+| Language and idioms of Go/TS | `backend` (reference/go.md, reference/ts.md) |
+| Delegation to another CLI with this context embedded | `agent-delegate` |
 
-## 8. Gates de verificação
+## 8. Verification gates
 
-- `agent-sync skills lint` → 0 errors; sem warning `collision` citando `architecture`.
-- `agent-sync doctor` → `skills_index` com `missing=0` e `orphan=0` após mexer em `skills/`.
-- Código: `go build ./... && go test ./...`; TS: `tsc --noEmit` mais os testes do pacote tocado.
+- `agent-sync skills lint` → 0 errors; no `collision` warning citing `architecture`.
+- `agent-sync doctor` → `skills_index` with `missing=0` and `orphan=0` after touching `skills/`.
+- Code: `go build ./... && go test ./...`; TS: `tsc --noEmit` plus the tests of the touched package.
 
-## 9. Anti-padrões
+## 9. Anti-patterns
 
-- Camada criada "para o futuro"; interface com uma única implementação estável.
-- DDD em CRUD; agregado deus com dezenas de entidades e trava de concorrência.
-- Entidade de um contexto importada em outro; tabela compartilhada como integração.
-- Repository devolvendo entidade ORM; SQL/HTTP dentro do domínio.
-- ADR que omite trade-off ou é editada depois de aceita.
-- "Microsserviço" com banco compartilhado: é monolito distribuído.
+- Layer created "for the future"; interface with a single stable implementation.
+- DDD in CRUD; god aggregate with dozens of entities and a concurrency lock.
+- Entity from one context imported into another; shared table as integration.
+- Repository returning an ORM entity; SQL/HTTP inside the domain.
+- ADR that omits the trade-off or is edited after being accepted.
+- "Microservice" with a shared database: that is a distributed monolith.
 
-## 10. Checklist antes de entregar
+## 10. Checklist before delivering
 
-- [ ] Cada afirmação tem `path:line` ou fonte externa citada.
-- [ ] Dependências apontam para o domínio; nenhuma infraestrutura na regra de negócio.
-- [ ] Fronteiras e donos explícitos; nenhum modelo compartilhado sem tradução (ACL).
-- [ ] Agregados pequenos, raiz única, transação respeitando o limite.
-- [ ] Decisão registrada em ADR quando muda contrato, fronteira ou tecnologia.
-- [ ] Trade-off declarado; alternativa descartada citada.
+- [ ] Every claim has a `path:line` or a cited external source.
+- [ ] Dependencies point to the domain; no infrastructure in the business rule.
+- [ ] Boundaries and owners explicit; no shared model without translation (ACL).
+- [ ] Small aggregates, single root, transaction respecting the boundary.
+- [ ] Decision recorded in an ADR when it changes contract, boundary or technology.
+- [ ] Trade-off declared; discarded alternative cited.

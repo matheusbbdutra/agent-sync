@@ -1,52 +1,52 @@
-# Operações assíncronas e concorrência otimista
+# Asynchronous operations and optimistic concurrency
 
-Fonte: Microsoft `api-guidelines`, `azure/Guidelines.md` (CC BY 4.0). Reescrito; citação por seção.
+Source: Microsoft `api-guidelines`, `azure/Guidelines.md` (CC BY 4.0). Rewritten; citation by section.
 
-Não duplica: paginação, versionamento genérico, idempotência e cache ficam em
-`rest-best-practices.md`; semver, janela de deprecação e `Deprecation`/`Sunset` ficam em
-`api-operations.md` e `api-lifecycle-headers.md`. Aqui só entra o que **não existe** na skill hoje:
-`202 Accepted`, monitor de operação, chave de repetição do retry e concorrência por `ETag`.
+Does not duplicate: pagination, generic versioning, idempotency and cache stay in
+`rest-best-practices.md`; semver, deprecation window and `Deprecation`/`Sunset` stay in
+`api-operations.md` and `api-lifecycle-headers.md`. Here only what **does not exist** in the skill today goes in:
+`202 Accepted`, operation monitor, retry repeatability key and concurrency by `ETag`.
 
-## Quando uma operação vira assíncrona
+## When an operation becomes asynchronous
 
-Regra de corte declarada: implemente como operação longa quando o **p99 passa de 1 segundo** e o
-cliente precisa acompanhar o andamento (`azure/Guidelines.md#Long-Running Operations & Jobs`).
+Declared cutoff rule: implement it as a long-running operation when the **p99 exceeds 1 second** and the
+client needs to follow the progress (`azure/Guidelines.md#Long-Running Operations & Jobs`).
 
-Consequências:
+Consequences:
 
-- **Nunca** faça `PATCH` como operação longa; se precisa de semântica assíncrona de atualização,
-  use ação `POST` (`#Long-Running Operations & Jobs`).
-- Valide o máximo possível **na abertura** da operação, para o cliente receber o erro cedo em vez de
-  descobri-lo no polling (`#Long-Running Operations & Jobs`).
-- Ação síncrona concluída devolve `200-OK` (`#Performing an Action`).
-- Não use "ação" para o que é CRUD padrão: criar, ler, atualizar e apagar têm verbo próprio
+- **Never** make `PATCH` a long-running operation; if you need asynchronous update semantics,
+  use the `POST` action (`#Long-Running Operations & Jobs`).
+- Validate as much as possible **at the opening** of the operation, so the client receives the error early instead of
+  finding it out in the polling (`#Long-Running Operations & Jobs`).
+- A completed synchronous action returns `200-OK` (`#Performing an Action`).
+- Do not use "action" for what is standard CRUD: create, read, update and delete have their own verb
   (`#Performing an Action`).
 
-## Contrato da operação longa
+## Long-running operation contract
 
 ```http
 POST /v1/exports            -> 202 Accepted
 operation-location: https://api.example.com/v1/operations/8f3a
 ```
 
-- `202` + header `operation-location` com URL **absoluta** do monitor de status
+- `202` + `operation-location` header with the **absolute** URL of the status monitor
   (`#Long-Running Operations & Jobs`).
-- O monitor é consultado com `GET`, e a resposta dele carrega os valores adicionais que o cliente
-  precisa para continuar (`#Long-Running Operations & Jobs`).
-- O cliente nunca deve precisar adivinhar o estado: ou a operação está no monitor, ou o recurso
-  resultante já existe e é endereçável.
+- The monitor is queried with `GET`, and its response carries the additional values the client
+  needs to continue (`#Long-Running Operations & Jobs`).
+- The client must never need to guess the state: either the operation is in the monitor, or the resulting
+  resource already exists and is addressable.
 
-Checklist de desenho:
+Design checklist:
 
-- [ ] A resposta de abertura informa **onde** acompanhar, não "tente de novo depois".
-- [ ] Estados do monitor são finitos e documentados (em execução, concluída, falhou, cancelada).
-- [ ] Falha tardia devolve erro diagnóstico no monitor **e** no recurso, não só um 500 genérico.
-- [ ] Cliente que perde a URL da operação consegue reencontrá-la por recurso/idempotency key.
-- [ ] Tempo de vida do monitor declarado (expurgo não pega o cliente de surpresa).
+- [ ] The opening response tells **where** to follow it, not "try again later".
+- [ ] Monitor states are finite and documented (running, completed, failed, canceled).
+- [ ] A late failure returns a diagnostic error in the monitor **and** in the resource, not just a generic 500.
+- [ ] A client that loses the operation URL can find it again by resource/idempotency key.
+- [ ] Monitor lifetime declared (expiry does not take the client by surprise).
 
-## Retry e chave de repetição
+## Retry and repeatability key
 
-Para ação que precisa ser idempotente sob retry, o contrato é por header
+For an action that needs to be idempotent under retry, the contract is by header
 (`#Repeatability of requests`):
 
 ```http
@@ -54,61 +54,61 @@ Repeatability-Request-ID: 6f0d3c2a-...
 Repeatability-First-Sent: Tue, 18 Nov 2026 10:00:00 GMT
 ```
 
-- A janela de repetição **MUST** ser de no mínimo **5 minutos** (`#Repeatability of requests`).
-- Chave de repetição é diferente de `Idempotency-Key` de gateway: aqui a semântica é "este request
-  é a repetição daquele", com carimbo de primeiro envio.
-- Sem janela declarada, o cliente inventa timeout e o servidor trata como operação nova — o efeito
-  duplicado aparece justamente no retry.
+- The repeatability window **MUST** be at least **5 minutes** (`#Repeatability of requests`).
+- The repeatability key is different from a gateway `Idempotency-Key`: here the semantics is "this request
+  is the repetition of that one", with a first-sent timestamp.
+- Without a declared window, the client invents a timeout and the server treats it as a new operation — the
+  duplicate effect shows up precisely on retry.
 
-## Concorrência otimista com `ETag`
+## Optimistic concurrency with `ETag`
 
-- Honre toda precondition recebida; se não puder verificar, devolva o erro de precondition
+- Honor every precondition received; if you cannot verify it, return the precondition error
   (`#Conditional Requests`).
-- `If-Match` protege atualização e exclusão de sobrescrever mudança alheia; `If-None-Match` serve
-  para leitura condicional e criação (`#Conditional Requests`).
-- Cada representação tem seu `ETag`: se o mesmo recurso é servido com codificações diferentes, os
-  valores **não** podem ser iguais (`#Conditional Requests`).
-- `ETag` é opaco para o cliente: não carregue versão semântica nele nem dependa do formato.
+- `If-Match` protects update and deletion from overwriting someone else's change; `If-None-Match` serves
+  conditional reads and creation (`#Conditional Requests`).
+- Each representation has its `ETag`: if the same resource is served with different encodings, the
+  values **must not** be equal (`#Conditional Requests`).
+- `ETag` is opaque to the client: do not carry a semantic version in it nor depend on its format.
 
-Fluxo mínimo:
+Minimum flow:
 
 ```text
 GET   /items/42          -> 200, ETag: "a1b2"
 PUT   /items/42          If-Match: "a1b2"
-                          -> 200 se casou; 412 se o recurso mudou
+                          -> 200 if it matched; 412 if the resource changed
 ```
 
-Regra de ouro: 412 é resposta legítima e esperada, não erro de servidor. Quem trata 412 como bug
-está, na prática, fazendo last-write-wins sem declarar.
+Golden rule: 412 is a legitimate, expected response, not a server error. Whoever treats 412 as a bug
+is, in practice, doing last-write-wins without declaring it.
 
-## Coleções paginadas como contrato
+## Paginated collections as a contract
 
-- A resposta de listagem é um **objeto** com um array no topo, não um array cru — assim cabe
-  `nextLink` e metadados sem quebrar contrato (`#Collections`).
-- `nextLink` é URL absoluta já com os parâmetros exigidos pela API; na última página o campo **não
-  aparece** (`#Collections`).
-- Documente explicitamente se itens podem ser **pulados ou duplicados** entre páginas; se a
-  coleção não garante snapshot, diga (`#Collections`).
-- Cada item carrega `id` e, quando há concorrência otimista, `etag`, para o cliente conseguir
-  alterar sem um GET extra (`#Collections`).
+- The listing response is an **object** with an array at the top, not a raw array — that way there is room for
+  `nextLink` and metadata without breaking the contract (`#Collections`).
+- `nextLink` is an absolute URL already carrying the parameters required by the API; on the last page the field **does not
+  appear** (`#Collections`).
+- Document explicitly whether items can be **skipped or duplicated** between pages; if the
+  collection does not guarantee a snapshot, say so (`#Collections`).
+- Each item carries `id` and, when there is optimistic concurrency, `etag`, so the client can
+  change it without an extra GET (`#Collections`).
 
-## Versionamento como precondição
+## Versioning as a precondition
 
-Se a API adota versão obrigatória por requisição, o padrão verificável é: parâmetro `api-version`
-requerido em toda operação, valores em `YYYY-MM-DD` com sufixo `-preview` para preview, e erro
-específico quando ele falta ou não é suportado (`#API Versioning`).
+If the API adopts a mandatory per-request version, the verifiable pattern is: an `api-version`
+parameter required on every operation, values in `YYYY-MM-DD` with a `-preview` suffix for preview, and a
+specific error when it is missing or not supported (`#API Versioning`).
 
-O valor para este repo é o formato do erro: código de erro próprio
-(`MissingApiVersionParameter`, `UnsupportedApiVersionValue`) em vez de 400 genérico — o cliente
-descobre o que fazer sem abrir ticket.
+The value for this repo is the error format: an error code of its own
+(`MissingApiVersionParameter`, `UnsupportedApiVersionValue`) instead of a generic 400 — the client
+finds out what to do without opening a ticket.
 
-## Anti-padrões
+## Anti-patterns
 
-| Anti-padrão | Efeito |
+| Anti-pattern | Effect |
 |---|---|
-| 202 sem `operation-location` | cliente faz polling no endpoint errado |
-| `PATCH` como operação longa | semântica de atualização parcial quebrada |
-| Retry com chave nova a cada tentativa | duplicação garantida |
-| `ETag` derivado de `updated_at` | colisão e 412 falso |
-| `nextLink` relativo | cliente atrás de proxy não segue |
-| Última página com `nextLink` vazio | loop de polling |
+| 202 without `operation-location` | client polls the wrong endpoint |
+| `PATCH` as a long-running operation | partial update semantics broken |
+| Retry with a new key on every attempt | duplication guaranteed |
+| `ETag` derived from `updated_at` | collision and false 412 |
+| relative `nextLink` | client behind a proxy does not follow it |
+| Last page with an empty `nextLink` | polling loop |

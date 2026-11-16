@@ -1,49 +1,49 @@
 # Architecture Characteristics (-ilities)
 
-> Carregue quando a tarefa for decidir **quais** requisitos nao-funcionais valem, como medi-los e como impedir que erodem.
-> Nao repete a rubrica de revisao, a dependency rule nem o template de ADR; para fronteira e granularidade de servico a rota e `microservices-patterns`.
-> Citacoes usam o marcador de pagina `p.N` do digest de origem (nao o rodape impresso).
-> Ordem de leitura: §2 e o pipeline; §12 e o que reprova; §13 e o gate de entrega.
+> Load it when the task is to decide **which** non-functional requirements count, how to measure them and how to keep them from eroding.
+> It does not repeat the review rubric, the dependency rule nor the ADR template; for boundary and service granularity the route is `microservices-patterns`.
+> Citations use the `p.N` page marker of the origin digest (not the printed footer).
+> Reading order: §2 is the pipeline; §12 is what fails; §13 is the delivery gate.
 
-## 1. Triagem: isto e caracteristica arquitetural?
+## 1. Triage: is this an architectural characteristic?
 
-Eleve um requisito a caracteristica arquitetural somente se os tres criterios forem verdadeiros (p.71):
+Raise a requirement to an architectural characteristic only if the three criteria are true (p.71):
 
-| # | Criterio | Pergunta de teste | Falha se |
+| # | Criterion | Test question | Fails if |
 | --- | --- | --- | --- |
-| a | Consideracao de design **fora do dominio** | o requisito fala de como o sistema se comporta, nao do que o negocio faz? | o item e regra de negocio disfarcada de -ility |
-| b | **Influencia** algum aspecto estrutural | mudar isso muda fronteira, deploy, modelo de dados ou topologia? | o design padrao ja resolve |
-| c | **Critico** para o sucesso da aplicacao | falhar nisso faz o sistema falhar para o usuario? | e preferencia, nao requisito |
+| a | Design consideration **outside the domain** | does the requirement speak of how the system behaves, not of what the business does? | the item is a business rule disguised as an -ility |
+| b | **Influences** some structural aspect | does changing it change boundary, deploy, data model or topology? | the default design already solves it |
+| c | **Critical** to the application's success | does failing at it make the system fail for the user? | it is a preference, not a requirement |
 
-- Os tres valem juntos ou o item nao e arquitetural (p.71).
-- Requisito que falha em (b) e higiene de codigo. Higiene se aceita sem discussao de trade-off; arquitetura nao (p.71).
-- O exemplo do livro separa integracao de dominio: "third-party payment processor" e consideracao fora do dominio; "in-application payment processing" e dominio (p.72).
-- Consequencia: adjetivo sem efeito estrutural nao entra na lista. Lista inflada produz design generico (§4, §10).
-- Seguranca, performance, privacidade e auditabilidade passam pela mesma triagem — nenhuma entra por default (p.71).
-- Se voce nao consegue responder (b) com uma fronteira, um deploy ou um modelo de dados, a resposta e "nao" (p.71, p.72).
+- The three hold together or the item is not architectural (p.71).
+- A requirement that fails (b) is code hygiene. Hygiene is accepted without a trade-off discussion; architecture is not (p.71).
+- The book's example separates integration from domain: "third-party payment processor" is a consideration outside the domain; "in-application payment processing" is domain (p.72).
+- Consequence: an adjective with no structural effect does not enter the list. An inflated list produces generic design (§4, §10).
+- Security, performance, privacy and auditability go through the same triage — none enters by default (p.71).
+- If you cannot answer (b) with a boundary, a deploy or a data model, the answer is "no" (p.71, p.72).
 
-## 2. Pipeline completo (nesta ordem)
+## 2. Full pipeline (in this order)
 
-Nao pule etapa. Cada uma produz o artefato que a seguinte consome.
+Do not skip a step. Each one produces the artifact that the next one consumes.
 
-| # | Etapa | Artefato de saida | Criterio de saida |
+| # | Step | Output artifact | Exit criterion |
 | --- | --- | --- | --- |
-| 1 | Identificar explicitas e implicitas | lista bruta com origem por item | todo item rastreia a requisito, decisao de negocio ou conhecimento de dominio (p.80, p.88) |
-| 2 | Reduzir | lista curta (alvo: 3) | stakeholder escolheu as 3 principais (p.81) |
-| 3 | Definir objetivamente | metrica + alvo + condicao | duas equipes concordam no que passa e no que falha (p.92) |
-| 4 | Medir | valor atual ou baseline declarado | existe numero medido, nao so alvo (p.92) |
-| 5 | Governar | fitness function no build | build falha quando a caracteristica erode (p.97, p.99) |
-| 6 | Escopar | caracteristica por quantum | quantum nomeado com seus componentes e dados (p.105, p.111) |
+| 1 | Identify explicit and implicit | raw list with origin per item | every item traces back to a requirement, business decision or domain knowledge (p.80, p.88) |
+| 2 | Reduce | short list (target: 3) | stakeholder chose the top 3 (p.81) |
+| 3 | Define objectively | metric + target + condition | two teams agree on what passes and what fails (p.92) |
+| 4 | Measure | current value or declared baseline | there is a measured number, not only a target (p.92) |
+| 5 | Govern | fitness function in the build | the build fails when the characteristic erodes (p.97, p.99) |
+| 6 | Scope | characteristic per quantum | quantum named with its components and data (p.105, p.111) |
 
-- Pular da etapa 1 para a 5 produz verificacao de caracteristica que ninguem pediu (p.80, p.97).
-- Pular a 3 produz metrica inventada por quem implementa, nao acordada com quem paga (p.92).
-- Pular a 6 produz SLA global que nenhum componente sustenta sozinho (p.111).
+- Jumping from step 1 to 5 produces verification of a characteristic that nobody asked for (p.80, p.97).
+- Skipping 3 produces a metric invented by whoever implements, not agreed with whoever pays (p.92).
+- Skipping 6 produces a global SLA that no component sustains on its own (p.111).
 
-- A ordem importa: identificar antes de reduzir evita cortar a caracteristica que ninguem lembrou de citar (p.80).
-- A saida do pipeline e uma lista curta com numeros, nao um documento de requisitos (p.81, p.92).
-- Cada etapa tem dono: a 1 e 2 sao do arquiteto com o stakeholder; a 3 e 5 sao do arquiteto com o time (p.81, p.100).
+- The order matters: identifying before reducing avoids cutting the characteristic that nobody remembered to cite (p.80).
+- The output of the pipeline is a short list with numbers, not a requirements document (p.81, p.92).
+- Each step has an owner: 1 and 2 belong to the architect with the stakeholder; 3 and 5 belong to the architect with the team (p.81, p.100).
 
-Saida do pipeline, forma minima (um bloco por caracteristica aceita):
+Pipeline output, minimum form (one block per accepted characteristic):
 
 ```
 caracteristica: <nome>
@@ -55,85 +55,85 @@ fitness:        <verificacao que roda no build>  # etapa 5 (p.97, p.101)
 quantum:        <componentes + dados>      # etapa 6 (p.105, p.111)
 ```
 
-Bloco com `fitness` vazio e caracteristica aceita mas nao governada (p.97). Bloco com `quantum` vazio vira SLA global por omissao (p.111).
+A block with an empty `fitness` is a characteristic accepted but not governed (p.97). A block with an empty `quantum` becomes a global SLA by omission (p.111).
 
-## 3. Etapa 1 — extrair explicitas E implicitas
+## 3. Step 1 — extract explicit AND implicit
 
-- **Explicitas** estao escritas no requisito: numero de usuarios, SLA, volume, latencia citada. Varra o documento inteiro, nao so a secao de requisitos nao-funcionais (p.80).
-- **Implicitas** nao estao escritas e saem do conhecimento de dominio. O livro e explicito: muitas caracteristicas arquiteturais nao estao especificadas em documentos de requisitos (p.88).
-- Decodifique linguagem de negocio em equivalente de engenharia em vez de aceitar o adjetivo (p.85).
-- Nao traduza um requisito de negocio em uma unica -ility: "agility" nao e time to market, e agility + testability + deployability (p.82).
-- Perguntas de extracao, uma por bullet:
-  - quantos usuarios simultaneos e em que janela de pico? (p.80)
-  - qual SLA externo ja foi prometido a cliente ou contrato? (p.80)
-  - qual volume de dado e taxa de crescimento? (p.80)
-  - que evento de negocio concentra carga (inicio de campanha, fechamento, virada de mes)? (p.80)
-  - que perda operacional o negocio ja declarou inaceitavel? (p.85)
-- Caracteristica sem dono de negocio nao sobrevive a discussao de prioridade na etapa 2 (p.81).
-- Marque cada item como "medido" ou "suposto". Suposicao sem medicao entra na etapa 4 como pendencia, nao como fato (p.92).
+- **Explicit** ones are written in the requirement: number of users, SLA, volume, cited latency. Scan the entire document, not only the non-functional requirements section (p.80).
+- **Implicit** ones are not written and come from domain knowledge. The book is explicit: many architectural characteristics are not specified in requirements documents (p.88).
+- Decode business language into its engineering equivalent instead of accepting the adjective (p.85).
+- Do not translate a business requirement into a single -ility: "agility" is not time to market, it is agility + testability + deployability (p.82).
+- Extraction questions, one per bullet:
+  - how many simultaneous users and in which peak window? (p.80)
+  - which external SLA has already been promised to a client or contract? (p.80)
+  - what data volume and growth rate? (p.80)
+  - which business event concentrates load (campaign start, closing, month rollover)? (p.80)
+  - which operational loss has the business already declared unacceptable? (p.85)
+- A characteristic without a business owner does not survive the priority discussion in step 2 (p.81).
+- Mark each item as "measured" or "assumed". An assumption without measurement enters step 4 as a pending item, not as a fact (p.92).
 
-## 4. Etapa 2 — reduzir, pedindo apenas as 3 principais
+## 4. Step 2 — reduce, asking only for the top 3
 
-- Objetivo declarado: manter a lista final o mais curta possivel (p.80).
-- Peca aos stakeholders as tres mais importantes, em qualquer ordem (p.81).
-- "Em qualquer ordem" e a parte que se ignora por engano: exigir ranking total transforma prioridade em disputa de posicao (p.81).
-- Nao tente ranquear 15 itens; o resultado e empate tecnico e decisao por hierarquia (p.81).
-- Fundamento do limite: nao existe arquitetura melhor, so a menos pior (p.78); o que se otimiza e a colecao de trade-offs (p.90).
-- Se o stakeholder insiste que "tudo e critico", a resposta nao e lista maior: e escolher qual falha e aceitavel quando duas caracteristicas conflitam (§10) (p.90).
-- Se as 3 escolhidas nao cobrem o risco real ja conhecido, registre a divergencia; nao acrescente uma quarta em silencio (p.80, p.81).
-- Repita a extracao quando o requisito mudar de fase (piloto para producao); a lista de 3 e do momento, nao eterna (p.80).
+- Stated goal: keep the final list as short as possible (p.80).
+- Ask the stakeholders for the three most important ones, in any order (p.81).
+- "Em qualquer ordem" [in any order] is the part that gets ignored by mistake: demanding a full ranking turns priority into a dispute over position (p.81).
+- Do not try to rank 15 items; the result is a technical tie and a decision by hierarchy (p.81).
+- Basis for the limit: there is no better architecture, only the least bad (p.78); what is optimized is the collection of trade-offs (p.90).
+- If the stakeholder insists that "tudo e critico" [everything is critical], the answer is not a longer list: it is choosing which failure is acceptable when two characteristics conflict (§10) (p.90).
+- If the 3 chosen ones do not cover the real risk already known, record the divergence; do not add a fourth in silence (p.80, p.81).
+- Repeat the extraction when the requirement changes phase (pilot to production); the list of 3 is of the moment, not eternal (p.80).
 
-## 5. Etapa 3 — definicao objetiva e composicao
+## 5. Step 3 — objective definition and composition
 
-- Toda caracteristica aceita precisa de definicao objetiva: metrica, alvo e condicao de medicao. Definicao objetiva resolve os tres problemas de discussao do livro (p.92).
-- Forma minima, nesta ordem: metrica (o que se mede), alvo (o numero), condicao (janela, carga e ambiente em que o numero vale) (p.92).
-- Faltando a condicao, o alvo e inauditavel: o mesmo "200 ms" significa coisas diferentes em p50 e p99, sob carga e em repouso (p.92).
-- Caracteristica composta se decompoe antes de projetar. O livro decompoe agilidade em modularity, deployability e testability (p.82, p.92).
-- Teste de mesa: duas pessoas leem a definicao e chegam ao mesmo veredito sobre um caso concreto. Se nao chegam, a definicao nao existe (p.92).
-- Defina tambem o que **nao** conta; sem isso a medicao vira discussao de interpretacao depois do incidente (p.92).
-- Recuse caracteristica que so existe como adjetivo no documento ("escalavel", "seguro") (p.92).
+- Every accepted characteristic needs an objective definition: metric, target and measurement condition. An objective definition solves the book's three discussion problems (p.92).
+- Minimum form, in this order: metric (what is measured), target (the number), condition (window, load and environment in which the number holds) (p.92).
+- Missing the condition, the target cannot be audited: the same "200 ms" means different things at p50 and p99, under load and at rest (p.92).
+- A composite characteristic is decomposed before designing. The book decomposes agility into modularity, deployability and testability (p.82, p.92).
+- Desk test: two people read the definition and reach the same verdict on a concrete case. If they do not, the definition does not exist (p.92).
+- Also define what does **not** count; without that the measurement becomes a discussion of interpretation after the incident (p.92).
+- Refuse a characteristic that exists only as an adjective in the document ("escalavel", "seguro") [scalable, secure] (p.92).
 
-Erros de definicao que aparecem na pratica:
+Definition errors that show up in practice:
 
-- metrica sem alvo: nao ha como reprovar nada, so descrever (p.92);
-- alvo sem condicao: o mesmo numero vale para repouso e pico, o que nunca e verdade (p.92);
-- metrica composta que ninguem sabe decompor: sinal de que a caracteristica ainda nao foi entendida (p.82, p.92);
-- definicao copiada do fornecedor: descreve o produto, nao a sua aplicacao (p.92).
+- metric without a target: there is no way to fail anything, only to describe (p.92);
+- target without a condition: the same number holds for rest and peak, which is never true (p.92);
+- composite metric that nobody knows how to decompose: a sign that the characteristic has not been understood yet (p.82, p.92);
+- definition copied from the vendor: it describes the product, not your application (p.92).
 
-## 6. Etapa 5 — governar com fitness function, nao com revisao
+## 6. Step 5 — govern with a fitness function, not with review
 
-- Definicao do livro: "qualquer mecanismo que fornece uma avaliacao objetiva de integridade de alguma caracteristica arquitetural ou combinacao delas" (p.97).
-- Revisao de codigo ajuda, mas acontece tarde demais no ciclo para ser o mecanismo de governanca (p.99).
-- O exemplo concreto do livro e regra de camadas escrita como teste de arquitetura em ArchUnit (p.101).
-- Explique o proposito da verificacao ao time **antes** de impo-la; regra imposta sem motivo declarado e contornada (p.100).
-- Regras operacionais:
-  - uma fitness function por caracteristica critica; caracteristica sem verificacao nao esta governada (p.97);
-  - a verificacao roda no build e falha o build; alerta em dashboard nao e gate (p.99, p.101);
-  - verificacao manual so para o que nao e automatizavel, com dono e cadencia declarados (p.99);
-  - a regra nasce da definicao objetiva da etapa 3, nao de preferencia do arquiteto (p.92, p.97).
-- Efeito esperado: erosao silenciosa de camada e ciclo de dependencia param de chegar tarde, quando ja estao em producao (p.99).
+- Book definition: "qualquer mecanismo que fornece uma avaliacao objetiva de integridade de alguma caracteristica arquitetural ou combinacao delas" [any mechanism that provides an objective assessment of the integrity of some architectural characteristic or combination of them] (p.97).
+- Code review helps, but it happens too late in the cycle to be the governance mechanism (p.99).
+- The concrete example in the book is a layering rule written as an architecture test in ArchUnit (p.101).
+- Explain the purpose of the verification to the team **before** imposing it; a rule imposed without a stated reason is worked around (p.100).
+- Operating rules:
+  - one fitness function per critical characteristic; a characteristic without verification is not governed (p.97);
+  - the verification runs in the build and fails the build; a dashboard alert is not a gate (p.99, p.101);
+  - manual verification only for what is not automatable, with declared owner and cadence (p.99);
+  - the rule is born from the objective definition of step 3, not from the architect's preference (p.92, p.97).
+- Expected effect: silent layer erosion and dependency cycles stop arriving late, when they are already in production (p.99).
 
-A definicao de p.97 e ampla ("qualquer mecanismo"), entao a forma e escolha do arquiteto. A unica forma que o texto do livro exemplifica e teste de arquitetura, com regra de camadas em ArchUnit (p.101).
+The definition at p.97 is broad ("qualquer mecanismo"), so the form is the architect's choice. The only form that the book's text exemplifies is an architecture test, with a layering rule in ArchUnit (p.101).
 
-- Escolha a forma pela caracteristica, nao pela ferramenta: teste de arquitetura para dependencia/camada (p.101); qualquer outra forma so vale se produz avaliacao objetiva de integridade (p.97).
-- A escolha da forma nao muda o gate: qualquer que seja, ela precisa poder falhar o build (p.99).
-- O mesmo padrao vale para contrato de API: diff de spec que quebra compatibilidade falha o build e exige override consciente (ver `api-operations.md`).
+- Choose the form by the characteristic, not by the tool: architecture test for dependency/layer (p.101); any other form is worth it only if it produces an objective assessment of integrity (p.97).
+- The choice of form does not change the gate: whatever it is, it must be able to fail the build (p.99).
+- The same pattern applies to the API contract: a spec diff that breaks compatibility fails the build and requires a conscious override (see `api-operations.md`).
 
-## 7. Etapa 6 — escopar por quantum, nao por sistema
+## 7. Step 6 — scope by quantum, not by system
 
-- Definicao do livro: quantum e o "artefato deployavel de forma independente com alta coesao funcional e connascence sincrona" (p.105).
-- Os dados fazem parte do quantum: o banco entra no escopo (p.106).
-- Sistema legado com um unico banco compartilhado e, por definicao, um quantum de um (p.106).
-- Caracteristicas sao escopadas no nivel do quantum (p.111).
-- Regra derivada: componentes ligados por chamada sincrona nao podem ter caracteristicas operacionais muito diferentes. Chamador que exige 99,9% sobre chamado de 99% herda 99% (p.105, p.106).
-- Nao existe "o SLA do sistema": existe o SLA de cada quantum, e o caminho sincrono vale o elo mais fraco (p.106).
-- Tres checagens de invalidacao do escopo:
-  - o componente entra em mais de um deploy independente? entao ele pertence a mais de um quantum (p.105);
-  - a caracteristica depende de dado compartilhado? o dono do dado define o quantum (p.106);
-  - duas partes sincronas exigem numeros incompativeis? ou viram quanta distintos, ou uma das metas e ficção (p.105, p.106).
-- Antes de prometer numero global, liste os quanta e o SLA de cada um; a promessa real e o produto do caminho (p.111).
+- Book definition: a quantum is the "artefato deployavel de forma independente com alta coesao funcional e connascence sincrona" [independently deployable artifact with high functional cohesion and synchronous connascence] (p.105).
+- The data is part of the quantum: the database enters the scope (p.106).
+- A legacy system with a single shared database is, by definition, a quantum of one (p.106).
+- Characteristics are scoped at the quantum level (p.111).
+- Derived rule: components linked by a synchronous call cannot have very different operational characteristics. A caller that requires 99,9% over a callee of 99% inherits 99% (p.105, p.106).
+- There is no "the SLA of the system": there is the SLA of each quantum, and the synchronous path is worth its weakest link (p.106).
+- Three scope invalidation checks:
+  - does the component enter more than one independent deploy? then it belongs to more than one quantum (p.105);
+  - does the characteristic depend on shared data? the owner of the data defines the quantum (p.106);
+  - do two synchronous parts require incompatible numbers? either they become distinct quanta, or one of the goals is fiction (p.105, p.106).
+- Before promising a global number, list the quanta and the SLA of each one; the real promise is the product of the path (p.111).
 
-Registro por quantum (o artefato da etapa 6):
+Record per quantum (the artifact of step 6):
 
 ```
 quantum:        <nome do artefato deployavel>       # p.105
@@ -142,85 +142,85 @@ dados:          <banco/schema que o quantum possui> # p.106
 caracteristicas: <as que valem para ESTE quantum>   # p.111
 ```
 
-- Quantum sem lista de dados esta incompleto: o dado faz parte do escopo (p.106).
-- Dois quanta com numeros incompativeis no caminho sincrono sao uma promessa falsa ao usuario (p.105, p.106).
+- A quantum without a data list is incomplete: the data is part of the scope (p.106).
+- Two quanta with incompatible numbers on the synchronous path are a false promise to the user (p.105, p.106).
 
-## 8. Contar quanta para decidir monolito versus distribuido
+## 8. Counting quanta to decide monolith versus distributed
 
-- "A decisao fundamental repousa em quantos quanta a arquitetura descobre durante o design" (p.129).
-- Monolito versus distribuido e a primeira determinacao do arquiteto, antes de escolher o estilo (p.276).
-- Regra: se um unico conjunto de caracteristicas serve para todo o sistema, prefira monolito; distribuir so paga quando as caracteristicas divergem (p.129).
-- Decida na fase de componentes, nao depois do codigo escrito: reverter topologia com sistema em producao custa a migracao inteira (p.129, p.276).
-- Antes de aprovar distribuicao, meca a latencia real do ambiente (media e p95/p99) e multiplique pelas chamadas encadeadas do fluxo: 10 chamadas x 100 ms = 1 s adicionado (p.137).
-- A cauda longa, nao a media, define a viabilidade do requisito de resposta (p.137).
-- Distribuicao sem divergencia de caracteristica paga custo distribuido sem retorno; o criterio de p.129 e a contagem de quanta, nao a moda tecnologica.
-- Se a divergencia e so de time (ownership) e nao de caracteristica, o problema e organizacional; resolver com fronteira de modulo, nao com deploy separado (p.129, p.276).
+- "A decisao fundamental repousa em quantos quanta a arquitetura descobre durante o design" [the fundamental decision rests on how many quanta the architecture discovers during design] (p.129).
+- Monolith versus distributed is the architect's first determination, before choosing the style (p.276).
+- Rule: if a single set of characteristics serves the whole system, prefer a monolith; distributing only pays off when the characteristics diverge (p.129).
+- Decide in the components phase, not after the code is written: reverting topology with the system in production costs the entire migration (p.129, p.276).
+- Before approving distribution, measure the environment's real latency (average and p95/p99) and multiply by the chained calls of the flow: 10 calls x 100 ms = 1 s added (p.137).
+- The long tail, not the average, defines the viability of the response requirement (p.137).
+- Distribution without characteristic divergence pays the distributed cost with no return; the criterion of p.129 is the quantum count, not the technological fashion.
+- If the divergence is only of team (ownership) and not of characteristic, the problem is organizational; solve it with a module boundary, not with a separate deploy (p.129, p.276).
 
-Pre-condicoes para aprovar distribuicao (todas verificaveis):
+Preconditions for approving distribution (all verifiable):
 
-- [ ] a divergencia de caracteristica esta nomeada e medida dos dois lados (p.129);
-- [ ] a latencia p95/p99 do ambiente esta medida, nao estimada (p.137);
-- [ ] o numero de chamadas encadeadas do fluxo critico esta contado (p.137);
-- [ ] o custo de reverter a topologia foi declarado (p.129, p.276).
+- [ ] the characteristic divergence is named and measured on both sides (p.129);
+- [ ] the environment's p95/p99 latency is measured, not estimated (p.137);
+- [ ] the number of chained calls of the critical flow is counted (p.137);
+- [ ] the cost of reverting the topology was declared (p.129, p.276).
 
-## 9. Dividir um componente: a divergencia e a causa
+## 9. Splitting a component: divergence is the cause
 
-- Motivo legitimo de dividir: divergencia de caracteristica ou de publico, nao gosto funcional (p.127).
-- Caso do livro: Bid Capture e dividido em Bid Capture e Auctioneer Capture porque as caracteristicas exigidas diferem (p.127).
-- Os dois extremos erram: granularidade fina demais gera comunicacao excessiva; grossa demais gera acoplamento interno alto e deploy dificil (p.123).
-- Nao derive componentes do modelo de dados (entity trap): componente representa fluxo de trabalho de dominio, nao tabela (p.124).
-- Se o desenho e um mapeamento objeto-relacional, o requisito real e CRUD e nao precisa de arquitetura (p.124).
-- Componente unico por conveniencia funcional forca o mesmo SLA para o publico critico e o massivo — sintoma de fronteira errada (p.123, p.127).
-- Fronteira de servico (transacao, isolamento de dados, iteracao) e assunto de `microservices-patterns`; aqui fica o criterio de caracteristica (p.123, p.127).
+- Legitimate reason to split: divergence of characteristic or of audience, not functional taste (p.127).
+- The book's case: Bid Capture is split into Bid Capture and Auctioneer Capture because the characteristics required differ (p.127).
+- Both extremes are wrong: granularity too fine generates excessive communication; too coarse generates high internal coupling and a difficult deploy (p.123).
+- Do not derive components from the data model (entity trap): a component represents a domain workflow, not a table (p.124).
+- If the design is an object-relational mapping, the real requirement is CRUD and does not need architecture (p.124).
+- A single component for functional convenience forces the same SLA for the critical and the massive audience — a symptom of a wrong boundary (p.123, p.127).
+- Service boundary (transaction, data isolation, iteration) is a subject of `microservices-patterns`; here stays the characteristic criterion (p.123, p.127).
 
-## 10. Trade-off, "least worst" e conflito entre caracteristicas
+## 10. Trade-off, "least worst" and conflict between characteristics
 
-- Toda decisao tem contrapartida; se voce nao consegue nomear a perda, a analise nao terminou (p.36).
-- O porque e mais importante que o como: registre o motivo, nao apenas o resultado (p.36).
-- Otimize a colecao de trade-offs, nao cada caracteristica isolada (p.90).
-- Declare o que foi sacrificado. Caracteristica omitida nao desaparece: ela volta como bug sem dono (p.90).
-- Quando duas caracteristicas conflitam, o artefato de saida e a escolha explicita de qual falha e aceitavel, com o numero de cada lado (p.90).
-- Trade-off nao escrito e trade-off que sera reaberto por quem nao participou — registre na ADR (p.36).
+- Every decision has a counterpart; if you cannot name the loss, the analysis is not finished (p.36).
+- The why is more important than the how: record the reason, not only the result (p.36).
+- Optimize the collection of trade-offs, not each isolated characteristic (p.90).
+- Declare what was sacrificed. An omitted characteristic does not disappear: it comes back as a bug with no owner (p.90).
+- When two characteristics conflict, the output artifact is the explicit choice of which failure is acceptable, with the number on each side (p.90).
+- An unwritten trade-off is a trade-off that will be reopened by whoever did not take part — record it in the ADR (p.36).
 
-## 11. Da caracteristica para a decisao registrada
+## 11. From the characteristic to the recorded decision
 
-- A escolha das 3 caracteristicas e a topologia sao decisao estruturante: vao para ADR com contexto, opcoes descartadas e consequencias negativas (p.36).
-- A ADR cita a metrica e a condicao da etapa 3; sem elas a decisao nao pode ser reavaliada depois (p.92).
-- A fitness function e a parte executavel da decisao; a ADR aponta onde ela vive no build (p.97, p.101).
-- Template e regras de redacao: `adr-guidelines.md`.
+- The choice of the 3 characteristics and the topology are a structuring decision: they go to an ADR with context, discarded options and negative consequences (p.36).
+- The ADR cites the metric and the condition of step 3; without them the decision cannot be re-evaluated later (p.92).
+- The fitness function is the executable part of the decision; the ADR points to where it lives in the build (p.97, p.101).
+- Template and writing rules: `adr-guidelines.md`.
 
-## 12. Anti-padroes
+## 12. Anti-patterns
 
-- **Arquitetura generica**: lista longa de caracteristicas, todas importantes, design sem foco (p.78, p.90).
-- **Higiene elevada a arquitetura**: todo adjetivo do requisito virou necessidade estrutural (p.71, p.72).
-- **Lista nao priorizada**: 12 caracteristicas sem as 3 principais declaradas (p.80, p.81).
-- **Composta sem decompor**: "usabilidade" ou "agilidade" no design sem metrica derivada (p.82, p.92).
-- **Definicao sem condicao**: alvo sem janela, carga e ambiente; inauditavel (p.92).
-- **Governanca por revisao**: nenhuma verificacao no build; erosao descoberta meses depois (p.99).
-- **Fitness function sem explicacao**: time contorna a regra que nao entende (p.100).
-- **SLA global**: um numero para o sistema inteiro, ignorando quantum e dependencia de dados (p.106, p.111).
-- **Distribuido sem divergencia**: microsservicos com um unico conjunto de caracteristicas (p.129).
-- **Entity trap**: um componente por tabela, reproduzindo o banco na camada de aplicacao (p.124).
-- **Latencia no papel**: distribuicao aprovada sem p95/p99 medido do ambiente (p.137).
-- **Caracteristica sem dono**: item aceito que nenhum stakeholder reivindica na etapa 2 (p.81).
-- **Metrica sem baseline**: alvo escrito sem valor atual medido; nao se sabe se melhorou ou piorou (p.92).
+- **Generic architecture**: long list of characteristics, all important, design with no focus (p.78, p.90).
+- **Hygiene elevated to architecture**: every adjective in the requirement became a structural need (p.71, p.72).
+- **Unprioritized list**: 12 characteristics without the top 3 declared (p.80, p.81).
+- **Composite without decomposition**: "usabilidade" or "agilidade" [usability, agility] in the design with no derived metric (p.82, p.92).
+- **Definition without condition**: target without window, load and environment; unauditable (p.92).
+- **Governance by review**: no verification in the build; erosion discovered months later (p.99).
+- **Fitness function without explanation**: the team works around the rule it does not understand (p.100).
+- **Global SLA**: one number for the entire system, ignoring quantum and data dependency (p.106, p.111).
+- **Distributed without divergence**: microservices with a single set of characteristics (p.129).
+- **Entity trap**: one component per table, reproducing the database in the application layer (p.124).
+- **Latency on paper**: distribution approved without the environment's measured p95/p99 (p.137).
+- **Characteristic without an owner**: an accepted item that no stakeholder claims in step 2 (p.81).
+- **Metric without baseline**: written target with no measured current value; one does not know whether it improved or worsened (p.92).
 
-## 13. Checklist antes de fechar a lista
+## 13. Checklist before closing the list
 
-- [ ] Cada caracteristica passa nos tres criterios (p.71).
-- [ ] Explicitas e implicitas levantadas; origem de cada item registrada (p.80, p.88).
-- [ ] Cada item marcado como medido ou suposto (p.92).
-- [ ] As 3 principais foram escolhidas pelo stakeholder, em qualquer ordem (p.81).
-- [ ] Cada uma tem metrica + alvo + condicao; as compostas foram decompostas (p.82, p.92).
-- [ ] Existe baseline medido, nao so alvo (p.92).
-- [ ] Cada caracteristica critica tem fitness function no build, e o time sabe por que ela existe (p.97, p.100).
-- [ ] Cada caracteristica esta atribuida a um quantum nomeado (p.111).
-- [ ] Topologia (monolito x distribuido) decidida pela contagem de quanta (p.129).
-- [ ] Latencia p50/p95/p99 do ambiente consta na decisao de distribuir (p.137).
-- [ ] O trade-off esta escrito, com o que foi sacrificado (p.36, p.90).
-- [ ] A decisao estruturante virou ADR com as consequencias negativas (p.36; ver `adr-guidelines.md`).
+- [ ] Each characteristic passes the three criteria (p.71).
+- [ ] Explicit and implicit raised; origin of each item recorded (p.80, p.88).
+- [ ] Each item marked as measured or assumed (p.92).
+- [ ] The top 3 were chosen by the stakeholder, in any order (p.81).
+- [ ] Each one has metric + target + condition; the composites were decomposed (p.82, p.92).
+- [ ] There is a measured baseline, not only a target (p.92).
+- [ ] Each critical characteristic has a fitness function in the build, and the team knows why it exists (p.97, p.100).
+- [ ] Each characteristic is assigned to a named quantum (p.111).
+- [ ] Topology (monolith x distributed) decided by the quantum count (p.129).
+- [ ] The environment's p50/p95/p99 latency is in the distribution decision (p.137).
+- [ ] The trade-off is written, with what was sacrificed (p.36, p.90).
+- [ ] The structuring decision became an ADR with the negative consequences (p.36; see `adr-guidelines.md`).
 
-## Fontes
+## Sources
 
-- **Fundamentals of Software Architecture — An Engineering Approach** (Mark Richards, Neal Ford), cap. 2 "Architectural Thinking" (p.36), cap. 4 "Architecture Characteristics Defined" (p.71, p.72, p.78), cap. 5 "Identifying Architectural Characteristics" (p.80, p.81, p.82, p.85, p.88, p.90), cap. 6 "Measuring and Governing Architecture Characteristics" (p.92, p.97, p.99, p.100, p.101), cap. 7 "Scope of Architecture Characteristics" (p.105, p.106, p.111), cap. 8 "Component-Based Thinking" (p.123, p.124, p.127), cap. 9 "Foundations" (p.137), cap. 17 "Microservices" (p.256), cap. 18 "Choosing the Appropriate Architecture Style" (p.276).
-- **Mastering API Architecture** (James Gough, Daniel Bryant, Matthew Auburn), cap. 5 (p.160) — fitness function aplicada a contrato de API, referenciada no §6.
+- **Fundamentals of Software Architecture — An Engineering Approach** (Mark Richards, Neal Ford), ch. 2 "Architectural Thinking" (p.36), ch. 4 "Architecture Characteristics Defined" (p.71, p.72, p.78), ch. 5 "Identifying Architectural Characteristics" (p.80, p.81, p.82, p.85, p.88, p.90), ch. 6 "Measuring and Governing Architecture Characteristics" (p.92, p.97, p.99, p.100, p.101), ch. 7 "Scope of Architecture Characteristics" (p.105, p.106, p.111), ch. 8 "Component-Based Thinking" (p.123, p.124, p.127), ch. 9 "Foundations" (p.137), ch. 17 "Microservices" (p.256), ch. 18 "Choosing the Appropriate Architecture Style" (p.276).
+- **Mastering API Architecture** (James Gough, Daniel Bryant, Matthew Auburn), ch. 5 (p.160) — fitness function applied to the API contract, referenced in §6.

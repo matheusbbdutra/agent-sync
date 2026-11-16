@@ -1,108 +1,108 @@
 ---
 name: backend
-description: "Use when writing, reviewing or debugging server-side code in Go/Golang, Rust, TypeScript, Node or PHP/Symfony — goroutine, channel, concorrência, CLI, API, transação, migration, teste de unidade. Aplica princípios de backend (fronteiras, contratos, concorrência, persistência, observabilidade) e roteia para reference/go.md, reference/ts.md, reference/php.md, reference/rust.md."
+description: "Use when writing, reviewing or debugging server-side code in Go/Golang, Rust, TypeScript, Node or PHP/Symfony — goroutine, channel, concurrency, CLI, API, transaction, migration, unit test. Applies backend principles (boundaries, contracts, concurrency, persistence, observability) and routes to reference/go.md, reference/ts.md, reference/php.md, reference/rust.md."
 ---
 
 # Backend
 
-Camada de **princípios** para código de servidor, válida em qualquer stack do catálogo. Não é catálogo de API nem manual de framework: sintaxe, biblioteca e receita por linguagem ficam em `reference/`.
+Layer of **principles** for server code, valid in any stack of the catalog. It is not an API catalog nor a framework manual: syntax, library and recipe per language stay in `reference/`.
 
-## Quando dispara
+## When it triggers
 
-- Escrever/revisar código de servidor em **Go/Golang, Rust, TypeScript, Node, PHP/Symfony**.
-- Decidir **concorrência** (goroutine, channel, worker pool, mutex, async), **CLI**, **API HTTP**, **transação**, **migration**, **teste de unidade**.
-- Dúvida de fronteira: onde fica regra de negócio, o que é payload, o que é infraestrutura.
+- Writing/reviewing server code in **Go/Golang, Rust, TypeScript, Node, PHP/Symfony**.
+- Deciding **concurrency** (goroutine, channel, worker pool, mutex, async), **CLI**, **HTTP API**, **transaction**, **migration**, **unit test**.
+- Boundary doubt: where the business rule lives, what is payload, what is infrastructure.
 
-## Quando NÃO dispara
+## When it does NOT trigger
 
-- Desenho de sistema, camadas macro, ADR → `architecture`.
-- Teste E2E de navegador/UI → `e2e-testing-patterns`.
-- Refactor puro de forma (método longo, `else` em cascata) → `object-calisthenics`.
-- Tuning de SQL/índice isolado → `sql-optimization-patterns`.
-- Contrato público de API (OpenAPI) → `openapi-spec-generation`; modelagem de domínio → `architecture` (reference/domain-modeling.md).
+- System design, macro layers, ADR → `architecture`.
+- Browser/UI E2E test → `e2e-testing-patterns`.
+- Pure shape refactor (long method, cascading `else`) → `object-calisthenics`.
+- Isolated SQL/index tuning → `sql-optimization-patterns`.
+- Public API contract (OpenAPI) → `openapi-spec-generation`; domain modeling → `architecture` (reference/domain-modeling.md).
 
-## 1. Fronteiras (dependency rule aplicada a código)
+## 1. Boundaries (dependency rule applied to code)
 
-A dependência aponta para dentro: `handler → caso de uso → domínio`, nunca o inverso.
+The dependency points inward: `handler → use case → domain`, never the inverse.
 
-- O domínio não importa `net/http`, `express`, ORM, `Symfony\Component\...` nem `tauri`.
-- Infraestrutura **implementa** interfaces declaradas por dentro (port); não as dita.
-- Teste objetivo da regra: o pacote de domínio compila sem a camada de I/O (`go build ./domain/...`).
+- The domain does not import `net/http`, `express`, ORM, `Symfony\Component\...` nor `tauri`.
+- Infrastructure **implements** interfaces declared inside (port); it does not dictate them.
+- Objective test of the rule: the domain package compiles without the I/O layer (`go build ./domain/...`).
 
-## 2. Contratos
+## 2. Contracts
 
-- **Erro é valor, não exceção de fluxo:** em Go `return fmt.Errorf("carregar pedido %s: %w", id, err)`; em TS `Result<T, E>` explícito ou erro tipado na borda. `panic`/`throw` só para bug de programação.
-- **Validação na borda:** um único ponto valida o payload (DTO/schema) e converte para tipo do domínio. Depois da borda o tipo garante a invariante — nada de `if` defensivo espalhado.
-- **Nunca atravessa a borda:** entidade de ORM, `Request`/`Response` do framework, `context.Context` de transporte dentro do domínio, SQL cru na aplicação, `time.Now()` sem clock injetado, segredo em log.
-- Erro exposto ao cliente é estável (código + mensagem curta); detalhe interno fica no log correlacionado.
+- **Error is value, not flow exception:** in Go `return fmt.Errorf("carregar pedido %s: %w", id, err)`; in TS explicit `Result<T, E>` or typed error at the edge. `panic`/`throw` only for programming bug.
+- **Validation at the edge:** a single point validates the payload (DTO/schema) and converts to the domain type. After the edge the type guarantees the invariant — no defensive `if` spread around.
+- **Never crosses the edge:** ORM entity, framework `Request`/`Response`, `context.Context` of transport inside the domain, raw SQL in the application, `time.Now()` without injected clock, secret in log.
+- Error exposed to the client is stable (code + short message); internal detail stays in the correlated log.
 
-## 3. Concorrência: critério e custo
+## 3. Concurrency: criterion and cost
 
-Escolha pela **forma do trabalho**, não por moda:
+Choose by the **shape of the work**, not by fashion:
 
-| trabalho | escolha | custo |
+| work | choice | cost |
 |---|---|---|
-| I/O concorrente, fan-out curto, ≥4 tarefas independentes | goroutine + `errgroup` / `Promise.all` limitado | exige cancelamento e limite de paralelismo explícitos |
-| mutação de estado compartilhado | `sync.Mutex` ou canal serializando acesso único | contenção; operação curta → mutex vence canal |
-| CPU-bound pesado | worker pool fixo (`GOMAXPROCS`) / `worker_threads` | satura o processo: nunca por request |
-| sequencial simples, < ~10 ms no total | **nada** | concorrência aqui é só bug novo |
+| Concurrent I/O, short fan-out, ≥4 independent tasks | goroutine + `errgroup` / limited `Promise.all` | requires explicit cancellation and parallelism limit |
+| mutation of shared state | `sync.Mutex` or channel serializing single access | contention; short operation → mutex beats channel |
+| heavy CPU-bound | fixed worker pool (`GOMAXPROCS`) / `worker_threads` | saturates the process: never per request |
+| simple sequential, < ~10 ms total | **nothing** | concurrency here is only a new bug |
 
-Todo caminho concorrente tem **cancelamento** (contexto/`AbortSignal`), **limite** e **espera** (WaitGroup/`close`). Goroutine vazada e promise sem `await` são o mesmo defeito com nomes diferentes.
+Every concurrent path has **cancellation** (context/`AbortSignal`), **limit** and **wait** (WaitGroup/`close`). Leaked goroutine and promise without `await` are the same defect with different names.
 
-## 4. Persistência
+## 4. Persistence
 
-- **Transação** tem fronteira no caso de uso — não no repositório, não no controller. Um handler, no máximo uma transação.
-- **Migration** é versionada no VCS, idempotente e **nunca** editada depois de aplicada. Destrutivo vai em passos compatíveis: expand (coluna nullable) → backfill → contract (drop).
-- **Idempotência:** escrita acionada por evento/retry carrega chave idempotente (id da mensagem, `unique constraint`). Retry sem idempotência é corrupção com atraso.
-- N+1 e lazy loading em loop são defeito de fronteira: o dado sai carregado do repositório, não é puxado durante a serialização.
+- **Transaction** has its boundary in the use case — not in the repository, not in the controller. One handler, at most one transaction.
+- **Migration** is versioned in VCS, idempotent and **never** edited after applied. Destructive goes in compatible steps: expand (nullable column) → backfill → contract (drop).
+- **Idempotency:** write triggered by event/retry carries an idempotent key (message id, `unique constraint`). Retry without idempotency is corruption with delay.
+- N+1 and lazy loading in loop are boundary defects: the data leaves loaded from the repository, it is not pulled during serialization.
 
-## 5. Testes: o que cada nível prova
+## 5. Tests: what each level proves
 
-| nível | prova | desperdício nele |
+| level | proves | waste in it |
 |---|---|---|
-| unidade | regra e caso de borda do domínio puro | subir container/DB; mockar o que você não possui |
-| integração | contrato com DB/fila/HTTP real | reassertar a regra já provada na unidade |
-| ponta a ponta | que a composição liga (um caminho feliz) | matriz de regra por E2E: caro e frágil |
+| unit | rule and edge case of the pure domain | booting container/DB; mocking what you do not own |
+| integration | contract with real DB/queue/HTTP | reasserting the rule already proved in the unit |
+| end to end | that the composition wires up (one happy path) | rule matrix per E2E: expensive and fragile |
 
-- Teste que não pode falhar por motivo de negócio é cerimônia: delete.
-- Determinismo: relógio, aleatoriedade e rede injetados. `sleep` no teste é flake agendado.
-- Cobertura é consequência, não meta: 100% de getter não paga um caso de borda.
+- Test that cannot fail for a business reason is ceremony: delete it.
+- Determinism: clock, randomness and network injected. `sleep` in the test is a scheduled flake.
+- Coverage is a consequence, not a goal: 100% of getter does not pay for an edge case.
 
-## 6. Observabilidade
+## 6. Observability
 
-- **Log estruturado** (chave/valor, `slog` / `pino`), nunca prosa montada com `fmt.Sprintf`: campo pesquisável vence frase bonita.
-- **Correlação:** id de requisição/trace no contexto desde a borda e repetido em todo log do caminho — inclusive no erro devolvido ao cliente.
-- Loga **uma vez por falha**, onde há contexto para decidir (não em cada `if err`); sem segredo/PII.
-- Meça a fronteira: latência por rota/dependência e contagem de erro por código. Sem número, "está lento" é opinião.
+- **Structured log** (key/value, `slog` / `pino`), never prose assembled with `fmt.Sprintf`: searchable field beats pretty sentence.
+- **Correlation:** request/trace id in the context since the edge and repeated in every log of the path — including in the error returned to the client.
+- Logs **once per failure**, where there is context to decide (not in each `if err`); no secret/PII.
+- Measure the boundary: latency per route/dependency and error count per code. Without a number, "it is slow" is an opinion.
 
-## 7. Roteamento para reference/
+## 7. Routing to reference/
 
-| abra | quando |
+| open | when |
 |---|---|
-| [reference/go.md](reference/go.md) | Go/Golang: goroutine, channel, worker pool, `context`, profiling — playbook em [reference/go/implementation-playbook.md](reference/go/implementation-playbook.md) |
-| [reference/ts.md](reference/ts.md) | TypeScript/JavaScript/Node: tipagem estrita, async, Express/Fastify, middleware — playbook em [reference/ts/implementation-playbook.md](reference/ts/implementation-playbook.md) |
-| [reference/php.md](reference/php.md) | PHP/Symfony/Doctrine/PHPUnit — **não mantido** (0 projeto PHP ativo); só consulta pontual |
-| [reference/rust.md](reference/rust.md) | Rust: ownership/borrowing e quando vale a pena nesta máquina (rascunho sobre os crates locais) |
+| [reference/go.md](reference/go.md) | Go/Golang: goroutine, channel, worker pool, `context`, profiling — playbook in [reference/go/implementation-playbook.md](reference/go/implementation-playbook.md) |
+| [reference/ts.md](reference/ts.md) | TypeScript/JavaScript/Node: strict typing, async, Express/Fastify, middleware — playbook in [reference/ts/implementation-playbook.md](reference/ts/implementation-playbook.md) |
+| [reference/php.md](reference/php.md) | PHP/Symfony/Doctrine/PHPUnit — **not maintained** (0 active PHP project); punctual consultation only |
+| [reference/rust.md](reference/rust.md) | Rust: ownership/borrowing and when it is worth it on this machine (draft about the local crates) |
 
-Não abra reference por reflexo: abra quando a pergunta é **de linguagem** (sintaxe, API de biblioteca, idioma). Pergunta de design fica neste arquivo.
+Do not open reference by reflex: open it when the question is **about language** (syntax, library API, idiom). Design question stays in this file.
 
-## 8. Anti-padrões (sintoma concreto)
+## 8. Anti-patterns (concrete symptom)
 
-- **Handler gordo:** arquivo de rota com >50 linhas misturando validação, SQL e regra → a regra vazou para o transporte.
-- **Serviço-deus:** um `Service` com 15 dependências injetadas; mudar um requisito toca quatro métodos não relacionados.
-- **`panic`/`catch` genérico** engolindo erro: log sem causa, 500 com `Request failed`, retry que nunca converge.
-- **Transação por repositório:** cada `save` abre transação; duas escritas relacionadas ficam não atômicas sob concorrência.
-- **Goroutine/promise órfã:** processo não encerra, teste trava, memória cresce em degrau.
-- **Mock no lugar de integração:** suíte verde e produção quebrada no contrato do banco — sintoma: nenhum teste falha ao renomear a coluna.
-- **Log em prosa:** `grep` não encontra a requisição problemática; correlação perdida entre serviços.
+- **Fat handler:** route file with >50 lines mixing validation, SQL and rule → the rule leaked into the transport.
+- **God-service:** one `Service` with 15 injected dependencies; changing one requirement touches four unrelated methods.
+- **`panic`/generic `catch`** swallowing error: log without cause, 500 with `Request failed`, retry that never converges.
+- **Transaction per repository:** each `save` opens a transaction; two related writes become non-atomic under concurrency.
+- **Orphan goroutine/promise:** process does not terminate, test hangs, memory grows in steps.
+- **Mock in place of integration:** green suite and production broken at the database contract — symptom: no test fails when renaming the column.
+- **Prose log:** `grep` does not find the problematic request; correlation lost between services.
 
-## 9. Checklist final
+## 9. Final checklist
 
-- [ ] A dependência aponta para dentro? o domínio compila sem a camada de I/O?
-- [ ] Erro carrega contexto (`%w`/`cause`) e é tratado uma única vez?
-- [ ] Todo caminho concorrente tem cancelamento, limite e espera?
-- [ ] A escrita é idempotente e a transação fica no caso de uso?
-- [ ] A migration é aditiva e reversível no plano?
-- [ ] Cada nível de teste prova o que só ele prova?
-- [ ] Log estruturado com correlação, sem segredo/PII?
-- [ ] Comportamento externo mudou? então há teste novo — senão, é refactor.
+- [ ] Does the dependency point inward? does the domain compile without the I/O layer?
+- [ ] Does the error carry context (`%w`/`cause`) and is it handled a single time?
+- [ ] Does every concurrent path have cancellation, limit and wait?
+- [ ] Is the write idempotent and the transaction in the use case?
+- [ ] Is the migration additive and reversible in the plan?
+- [ ] Does each test level prove what only it proves?
+- [ ] Structured log with correlation, no secret/PII?
+- [ ] Did external behavior change? then there is a new test — otherwise, it is a refactor.

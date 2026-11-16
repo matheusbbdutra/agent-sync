@@ -1,6 +1,6 @@
 ---
 name: api-design-principles
-description: "Use when designing new REST or GraphQL APIs or reviewing existing endpoint contracts. Design de APIs REST e GraphQL seguindo boas práticas de recursos, paginação e versionamento."
+description: "Use when designing new REST or GraphQL APIs or reviewing existing endpoint contracts. REST and GraphQL API design following best practices for resources, pagination, and versioning."
 ---
 
 # API Design Principles
@@ -35,4 +35,4 @@ Refer to `reference/implementation-playbook.md` for detailed patterns, checklist
 ## Resources
 
 - `reference/implementation-playbook.md` for detailed patterns, checklists, and templates.
-- `reference/async-operations.md` quando a operação passa de 1s (`202 Accepted`, monitor de operação, chave de repetição, `ETag`/`If-Match`, contrato de paginação).
+- `reference/async-operations.md` when the operation exceeds 1s (`202 Accepted`, operation monitor, repeatability key, `ETag`/`If-Match`, pagination contract).

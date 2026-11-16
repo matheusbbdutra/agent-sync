@@ -1,6 +1,6 @@
 # TypeScript
 
-> Absorvida por backend (2026-11-16). Conteúdo original preservado.
+> Absorbed by backend (2026-11-16). Original content preserved.
 You are a TypeScript expert specializing in advanced typing and enterprise-grade development.
 
 ## Use this skill when

@@ -1,152 +1,152 @@
-# Diagram Craft (diagramas de arquitetura)
+# Diagram Craft (architecture diagrams)
 
-> Carregue quando for produzir ou revisar um diagrama de arquitetura — C4, contexto, container, sequencia ou fluxo.
-> Escopo: o que entra, como rotular, como nao enganar o leitor. Nao cobre preenchimento de ADR nem rubrica de review.
-> Citacoes usam o marcador `p.N` do digest de origem.
+> Load it when producing or reviewing an architecture diagram — C4, context, container, sequence or flow.
+> Scope: what goes in, how to label, how not to mislead the reader. It does not cover filling in an ADR nor the review rubric.
+> Citations use the `p.N` marker of the origin digest.
 
-## 0. Qual artefato produzir
+## 0. Which artifact to produce
 
-Escolha o artefato pela pergunta que o leitor vai fazer, nao pela ferramenta que voce tem aberta.
+Choose the artifact by the question the reader will ask, not by the tool you have open.
 
-| Pergunta do leitor | Artefato | O que NAO entra | Fonte |
+| Reader's question | Artifact | What does NOT go in | Source |
 | --- | --- | --- | --- |
-| quem conversa com o sistema e por qual canal | contexto (C4) | classe, tabela, fila interna | p.321 |
-| o que executa e onde roda | container (C4) | fluxo de dados passo a passo | p.321 |
-| de que o container e feito por dentro | componente (C4) | deploy, infraestrutura | p.321 |
-| como um fluxo se comporta, inclusive em falha | sequencia/comportamento | topologia estatica | p.84 |
-| o que esta implantado em qual ambiente | estrutura/deploy | sequencia de chamadas | p.84 |
+| who talks to the system and through which channel | context (C4) | class, table, internal queue | p.321 |
+| what executes and where it runs | container (C4) | step-by-step data flow | p.321 |
+| what the container is made of inside | component (C4) | deploy, infrastructure | p.321 |
+| how a flow behaves, including on failure | sequence/behavior | static topology | p.84 |
+| what is deployed in which environment | structure/deploy | sequence of calls | p.84 |
 
-- Uma pergunta, um artefato. Duas perguntas na mesma imagem e o caso de §3 (p.28, p.84).
-- Se voce nao sabe qual pergunta o leitor faz, o problema e de audiencia, nao de diagrama (p.28).
+- One question, one artifact. Two questions in the same image is the case of §3 (p.28, p.84).
+- If you do not know which question the reader asks, the problem is one of audience, not of diagram (p.28).
 
-## 1. Um nivel de abstracao por artefato
+## 1. One level of abstraction per artifact
 
-- Nao misture contexto, container, componente e codigo no mesmo artefato. Dois niveis no mesmo desenho produzem clutter e confusao do ponto de vista da audiencia (p.28).
-- A regra de separacao vale para **todos** os tipos de diagrama, nao so para C4 (p.28).
-- Se dois niveis sao necessarios, produza dois artefatos ligados entre si (§2) em vez de um artefato denso (p.28, p.30).
-- Teste rapido: se o leitor precisa ignorar metade das caixas para entender a mensagem, ha dois niveis no mesmo desenho (p.28).
-- Nivel de abstracao tambem se aplica a texto dentro do desenho: nome de classe em diagrama de contexto e ruido (p.28).
+- Do not mix context, container, component and code in the same artifact. Two levels in the same drawing produce clutter and confusion from the audience's point of view (p.28).
+- The separation rule applies to **all** diagram types, not only to C4 (p.28).
+- If two levels are necessary, produce two artifacts linked to each other (§2) instead of one dense artifact (p.28, p.30).
+- Quick test: if the reader needs to ignore half of the boxes to understand the message, there are two levels in the same drawing (p.28).
+- Level of abstraction also applies to text inside the drawing: a class name in a context diagram is noise (p.28).
 
-## 2. Ligacao explicita entre artefatos do mesmo sistema
+## 2. Explicit link between artifacts of the same system
 
-- Torne a correspondencia visivel e nomeada: label, ID, hyperlink ou caixa tracejada rotulada (p.30).
-- Nao deixe o leitor inferir que "o servico X do diagrama A" e "o componente X do diagrama B" sao o mesmo — inferencia errada e o modo de falha padrao (p.30).
-- O livro pede consistencia representacional **explicita** em diagramas e documentacao, e justifica pelo custo cognitivo da audiencia (p.35).
-- Regra pratica: mesmo elemento, mesmo nome e mesmo simbolo em todos os artefatos do conjunto (p.35).
-- Consequencia para docs versionados: o conjunto de diagramas e um artefato unico com N visoes, nao N artefatos independentes (p.35).
+- Make the correspondence visible and named: label, ID, hyperlink or labeled dashed box (p.30).
+- Do not let the reader infer that "service X in diagram A" and "component X in diagram B" are the same — wrong inference is the default failure mode (p.30).
+- The book asks for **explicit** representational consistency in diagrams and documentation, and justifies it by the audience's cognitive cost (p.35).
+- Practical rule: same element, same name and same symbol in all artifacts of the set (p.35).
+- Consequence for versioned docs: the set of diagrams is a single artifact with N views, not N independent artifacts (p.35).
 
-## 3. Estrutura e comportamento sao artefatos diferentes
+## 3. Structure and behavior are different artifacts
 
-- Diagrama estrutural comunica **o que e onde**; diagrama comportamental comunica **como e para quem** (p.84).
-- Se o desenho responde as duas perguntas, divida em dois. A mensagem se perde quando as duas convivem na mesma imagem (p.84).
-- Na pratica: topologia/deploy em um artefato; fluxo, sequencia e falha em outro (p.84).
-- Nao use a mesma notacao para os dois fins so porque a ferramenta permite (p.84).
+- A structural diagram communicates **what and where**; a behavioral diagram communicates **how and to whom** (p.84).
+- If the drawing answers both questions, split it in two. The message is lost when both coexist in the same image (p.84).
+- In practice: topology/deploy in one artifact; flow, sequence and failure in another (p.84).
+- Do not use the same notation for both purposes just because the tool allows it (p.84).
 
-## 4. Relacoes: unidirecionais e rotuladas com o que flui
+## 4. Relations: unidirectional and labeled with what flows
 
-- Uma seta por relacao, rotulada com o que passa naquela direcao (p.71).
-- Seta de duas pontas so quando o mesmo processo ocorre nos dois sentidos, o que e raro; na duvida, use duas setas (p.72).
-- Bidirecional ambiguo perde a informacao de quem chama quem — a informacao simplesmente desaparece do desenho (p.72).
-- Rotule com o dado ou o comando que trafega, nao com "chamada" ou "comunicacao" (p.71).
-- Para request/response, o request segue o sentido do texto e o response flui na direcao oposta (p.92).
-- Marque o que e sincrono e o que e assincrono no proprio desenho ou na legenda (§5, §9).
+- One arrow per relation, labeled with what passes in that direction (p.71).
+- A two-headed arrow only when the same process occurs in both directions, which is rare; when in doubt, use two arrows (p.72).
+- An ambiguous bidirectional arrow loses the information of who calls whom — the information simply disappears from the drawing (p.72).
+- Label with the data or the command that travels, not with "call" or "communication" (p.71).
+- For request/response, the request follows the direction of the text and the response flows in the opposite direction (p.92).
+- Mark what is synchronous and what is asynchronous in the drawing itself or in the legend (§5, §9).
 
-## 5. Cor, legenda e legibilidade
+## 5. Color, legend and legibility
 
-- Nenhum significado pode existir **so** em cor. Para cada significado codificado em cor, adicione um segundo canal: padrao, simbolo ou texto (p.51, p.53).
-- Inclua legenda sempre que houver convencao nao obvia; se decidir nao incluir, registre o motivo ao lado do artefato (p.58).
-- Seja explicito, nao implicito: a legenda declara o que cada canal significa (p.58).
-- Fonte minima de 12 pt em qualquer diagrama entregue ou commitado (p.61).
-- Daltonismo, impressao em grayscale e projetor sao o cenario de teste da regra, nao a excecao (p.51, p.53).
+- No meaning may exist **only** in color. For each meaning encoded in color, add a second channel: pattern, symbol or text (p.51, p.53).
+- Include a legend whenever there is a non-obvious convention; if you decide not to include one, record the reason next to the artifact (p.58).
+- Be explicit, not implicit: the legend declares what each channel means (p.58).
+- Minimum font of 12 pt in any delivered or committed diagram (p.61).
+- Color blindness, grayscale printing and a projector are the test scenario of the rule, not the exception (p.51, p.53).
 
-Verificacao de cor e legibilidade, na ordem:
+Color and legibility verification, in order:
 
-1. converta o desenho para grayscale: se a informacao desaparece, a cor estava sozinha (p.51);
-2. desligue a legenda: se o leitor erra o significado, a legenda era necessaria e nao estava la (p.58);
-3. meca a fonte no artefato exportado, nao no editor (p.61);
-4. mostre a alguem de fora do projeto e pergunte o que cada cor significa (p.53).
+1. convert the drawing to grayscale: if the information disappears, the color was alone (p.51);
+2. turn off the legend: if the reader gets the meaning wrong, the legend was necessary and was not there (p.58);
+3. measure the font in the exported artifact, not in the editor (p.61);
+4. show it to someone outside the project and ask what each color means (p.53).
 
-## 6. Fluxo e layout seguem a expectativa de leitura
+## 6. Flow and layout follow the reading expectation
 
-- Inicio no topo-esquerda (ou meio-esquerda); fluxo topo para baixo e esquerda para direita (p.67).
-- Layout contra a expectativa de leitura obriga o leitor a reconstruir a ordem — custo pago em toda leitura (p.67, p.69).
-- Canvas landscape em proporcao 16:9 ou 16:10 quando o consumo for tela (p.92).
-- Request e response na mesma seta ou na mesma direcao e erro de leitura, nao de estetica (p.92).
-- Antes de entregar, mostre o desenho por 10 segundos para alguem de fora e pergunte onde comeca (p.69).
+- Start at top-left (or middle-left); flow top to bottom and left to right (p.67).
+- A layout against the reading expectation forces the reader to reconstruct the order — a cost paid on every reading (p.67, p.69).
+- Landscape canvas in 16:9 or 16:10 proportion when the consumption is on screen (p.92).
+- Request and response on the same arrow or in the same direction is a reading error, not an aesthetic one (p.92).
+- Before delivering, show the drawing for 10 seconds to someone outside and ask where it starts (p.69).
 
-- Mantenha o mesmo sentido de leitura em todos os artefatos do conjunto; inverter o eixo entre dois diagramas cobra do leitor a remontagem (p.67, p.69).
-- Barra de progresso, numero de passo e ordem implicita no nome dos nos sao alternativas quando o fluxo e ramificado (p.69).
+- Keep the same reading direction in all artifacts of the set; inverting the axis between two diagrams charges the reader with the reassembly (p.67, p.69).
+- Progress bar, step number and order implicit in the node names are alternatives when the flow is branched (p.69).
 
-## 7. Notacao formal e custo de acesso
+## 7. Formal notation and access cost
 
-- Antes de escolher UML, ArchiMate ou BPMN, verifique se autor **e** audiencia dominam a notacao (p.78).
-- Se nao dominam, use notacao simples (C4, caixas e linhas) — o custo de acesso nao paga o rigor (p.79, p.82).
-- Nao e obrigatorio usar UML exatamente como especificado quando a especificacao nao atende ao objetivo (p.82).
-- Notacao formal limita quem consegue criar ou atualizar o diagrama; o resultado tipico e gargalo de uma pessoa e diagrama desatualizado (p.198).
-- Icone nunca e a unica informacao: a mensagem deve permanecer compreensivel se os icones forem removidos (p.77).
-- Regra de selecao: notacao e ferramenta de comunicacao, nao certificado de rigor (p.79, p.198).
+- Before choosing UML, ArchiMate or BPMN, check whether author **and** audience master the notation (p.78).
+- If they do not, use simple notation (C4, boxes and lines) — the access cost does not pay for the rigor (p.79, p.82).
+- It is not mandatory to use UML exactly as specified when the specification does not serve the goal (p.82).
+- Formal notation limits who can create or update the diagram; the typical result is a one-person bottleneck and an outdated diagram (p.198).
+- An icon is never the only information: the message must remain understandable if the icons are removed (p.77).
+- Selection rule: notation is a communication tool, not a certificate of rigor (p.79, p.198).
 
-## 8. Nao distorca escala, baseline ou tamanho de elemento
+## 8. Do not distort scale, baseline or element size
 
-- Baseline de grafico sempre em zero; se o zero nao for possivel, use tabela (p.99).
-- Em visuais lado a lado, use a mesma escala ou torne a diferenca de escala explicita e obvia para a audiencia (p.106).
-- Mantenha elementos do mesmo tipo no mesmo tamanho em diagramas logicos — tamanho nao deve sugerir peso que nao existe (p.106).
-- O sintoma a evitar: a mesma serie de numeros sustentando duas conclusoes opostas (p.99, p.106).
-- Vale para dashboard de metrica e para relatorio de comparacao de performance, nao so para diagrama (p.99).
+- Chart baseline always at zero; if zero is not possible, use a table (p.99).
+- In side-by-side visuals, use the same scale or make the scale difference explicit and obvious to the audience (p.106).
+- Keep elements of the same type at the same size in logical diagrams — size must not suggest a weight that does not exist (p.106).
+- The symptom to avoid: the same series of numbers supporting two opposite conclusions (p.99, p.106).
+- It applies to a metric dashboard and to a performance comparison report, not only to a diagram (p.99).
 
-- Em diagrama de deploy, elemento de mesmo tipo em tamanho diferente sugere capacidade ou papel que nao existe (p.106).
-- Composicao enganosa e uma classe de defeito propria: o desenho induz conclusao que os dados nao sustentam (p.103).
+- In a deploy diagram, an element of the same type at a different size suggests a capacity or role that does not exist (p.106).
+- Misleading composition is a defect class of its own: the drawing induces a conclusion that the data does not support (p.103).
 
-## 9. C4: o que usar e onde ele para
+## 9. C4: what to use and where it stops
 
-- Comece com artefato barato e iteravel; so invista em diagrama polido quando o design estabilizou (p.319).
-- O motivo declarado: rascunho efemero impede o apego excessivo ao artefato — "irrational artifact attachment" congela uma decisao ruim (p.319).
-- Para comunicar, use os quatro C's: Context, Container, Component (e code) (p.321).
-- Convencao de linha: solida indica comunicacao sincrona, pontilhada indica assincrona (p.322).
-- Limite declarado pelo livro: C4 e menos adequado a arquiteturas distribuídas (p.322).
-- Regra derivada: em sistema distribuido, complemente C4 com um artefato de fluxo/sequencia proprio (§3) em vez de forcar tudo no C4 (p.322).
-- Diagrama sem convencao declarada que induz interpretacao errada e pior que nenhum diagrama (p.322).
-- C4 descreve estrutura; comportamento de um fluxo especifico exige artefato proprio (§3) (p.322, p.84).
-- Rascunho de baixa fidelidade primeiro: o objetivo inicial e decidir, nao apresentar (p.319).
+- Start with a cheap and iterable artifact; only invest in a polished diagram when the design has stabilized (p.319).
+- The stated reason: an ephemeral draft prevents excessive attachment to the artifact — "irrational artifact attachment" freezes a bad decision (p.319).
+- To communicate, use the four C's: Context, Container, Component (and code) (p.321).
+- Line convention: solid indicates synchronous communication, dotted indicates asynchronous (p.322).
+- Limit stated by the book: C4 is less suitable for distributed architectures (p.322).
+- Derived rule: in a distributed system, complement C4 with its own flow/sequence artifact (§3) instead of forcing everything into C4 (p.322).
+- A diagram without a declared convention that induces wrong interpretation is worse than no diagram (p.322).
+- C4 describes structure; the behavior of a specific flow requires its own artifact (§3) (p.322, p.84).
+- Low-fidelity draft first: the initial goal is to decide, not to present (p.319).
 
-## 10. Anti-padroes
+## 10. Anti-patterns
 
-- **Diagrama que explica tudo**: quatro niveis na mesma imagem, nenhum legivel (p.28).
-- **Setas bidirecionais por omissao**: perde-se quem chama quem (p.72).
-- **Significado so em cor**: parte da audiencia perde a informacao inteira (p.51).
-- **Sem legenda**: convencao implicita lida de forma diferente por cada leitor (p.58).
-- **Icone como unica informacao**: desenho vira teste de conhecimento de icones de cloud (p.77).
-- **UML por rigor**: so quem escreveu consegue manter; vira gargalo (p.198).
-- **Grafico com baseline cortado**: mesma serie, duas conclusoes (p.99).
-- **Apego ao artefato caro**: diagrama polido cedo demais defende decisao em vez de comunica-la (p.319).
-- **Nivel errado para a pergunta**: diagrama de componente respondendo pergunta de contexto (p.321, p.84).
-- **Escala invertida entre artefatos**: dois desenhos do mesmo fluxo em sentidos opostos (p.67).
+- **Diagram that explains everything**: four levels in the same image, none legible (p.28).
+- **Bidirectional arrows by default**: who calls whom is lost (p.72).
+- **Meaning only in color**: part of the audience loses the entire information (p.51).
+- **No legend**: implicit convention read differently by each reader (p.58).
+- **Icon as the only information**: the drawing becomes a test of knowledge of cloud icons (p.77).
+- **UML for rigor**: only whoever wrote it can maintain it; it becomes a bottleneck (p.198).
+- **Chart with a cut baseline**: same series, two conclusions (p.99).
+- **Attachment to the expensive artifact**: a diagram polished too early defends a decision instead of communicating it (p.319).
+- **Wrong level for the question**: a component diagram answering a context question (p.321, p.84).
+- **Inverted scale between artifacts**: two drawings of the same flow in opposite directions (p.67).
 
-## 11. Checklist antes de entregar
+## 11. Checklist before delivering
 
-- [ ] Um unico nivel de abstracao no artefato (p.28).
-- [ ] Correspondencia com os outros artefatos do conjunto esta rotulada ou linkada (p.30, p.35).
-- [ ] Estrutura e comportamento estao em artefatos separados (p.84).
-- [ ] Toda seta e unidirecional e rotulada com o que flui (p.71, p.72).
-- [ ] Nenhum significado depende so de cor; legenda presente ou motivo registrado (p.51, p.58).
-- [ ] Fonte >= 12 pt; icones redundantes, nao portadores unicos de informacao (p.61, p.77).
-- [ ] Leitura comeca no topo-esquerda e segue a expectativa (p.67).
-- [ ] Sincrono/assincrono esta marcado (linha solida x pontilhada) (p.322).
-- [ ] Nenhuma escala ou tamanho induz conclusao falsa (p.99, p.106).
-- [ ] Notacao escolhida e dominada por quem vai manter o diagrama (p.78, p.198).
+- [ ] A single level of abstraction in the artifact (p.28).
+- [ ] Correspondence with the other artifacts of the set is labeled or linked (p.30, p.35).
+- [ ] Structure and behavior are in separate artifacts (p.84).
+- [ ] Every arrow is unidirectional and labeled with what flows (p.71, p.72).
+- [ ] No meaning depends only on color; legend present or reason recorded (p.51, p.58).
+- [ ] Font >= 12 pt; icons redundant, not single carriers of information (p.61, p.77).
+- [ ] Reading starts at top-left and follows the expectation (p.67).
+- [ ] Synchronous/asynchronous is marked (solid line x dotted) (p.322).
+- [ ] No scale or size induces a false conclusion (p.99, p.106).
+- [ ] Notation chosen is mastered by whoever will maintain the diagram (p.78, p.198).
 
-## 12. Como conduzir a revisao do diagrama
+## 12. How to conduct the diagram review
 
-- Revise contra a pergunta declarada do leitor (§0), nao contra gosto pessoal (p.84).
-- Quem revisa e alguem da audiencia, nao o autor: o autor ja sabe o que quis dizer (p.69).
-- Reprova em nivel de abstracao? Divida em dois artefatos ligados (§2) em vez de apagar conteudo (p.28, p.30).
-- Reprova em notacao? Troque a notacao e mantenha a mensagem; simplificar a formal e permitido (p.79, p.82).
-- Reprova em cor? Acrescente um segundo canal (padrao, simbolo, texto) em vez de trocar a paleta (p.51, p.53).
-- Sem legenda por decisao consciente? Registre o motivo junto do artefato (p.58).
-- Revise cedo com rascunho efemero e investir no polimento so depois do design estabilizado (p.319).
-- Um diagrama reprovado duas vezes na mesma revisao e sinal de que faltam dois artefatos, nao um (p.28).
+- Review against the reader's declared question (§0), not against personal taste (p.84).
+- The reviewer is someone from the audience, not the author: the author already knows what they meant (p.69).
+- Fails on level of abstraction? Split it into two linked artifacts (§2) instead of deleting content (p.28, p.30).
+- Fails on notation? Change the notation and keep the message; simplifying the formal one is allowed (p.79, p.82).
+- Fails on color? Add a second channel (pattern, symbol, text) instead of changing the palette (p.51, p.53).
+- No legend by conscious decision? Record the reason next to the artifact (p.58).
+- Review early with an ephemeral draft and invest in the polish only after the design has stabilized (p.319).
+- A diagram that fails twice in the same review is a sign that two artifacts are missing, not one (p.28).
 
-## Fontes
+## Sources
 
-- **Communication Patterns — A Guide for Developers and Architects** (Jacqui Read), cap. 1 "Essentials" (p.25, p.28, p.30, p.35), cap. 2 "Reduzir carga cognitiva" (p.51, p.53, p.58, p.61), cap. 4 "Narrativa em diagramas" (p.63, p.67, p.69, p.71, p.72), cap. 5 "Notacao" (p.77, p.78, p.79, p.82, p.84), cap. 6 "Composicao" (p.92, p.99, p.103, p.106), cap. 11 "Just-in-Time Architecture" (p.198).
-- **Fundamentals of Software Architecture — An Engineering Approach** (Mark Richards, Neal Ford), cap. 21 "Diagramming and Presenting" (p.319, p.321, p.322) — C4, convencao solida/pontilhada e limite em arquitetura distribuida, usados no §9 e §11.
+- **Communication Patterns — A Guide for Developers and Architects** (Jacqui Read), ch. 1 "Essentials" (p.25, p.28, p.30, p.35), ch. 2 "Reduzir carga cognitiva" [reducing cognitive load] (p.51, p.53, p.58, p.61), ch. 4 "Narrativa em diagramas" [narrative in diagrams] (p.63, p.67, p.69, p.71, p.72), ch. 5 "Notacao" [notation] (p.77, p.78, p.79, p.82, p.84), ch. 6 "Composicao" [composition] (p.92, p.99, p.103, p.106), ch. 11 "Just-in-Time Architecture" (p.198).
+- **Fundamentals of Software Architecture — An Engineering Approach** (Mark Richards, Neal Ford), ch. 21 "Diagramming and Presenting" (p.319, p.321, p.322) — C4, solid/dotted convention and limit in distributed architecture, used in §9 and §11.

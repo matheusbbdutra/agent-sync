@@ -1,55 +1,55 @@
 # Rust
 
-> Referência de idiomas para código Rust neste ambiente. Estado: **ativo** (`skills/backend/reference/rust.md`).
-> Base factual: os dois crates Rust do ambiente — `~/Projects/phpide-rs` e `~/Projects/pi-deck/src-tauri`. Toolchain local: `rustc 1.99.1`, `edition = "2021"` em ambos.
+> Language reference for Rust code in this environment. State: **active** (`skills/backend/reference/rust.md`).
+> Factual basis: the two Rust crates of the environment — `~/Projects/phpide-rs` and `~/Projects/pi-deck/src-tauri`. Local toolchain: `rustc 1.99.1`, `edition = "2021"` in both.
 
-## Contexto verificado
+## Verified context
 
-| crate | deps diretas | async runtime |
+| crate | direct deps | async runtime |
 |---|---|---|
-| `phpide-rs` | `eframe`/`egui` 0.37, `tree-sitter` 0.27, `tree-sitter-php` 0.25 (`Cargo.toml:9-12`) | nenhum |
-| `pi-deck` | `tauri` 2, `serde_json` 1, `base64` 0.21 (`Cargo.toml:11-13`) | nenhum direto; `tokio 1.54.1` só transitivo via `tauri 2.12.5` (`cargo tree -i tokio`) |
+| `phpide-rs` | `eframe`/`egui` 0.37, `tree-sitter` 0.27, `tree-sitter-php` 0.25 (`Cargo.toml:9-12`) | none |
+| `pi-deck` | `tauri` 2, `serde_json` 1, `base64` 0.21 (`Cargo.toml:11-13`) | none direct; `tokio 1.54.1` only transitive via `tauri 2.12.5` (`cargo tree -i tokio`) |
 
-Consequência: **não há `tokio`, `clap`, `thiserror` nem `anyhow` como dependência direta**. Este guia descreve o que existe e o que adotar quando o problema aparecer; não prescreve stack nova.
+Consequence: **there is no `tokio`, `clap`, `thiserror` nor `anyhow` as a direct dependency**. This guide describes what exists and what to adopt when the problem appears; it does not prescribe a new stack.
 
-## 1. Quando usar Rust aqui (e quando não)
+## 1. When to use Rust here (and when not)
 
-Use quando ≥2 critérios abaixo forem verdadeiros e verificáveis:
-1. **Entrega como binário nativo sem runtime externo.** Ambos são apps desktop; `pi-deck` até desliga o console no Windows (`src-tauri/src/main.rs:1`).
-2. **Interop com biblioteca C/C++.** `tree-sitter` é consumido direto (`highlight.rs:9`), sem camada de binding própria.
-3. **Memória/latência previsíveis, sem GC** — ownership libera no fim do escopo (Rust Book ch. 4.1).
-4. **Processo longo com estado compartilhado** — `pi-deck` mantém `Mutex<HashMap<String, ChildHandle>>` com subprocessos vivos (`rpc.rs:24`).
+Use when ≥2 criteria below are true and verifiable:
+1. **Delivery as a native binary without external runtime.** Both are desktop apps; `pi-deck` even turns off the console on Windows (`src-tauri/src/main.rs:1`).
+2. **Interop with a C/C++ library.** `tree-sitter` is consumed directly (`highlight.rs:9`), without its own binding layer.
+3. **Predictable memory/latency, without GC** — ownership frees at the end of the scope (Rust Book ch. 4.1).
+4. **Long process with shared state** — `pi-deck` keeps `Mutex<HashMap<String, ChildHandle>>` with live subprocesses (`rpc.rs:24`).
 
-Não use:
-- **Sem gargalo medido.** Sem profiler ou alvo numérico de latência/memória, a reescrita é custo sem ganho mensurável.
-- **Grafo com ciclos e ponteiro para "pai".** Exige `Rc<RefCell<_>>` + `Weak`, e `Rc` é `!Send` (std docs), o que trava o uso entre threads. Sem arena (`Vec` + índice) o borrow checker vira atrito diário.
-- **CRUD/protótipo com prazo curto e stack TS/Go já instalada.** O tempo até o primeiro deploy é maior; segurança de memória não paga a diferença.
-- **Equipe sem experiência e cronograma fechado.** O custo de aprender borrowing é real e cai nas primeiras semanas.
+Do not use:
+- **No measured bottleneck.** Without a profiler or a numeric latency/memory target, the rewrite is cost without measurable gain.
+- **Graph with cycles and pointer to "parent".** Requires `Rc<RefCell<_>>` + `Weak`, and `Rc` is `!Send` (std docs), which blocks use across threads. Without an arena (`Vec` + index) the borrow checker becomes daily friction.
+- **CRUD/prototype with a short deadline and TS/Go stack already installed.** The time to first deploy is longer; memory safety does not pay for the difference.
+- **Team without experience and closed schedule.** The cost of learning borrowing is real and lands in the first weeks.
 
 ## 2. Ownership/borrowing
 
-Três regras (Rust Book ch. 4.1, "Ownership Rules"): todo valor tem um dono; existe um dono por vez; ao sair do escopo o valor é liberado.
+Three rules (Rust Book ch. 4.1, "Ownership Rules"): every value has an owner; there is one owner at a time; on leaving the scope the value is freed.
 
-Padrão para "o borrow checker não deixa" — nesta ordem, pare no primeiro que resolve:
+Pattern for "the borrow checker does not allow it" — in this order, stop at the first one that solves it:
 
-1. **Encurtar o empréstimo.** O borrow termina no último uso, não no fim do bloco; mover a mutação para depois resolve a maioria dos E0502 (verificado com `rustc 1.99.1`).
-2. **Emprestar o campo, não o `self` inteiro.** `fn get(&self) -> &Vec<u8>` amarra a referência ao `self` todo; devolver `&[u8]` do campo ou separar em structs menores libera a mutação.
-3. **Trocar posse por empréstimo na assinatura.** Em E0382 o próprio rustc emite `note: consider changing this parameter type ... to borrow`. `&str`/`&[T]` no parâmetro; `String`/`Vec<T>` só com posse real.
-4. **Iterar diferente.** `for x in &v { v.push(..) }` é E0502 sempre; `for i in 0..v.len()` compila. Colete as mutações e aplique com `extend`.
-5. **Mover temporariamente** com `Option::take` / `std::mem::take` quando o campo precisa sair e voltar.
-6. **Só então** `Rc<RefCell<_>>`/`Arc<Mutex<_>>`, e por último `clone()`. Cada passo é mais caro que o anterior.
+1. **Shorten the loan.** The borrow ends at the last use, not at the end of the block; moving the mutation to afterwards solves most E0502 (verified with `rustc 1.99.1`).
+2. **Borrow the field, not the whole `self`.** `fn get(&self) -> &Vec<u8>` ties the reference to the entire `self`; returning `&[u8]` of the field or splitting into smaller structs frees the mutation.
+3. **Trade ownership for borrowing in the signature.** In E0382 rustc itself emits `note: consider changing this parameter type ... to borrow`. `&str`/`&[T]` in the parameter; `String`/`Vec<T>` only with real ownership.
+4. **Iterate differently.** `for x in &v { v.push(..) }` is E0502 always; `for i in 0..v.len()` compiles. Collect the mutations and apply with `extend`.
+5. **Move temporarily** with `Option::take` / `std::mem::take` when the field needs to leave and come back.
+6. **Only then** `Rc<RefCell<_>>`/`Arc<Mutex<_>>`, and lastly `clone()`. Each step is more expensive than the previous one.
 
-Locais que já aplicam isso: `app.rs:37` sai cedo com `let ... else` em vez de aninhar `match`; `rpc.rs:166` re-toma o lock em bloco próprio para não segurar o guard durante a inserção.
+Places that already apply this: `app.rs:37` exits early with `let ... else` instead of nesting `match`; `rpc.rs:166` re-takes the lock in its own block so as not to hold the guard during the insertion.
 
-## 3. Erros: `Result`, `?`, `thiserror` vs `anyhow`
+## 3. Errors: `Result`, `?`, `thiserror` vs `anyhow`
 
-`?` converte o erro via `From`: a referência da linguagem define `Result::Err(e)` como `Result::Err(From::from(e))` (Rust Reference, "try propagation operator"). É isso que deixa `?` mapear `io::Error` no seu tipo de erro.
+`?` converts the error via `From`: the language reference defines `Result::Err(e)` as `Result::Err(From::from(e))` (Rust Reference, "try propagation operator"). That is what lets `?` map `io::Error` into your error type.
 
-- **Biblioteca (outro crate consome): `thiserror`.** Deriva `std::error::Error`/`Display`/`From` e mantém o enum nomeável, então o consumidor consegue fazer `match`. É a proposta da crate (docs.rs/thiserror).
-- **Binário: `anyhow`.** A doc da crate fala em "error handling in Rust applications": `anyhow::Result<T>` sem parâmetro de erro e `.context()` para anexar o "o quê" ao erro do "porquê".
-- **`Box<dyn Error>`** só para 1–2 pontos de falha sem `context()` a acrescentar. Se aparecer `.map_err(|e| format!(...))` em série, o custo já passou do `anyhow`.
+- **Library (another crate consumes): `thiserror`.** Derives `std::error::Error`/`Display`/`From` and keeps the enum nameable, so the consumer can `match` on it. It is the crate's proposal (docs.rs/thiserror).
+- **Binary: `anyhow`.** The crate doc speaks of "error handling in Rust applications": `anyhow::Result<T>` without an error parameter and `.context()` to attach the "what" to the error of the "why".
+- **`Box<dyn Error>`** only for 1–2 failure points with no `context()` to add. If `.map_err(|e| format!(...))` shows up in series, the cost has already passed `anyhow`.
 
-Caso real deste ambiente: comando Tauri **exige** erro `serde::Serialize` (v2.tauri.app/develop/calling-rust), e por isso `Result<_, String>` está em todo `#[tauri::command]` (`rpc.rs:72`, `sessions.rs:102`) e até em helper interno (`sessions.rs:35`). `String` serializa, mas o frontend passa a casar com texto de mensagem — quando precisar reagir a causas distintas, use enum + `impl Serialize`, que é o padrão documentado pelo Tauri.
+Real case of this environment: a Tauri command **requires** a `serde::Serialize` error (v2.tauri.app/develop/calling-rust), and that is why `Result<_, String>` is on every `#[tauri::command]` (`rpc.rs:72`, `sessions.rs:102`) and even on an internal helper (`sessions.rs:35`). `String` serializes, but the frontend ends up matching message text — when it needs to react to distinct causes, use enum + `impl Serialize`, which is the pattern documented by Tauri.
 
 ```rust
 // biblioteca: enum nomeável, causa preservada
@@ -79,86 +79,86 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 ```
-Verificado: compila com `thiserror 2.0.21`, `anyhow 1.0.104`, edition 2021.
+Verified: compiles with `thiserror 2.0.21`, `anyhow 1.0.104`, edition 2021.
 
-## 4. Tipos e traits: generics vs `dyn`
+## 4. Types and traits: generics vs `dyn`
 
-- **Generics/`impl Trait`** sofrem monomorphization: uma cópia por tipo concreto, dispatch estático e inlining possível. Custo: binário maior e compilação mais lenta (Rust Book ch. 18.2, que remete a ch. 10.1).
-- **`dyn Trait`** usa dispatch dinâmico pelos ponteiros do trait object em runtime, o que impede inlining e adiciona uma indireção (Rust Book ch. 18.2). É obrigatório para coleção heterogênea.
-- **Critério:** um implementador conhecido no call site → `impl Trait`; conjunto aberto em runtime → `Box<dyn Trait>`; variantes fechadas que precisam de `match` → enum (mais barato que `dyn`).
+- **Generics/`impl Trait`** suffer monomorphization: one copy per concrete type, static dispatch and possible inlining. Cost: bigger binary and slower compilation (Rust Book ch. 18.2, which refers to ch. 10.1).
+- **`dyn Trait`** uses dynamic dispatch through the trait object pointers at runtime, which prevents inlining and adds one indirection (Rust Book ch. 18.2). It is mandatory for a heterogeneous collection.
+- **Criterion:** one implementor known at the call site → `impl Trait`; open set at runtime → `Box<dyn Trait>`; closed variants that need `match` → enum (cheaper than `dyn`).
 
-Os dois lados aparecem aqui: `sessions.rs:18` recebe `exists: impl Fn(&Path) -> bool` — seam de teste sem `dyn` e sem indireção; `app.rs:84` é forçado a `&dyn egui::TextBuffer` porque a assinatura é da `egui`. Nesse conflito **vence a API da crate**, não a preferência.
+Both sides appear here: `sessions.rs:18` receives `exists: impl Fn(&Path) -> bool` — test seam without `dyn` and without indirection; `app.rs:84` is forced to `&dyn egui::TextBuffer` because the signature is `egui`'s. In that conflict **the crate API wins**, not the preference.
 
-Value Object tem respaldo oficial: `C-NEWTYPE` (Rust API Guidelines) é newtype sem custo em runtime. `RpcState(Mutex<HashMap<..>>)` (`rpc.rs:24`) é o caso de coleção de primeira classe — não espalhar `HashMap` cru pela API. Enum grande: lint `clippy::large_enum_variant`.
+Value Object has official backing: `C-NEWTYPE` (Rust API Guidelines) is newtype with no runtime cost. `RpcState(Mutex<HashMap<..>>)` (`rpc.rs:24`) is the first-class collection case — do not spread raw `HashMap` through the API. Large enum: lint `clippy::large_enum_variant`.
 
-## 5. Concorrência: `Send`/`Sync`, `tokio` vs `std::thread`
+## 5. Concurrency: `Send`/`Sync`, `tokio` vs `std::thread`
 
-`Send` = o valor pode ser transferido para outra thread; `Sync` = `&T` pode ser compartilhado entre threads (std docs). `thread::spawn` exige `F: FnOnce() -> T + Send + 'static` e `T: Send + 'static` (std docs) — é o que obriga `move` e `Arc` no lugar de `Rc`.
+`Send` = the value can be transferred to another thread; `Sync` = `&T` can be shared between threads (std docs). `thread::spawn` requires `F: FnOnce() -> T + Send + 'static` and `T: Send + 'static` (std docs) — that is what forces `move` and `Arc` in place of `Rc`.
 
-- **`std::thread` para trabalho blocking**: subprocesso e leitura de stdout linha a linha. É o que `pi-deck` faz — duas threads por sessão, uma por stream (`rpc.rs:140`, `rpc.rs:153`), emitindo evento para a UI.
-- **`tokio` para muitas operações de I/O concorrentes com espera**: N conexões, timeouts, `select!`. Em app desktop, prefira o runtime que já vem por baixo (aqui `tauri` traz `tokio`) em vez de abrir um `Runtime` paralelo.
-- **Guard de `std::sync::Mutex` não atravessa `.await`**: `MutexGuard` é `!Send` e o futuro deixa de ser `Send` (verificado: `future cannot be sent between threads safely ... await occurs here, with g maybe used later`). Se o lock precisa cruzar o await, `tokio::sync::Mutex` — o guard dele é feito para isso (docs.rs/tokio Mutex).
-- **Poison faz parte do contrato**: `lock()` devolve `Result`. `if let Ok(..)` esconde panic de outra thread (`rpc.rs:29`); o tratamento explícito com erro nomeado está em `rpc.rs:166`. Ignorar poison exige comentário dizendo por quê.
+- **`std::thread` for blocking work**: subprocess and line-by-line stdout reading. That is what `pi-deck` does — two threads per session, one per stream (`rpc.rs:140`, `rpc.rs:153`), emitting an event to the UI.
+- **`tokio` for many concurrent I/O operations with waiting**: N connections, timeouts, `select!`. In a desktop app, prefer the runtime that already comes underneath (here `tauri` brings `tokio`) instead of opening a parallel `Runtime`.
+- **`std::sync::Mutex` guard does not cross `.await`**: `MutexGuard` is `!Send` and the future stops being `Send` (verified: `future cannot be sent between threads safely ... await occurs here, with g maybe used later`). If the lock needs to cross the await, `tokio::sync::Mutex` — its guard is made for that (docs.rs/tokio Mutex).
+- **Poison is part of the contract**: `lock()` returns `Result`. `if let Ok(..)` hides another thread's panic (`rpc.rs:29`); the explicit handling with a named error is in `rpc.rs:166`. Ignoring poison requires a comment saying why.
 
-## 6. Idiomas proibidos
+## 6. Prohibited idioms
 
-- **`unwrap()`/`expect()` em caminho de produção.** Use `?` ou `unwrap_or_else` com fallback real (`app.rs:19`). `.expect()` só onde falhar é o comportamento correto — bootstrap (`main.rs:61`) e teste (`sessions.rs:2038`). Lints: `clippy::unwrap_used`, `clippy::expect_used` (opt-in).
-- **`clone()` para calar o borrow checker.** Legítimo ao transferir posse numa fronteira de API ou em dado pequeno fora de hot path. Ilegítimo dentro de `for`/`map`/render loop: `egui` redesenha continuamente e `app.rs:81` clona o `LayoutJob` a cada frame. Critério: clone dentro de `ui`/`for`/`map` só com medição.
-- **`unsafe` sem `// SAFETY:`** acima, nomeando a invariante que o código mantém (`clippy::undocumented_unsafe_blocks`). Hoje: zero `unsafe` nos dois crates (grep).
-- **`as` em cast numérico que trunca** (`clippy::cast_possible_truncation`); use `try_into()`.
-- **`panic!`/`unimplemented!()`/`todo!()`** em código de biblioteca.
+- **`unwrap()`/`expect()` in a production path.** Use `?` or `unwrap_or_else` with a real fallback (`app.rs:19`). `.expect()` only where failing is the correct behavior — bootstrap (`main.rs:61`) and test (`sessions.rs:2038`). Lints: `clippy::unwrap_used`, `clippy::expect_used` (opt-in).
+- **`clone()` to silence the borrow checker.** Legitimate when transferring ownership at an API boundary or for small data outside the hot path. Illegitimate inside `for`/`map`/render loop: `egui` redraws continuously and `app.rs:81` clones the `LayoutJob` every frame. Criterion: clone inside `ui`/`for`/`map` only with measurement.
+- **`unsafe` without `// SAFETY:`** above it, naming the invariant the code keeps (`clippy::undocumented_unsafe_blocks`). Today: zero `unsafe` in both crates (grep).
+- **`as` in a numeric cast that truncates** (`clippy::cast_possible_truncation`); use `try_into()`.
+- **`panic!`/`unimplemented!()`/`todo!()`** in library code.
 
-## 7. Anti-padrões com sintoma concreto
+## 7. Anti-patterns with concrete symptom
 
-| padrão | como aparece na prática | correção |
+| pattern | how it shows up in practice | fix |
 |---|---|---|
-| mutar coleção dentro do loop que a empresta | `error[E0502]: cannot borrow v as mutable because it is also borrowed as immutable` | `for i in 0..v.len()`, ou coletar e `extend` |
-| dois `&mut` vivos ao mesmo tempo | `error[E0499]: cannot borrow v as mutable more than once at a time` | um bloco/escopo por borrow |
-| `String` em parâmetro que só lê | `error[E0382]: borrow of moved value: s` + note do rustc sugerindo borrow | `&str` no parâmetro |
-| devolver `&` de valor local | `error[E0597]: tmp does not live long enough` | devolver o dono (`String`/`Vec`) |
-| closure de `thread::spawn` capturando `Rc` | `error[E0277]: Rc<i32> cannot be sent between threads safely` | `Arc` + `Mutex`/`Atomic*` |
-| `fn name() -> &str` sem lifetime | `error[E0106]: missing lifetime specifier` | devolver `String` ou anotar o `'a` real |
-| guard de `Mutex` atravessando `.await` | `future cannot be sent between threads safely` / `MutexGuard ... not Send` | `tokio::sync::Mutex` ou soltar o guard antes |
-| `#[derive(Clone)]` em tudo | **sem erro** — só custo O(n) por chamada; compilador fica quieto | derivar só com necessidade provada |
-| `Result<_, String>` em toda fronteira | **sem erro** — frontend compara `message` por substring | enum + `Serialize` na borda |
-| ignorar poison com `if let Ok` | **sem erro** — vira estado parcial silencioso | `match` + erro nomeado |
-| `impl Trait` retornando tipo diferente por branch | `error[E0308]: if and else have incompatible types` (o rustc sugere trocar o retorno por trait object) | `Box<dyn Trait>` no retorno |
+| mutate a collection inside the loop that borrows it | `error[E0502]: cannot borrow v as mutable because it is also borrowed as immutable` | `for i in 0..v.len()`, or collect and `extend` |
+| two live `&mut` at the same time | `error[E0499]: cannot borrow v as mutable more than once at a time` | one block/scope per borrow |
+| `String` in a parameter that only reads | `error[E0382]: borrow of moved value: s` + rustc note suggesting borrow | `&str` in the parameter |
+| return `&` of a local value | `error[E0597]: tmp does not live long enough` | return the owner (`String`/`Vec`) |
+| `thread::spawn` closure capturing `Rc` | `error[E0277]: Rc<i32> cannot be sent between threads safely` | `Arc` + `Mutex`/`Atomic*` |
+| `fn name() -> &str` without lifetime | `error[E0106]: missing lifetime specifier` | return `String` or annotate the real `'a` |
+| `Mutex` guard crossing `.await` | `future cannot be sent between threads safely` / `MutexGuard ... not Send` | `tokio::sync::Mutex` or release the guard before |
+| `#[derive(Clone)]` on everything | **no error** — only O(n) cost per call; the compiler stays quiet | derive only with proven need |
+| `Result<_, String>` on every boundary | **no error** — the frontend compares `message` by substring | enum + `Serialize` at the edge |
+| ignoring poison with `if let Ok` | **no error** — becomes silent partial state | `match` + named error |
+| `impl Trait` returning a different type per branch | `error[E0308]: if and else have incompatible types` (rustc suggests changing the return to a trait object) | `Box<dyn Trait>` in the return |
 
-As mensagens acima foram reproduzidas com `rustc 1.99.1`, edition 2021. As três linhas marcadas **sem erro** não quebram a compilação e não são pegas pelos lints padrão — só revisão pega.
+The messages above were reproduced with `rustc 1.99.1`, edition 2021. The three lines marked **no error** do not break the compilation and are not caught by the default lints — only review catches them.
 
-## Padrões contestados (quem vence)
+## Contested patterns (who wins)
 
-| disputa | vence | por quê |
+| dispute | wins | why |
 |---|---|---|
-| `anyhow` também em biblioteca | `thiserror` | a doc do `anyhow` fala em *applications*; o consumidor perde `match` nos variantes |
-| `clone()` como remédio para borrow error | reestruturar | `clippy::redundant_clone` só detecta clone provadamente redundante; o custo real é o clone "necessário" em hot path, que nenhum lint vê |
-| `dyn` em tudo vs generics em tudo | a API já existente quando ela fixa a forma (`egui`); senão `impl Trait` | `dyn` impede inlining (Book ch. 18.2) |
-| `std::sync::Mutex` vs `tokio::sync::Mutex` | `std` em código síncrono | o async só ganha quando o guard cruza `.await` (tokio docs) |
-| edition 2021 vs 2024 | 2021 nestes crates | ambos declaram `edition = "2021"` (`Cargo.toml:4`); trocar edition é migração, não refactor — não misture dentro do mesmo crate |
-| `Result<_, String>` em comando Tauri | enum + `Serialize`, com teste | recomendação da doc oficial; é dívida consciente, não padrão a copiar |
+| `anyhow` also in a library | `thiserror` | the `anyhow` doc speaks of *applications*; the consumer loses `match` on the variants |
+| `clone()` as a remedy for a borrow error | restructure | `clippy::redundant_clone` only detects provably redundant clone; the real cost is the "necessary" clone in the hot path, which no lint sees |
+| `dyn` on everything vs generics on everything | the existing API when it fixes the shape (`egui`); otherwise `impl Trait` | `dyn` prevents inlining (Book ch. 18.2) |
+| `std::sync::Mutex` vs `tokio::sync::Mutex` | `std` in synchronous code | async only wins when the guard crosses `.await` (tokio docs) |
+| edition 2021 vs 2024 | 2021 in these crates | both declare `edition = "2021"` (`Cargo.toml:4`); changing edition is migration, not refactor — do not mix it inside the same crate |
+| `Result<_, String>` in a Tauri command | enum + `Serialize`, with a test | recommendation of the official doc; it is conscious debt, not a pattern to copy |
 
-## 8. Referências
+## 8. References
 
 - The Rust Book — ownership: https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html
 - The Rust Book — borrowing: https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html
-- The Rust Book — `Result` e `?`: https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html
+- The Rust Book — `Result` and `?`: https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html
 - The Rust Book — trait objects, static vs dynamic dispatch: https://doc.rust-lang.org/book/ch18-02-trait-objects.html
 - The Rust Book — threads: https://doc.rust-lang.org/book/ch16-01-threads.html
 - The Rust Book — `Send`/`Sync`: https://doc.rust-lang.org/book/ch16-04-extensible-concurrency-sync-and-send.html
 - The Rust Book — unsafe Rust: https://doc.rust-lang.org/book/ch20-01-unsafe-rust.html
-- Rust Reference — lazy `?`/`From` handling e operadores: https://doc.rust-lang.org/reference/expressions/operator-expr.html
+- Rust Reference — lazy `?`/`From` handling and operators: https://doc.rust-lang.org/reference/expressions/operator-expr.html
 - Rust API Guidelines: https://rust-lang.github.io/api-guidelines/ · type safety (`C-NEWTYPE`): https://rust-lang.github.io/api-guidelines/type-safety.html
-- Clippy — lints: https://rust-lang.github.io/rust-clippy/master/index.html · uso/CI: https://doc.rust-lang.org/clippy/usage.html
+- Clippy — lints: https://rust-lang.github.io/rust-clippy/master/index.html · usage/CI: https://doc.rust-lang.org/clippy/usage.html
 - `std::marker::Send`: https://doc.rust-lang.org/std/marker/trait.Send.html · `Sync`: https://doc.rust-lang.org/std/marker/trait.Sync.html
 - `thiserror`: https://docs.rs/thiserror/latest/thiserror/ · `anyhow`: https://docs.rs/anyhow/latest/anyhow/
 - Tokio — tutorial: https://tokio.rs/tokio/tutorial · `sync::Mutex`: https://docs.rs/tokio/latest/tokio/sync/struct.Mutex.html
-- Tauri v2 — comandos e erros: https://v2.tauri.app/develop/calling-rust/
+- Tauri v2 — commands and errors: https://v2.tauri.app/develop/calling-rust/
 - Edition Guide: https://doc.rust-lang.org/edition-guide/rust-2021/index.html · 2024: https://doc.rust-lang.org/edition-guide/rust-2024/index.html
 
-## O que não consegui verificar
+## What I could not verify
 
-- Qualquer uso de `tokio` **direto** em ambos os crates: nenhum. Em `phpide-rs`, `cargo tree -i tokio` no target host não imprime nada, mas `--target all` exigiria baixar crates de targets iOS — o caminho do `tokio 1.53.3` presente no `Cargo.lock` não foi rastreado.
-- Se `pi-deck` compila e passa testes neste host: `src-tauri` depende de toolchain de desktop e não rodei build/test (proibido editar/gerar artefato no repo).
-- Clippy não está instalado no toolchain local (`cargo-clippy` ausente), então nenhum lint citado foi executado — os IDs foram conferidos na página oficial de lints.
-- `cargo tree` e `cargo test` rodaram apenas em crates descartáveis em `/tmp`, não nos repositórios.
-- Não existe CI configurado nos dois repositórios que confirme `-D warnings` ou `clippy::pedantic` em uso.
+- Any **direct** use of `tokio` in both crates: none. In `phpide-rs`, `cargo tree -i tokio` on the host target prints nothing, but `--target all` would require downloading crates from iOS targets — the path of the `tokio 1.53.3` present in `Cargo.lock` was not traced.
+- Whether `pi-deck` compiles and passes tests on this host: `src-tauri` depends on a desktop toolchain and I did not run build/test (forbidden to edit/generate artifact in the repo).
+- Clippy is not installed in the local toolchain (`cargo-clippy` absent), so no lint cited was executed — the IDs were checked on the official lints page.
+- `cargo tree` and `cargo test` ran only on throwaway crates in `/tmp`, not on the repositories.
+- There is no CI configured in the two repositories that confirms `-D warnings` or `clippy::pedantic` in use.

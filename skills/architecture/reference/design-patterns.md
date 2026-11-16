@@ -1,242 +1,242 @@
-# Padrões de Projeto (GoF) e de Domínio
+# Design (GoF) and Domain Patterns
 
-> Absorvida por architecture (2026-11-16). Conteúdo original preservado.
+> Absorbed by architecture (2026-11-16). Original content preserved.
 
-Um padrão é **vocabulário compartilhado**, não uma meta. Aplique só quando houver uma dor concreta (variação, acoplamento ou duplicação). A regra de ouro: **composição sobre herança** e **depender de abstrações, não de implementações**.
+A pattern is **shared vocabulary**, not a goal. Apply it only when there is a concrete pain (variation, coupling or duplication). The golden rule: **composition over inheritance** and **depend on abstractions, not on implementations**.
 
 ## Use this skill when
 
-- Projetar componentes e decidir como desacoplar responsabilidades.
-- Remover cadeias longas de `if/else`/`switch` que crescem a cada novo caso.
-- Isolar código de terceiros (bancos, SDKs, HTTP) atrás de uma interface própria.
-- Introduzir pontos de extensão sem alterar código existente (Open/Closed).
-- Modelar persistência e regras de domínio com Repository/Specification.
+- Designing components and deciding how to decouple responsibilities.
+- Removing long `if/else`/`switch` chains that grow with each new case.
+- Isolating third-party code (databases, SDKs, HTTP) behind your own interface.
+- Introducing extension points without changing existing code (Open/Closed).
+- Modeling persistence and domain rules with Repository/Specification.
 
 ## Do not use this skill when
 
-- O problema é um ajuste pontual e localizado.
-- A abstração existiria por apenas um caso de uso (sem variação real).
-- O time não tem como testar a indireção adicionada.
+- The problem is a one-off, localized fix.
+- The abstraction would exist for only one use case (no real variation).
+- The team has no way to test the added indirection.
 
 ## Instructions
 
-1. Identifique o **eixo de variação**: o que muda com frequência e o que permanece estável?
-2. Prefira a solução mais simples que isole esse eixo; só então escolha o padrão.
-3. Nomeie classes pelas intenções do domínio, não pelo padrão (`CalculadoraDeFrete`, não `FreteStrategy`).
-4. Valide com testes: o padrão deve reduzir o custo de adicionar o próximo caso.
-5. Se um padrão não elimina um `if`/acoplamento nem melhora o teste, **não o aplique**.
+1. Identify the **axis of variation**: what changes often and what stays stable?
+2. Prefer the simplest solution that isolates that axis; only then choose the pattern.
+3. Name classes by domain intent, not by the pattern (`CalculadoraDeFrete`, not `FreteStrategy`).
+4. Validate with tests: the pattern must reduce the cost of adding the next case.
+5. If a pattern does not eliminate an `if`/coupling nor improve the test, **do not apply it**.
 
-## Criacionais
+## Creational
 
 ### Factory Method / Abstract Factory
 
-- **Problema:** o cliente precisa criar objetos sem conhecer as classes concretas.
-- **Quando usar:** há famílias de objetos relacionados ou a criação tem regras/lookup.
-- **Evitar:** quando `new` direto já resolve e a classe é estável.
-- **Sinal no código:** `switch` de criação espalhado por vários pontos.
+- **Problem:** the client needs to create objects without knowing the concrete classes.
+- **When to use:** there are families of related objects or the creation has rules/lookup.
+- **Avoid:** when a direct `new` already solves it and the class is stable.
+- **Signal in the code:** a creation `switch` scattered across several points.
 
 ### Builder
 
-- **Problema:** construtores com muitos parâmetros opcionais ou construção em etapas.
-- **Quando usar:** objetos complexos, imutáveis, montados passo a passo.
-- **Evitar:** objetos com 2–3 campos simples.
+- **Problem:** constructors with many optional parameters or construction in steps.
+- **When to use:** complex, immutable objects assembled step by step.
+- **Avoid:** objects with 2–3 simple fields.
 
-## Estruturais
+## Structural
 
 ### Adapter
 
-- **Problema:** integrar uma API de terceiro sem contaminar o domínio com o formato dela.
-- **Quando usar:** SDKs, gateways, clientes HTTP, bibliotecas legadas.
-- **Sinal:** tipos do fornecedor vazando para as regras de negócio.
+- **Problem:** integrating a third-party API without contaminating the domain with its format.
+- **When to use:** SDKs, gateways, HTTP clients, legacy libraries.
+- **Signal:** vendor types leaking into the business rules.
 
 ### Decorator
 
-- **Problema:** adicionar comportamentos ortogonais (log, retry, cache, métricas) sem alterar a classe.
-- **Quando usar:** pilha de responsabilidades que varia por contexto.
-- **Evitar:** quando herança ou injeção única bastam.
+- **Problem:** adding orthogonal behaviors (log, retry, cache, metrics) without changing the class.
+- **When to use:** a stack of responsibilities that varies by context.
+- **Avoid:** when inheritance or single injection is enough.
 
 ### Facade
 
-- **Problema:** subsistema complexo exposto a muitos clientes.
-- **Quando usar:** simplificar um ponto de entrada ou isolar um módulo.
-- **Evitar:** "Deus-fachada" que só repassa chamadas.
+- **Problem:** a complex subsystem exposed to many clients.
+- **When to use:** simplifying an entry point or isolating a module.
+- **Avoid:** a "God-facade" that only forwards calls.
 
-## Comportamentais
+## Behavioral
 
 ### Strategy
 
-- **Problema:** variantes de um algoritmo escolhidas em runtime (frete, desconto, imposto).
-- **Quando usar:** o mesmo contrato com implementações intercambiáveis.
-- **Evitar:** quando há apenas uma variante ou a escolha é fixa em build.
-- **Sinal:** `if tipo == A: ... elif tipo == B: ...` crescendo.
+- **Problem:** variants of an algorithm chosen at runtime (shipping, discount, tax).
+- **When to use:** the same contract with interchangeable implementations.
+- **Avoid:** when there is only one variant or the choice is fixed at build time.
+- **Signal:** `if tipo == A: ... elif tipo == B: ...` growing.
 
 ### Observer / Publish-Subscribe
 
-- **Problema:** notificar múltiplos interessados quando algo muda.
-- **Quando usar:** eventos de domínio, desacoplamento de efeitos colaterais.
-- **Evitar:** quando o fluxo síncrono e explícito é mais fácil de depurar.
+- **Problem:** notifying multiple interested parties when something changes.
+- **When to use:** domain events, decoupling of side effects.
+- **Avoid:** when the synchronous and explicit flow is easier to debug.
 
 ### Command
 
-- **Problema:** encapsular uma ação como objeto (fila, undo/redo, auditoria).
-- **Quando usar:** operações precisam ser parametrizadas, enfileiradas ou registradas.
-- **Evitar:** chamadas diretas simples.
+- **Problem:** encapsulating an action as an object (queue, undo/redo, audit).
+- **When to use:** operations need to be parameterized, queued or recorded.
+- **Avoid:** simple direct calls.
 
 ### Template Method
 
-- **Problema:** esqueleto fixo com passos variáveis.
-- **Quando usar:** quando herança é aceitável e o esqueleto é realmente estável.
-- **Evitar:** prefira Strategy + composição quando as variantes se multiplicam.
+- **Problem:** a fixed skeleton with variable steps.
+- **When to use:** when inheritance is acceptable and the skeleton is really stable.
+- **Avoid:** prefer Strategy + composition when the variants multiply.
 
-## Completando o catálogo GoF
+## Completing the GoF catalog
 
-Os 13 padrões que faltavam, no mesmo formato — para não escolher padrão por catálogo, e sim por sintoma.
+The 13 patterns that were missing, in the same format — so as not to choose a pattern by catalog, but by symptom.
 
-### Criacionais restantes
+### Remaining creational
 
 #### Prototype
 
-- **Problema:** criar variações de um objeto caro sem repetir a construção.
-- **Quando usar:** configuração base com pequenas diferenças; cópia profunda com semântica definida.
-- **Evitar:** quando um construtor com parâmetros explícitos é mais legível.
-- **Custo:** `clone` raso é armadilha — referência compartilhada vira bug silencioso.
+- **Problem:** creating variations of an expensive object without repeating the construction.
+- **When to use:** a base configuration with small differences; deep copy with defined semantics.
+- **Avoid:** when a constructor with explicit parameters is more readable.
+- **Cost:** a shallow `clone` is a trap — a shared reference becomes a silent bug.
 
 #### Singleton
 
-- **Problema:** recurso único no processo (pool, cache, registro).
-- **Quando usar:** quase nunca como padrão; prefira injetar uma instância única.
-- **Evitar:** estado global disfarçado, dependência oculta, teste que não isola.
-- **Sinal de erro:** código de teste precisa resetar o singleton entre casos.
+- **Problem:** a single resource in the process (pool, cache, registry).
+- **When to use:** almost never as a pattern; prefer injecting a single instance.
+- **Avoid:** disguised global state, hidden dependency, a test that does not isolate.
+- **Error signal:** test code needs to reset the singleton between cases.
 
-### Estruturais restantes
+### Remaining structural
 
 #### Bridge
 
-- **Problema:** duas dimensões variam de forma independente (abstração × implementação).
-- **Quando usar:** evitar explosão de subclasses `m×n`.
-- **Evitar:** quando uma das dimensões nunca varia.
-- **Sinal:** classes do tipo `RelatorioPDFMensal`, `RelatorioHTMLMensal`, `RelatorioPDFAnual`…
+- **Problem:** two dimensions vary independently (abstraction × implementation).
+- **When to use:** to avoid a `m×n` subclass explosion.
+- **Avoid:** when one of the dimensions never varies.
+- **Signal:** classes of the kind `RelatorioPDFMensal`, `RelatorioHTMLMensal`, `RelatorioPDFAnual`…
 
 #### Composite
 
-- **Problema:** tratar folha e grupo da mesma forma (árvore de partes).
-- **Quando usar:** hierarquia recursiva (menu, arquivo, expressão, organograma).
-- **Evitar:** quando a estrutura é plana e estável.
-- **Custo:** operações que só fazem sentido em folha ficam mal localizadas.
+- **Problem:** treating leaf and group in the same way (tree of parts).
+- **When to use:** recursive hierarchy (menu, file, expression, org chart).
+- **Avoid:** when the structure is flat and stable.
+- **Cost:** operations that only make sense on a leaf end up badly placed.
 
 #### Flyweight
 
-- **Problema:** milhares de objetos com estado intrínseco repetido consumindo memória.
-- **Quando usar:** depois de **medir** consumo; cache de partes imutáveis compartilhadas.
-- **Evitar:** otimização preventiva — é o padrão que mais aparece sem necessidade.
-- **Sinal:** perfil de memória apontando o mesmo valor repetido.
+- **Problem:** thousands of objects with repeated intrinsic state consuming memory.
+- **When to use:** after **measuring** consumption; cache of shared immutable parts.
+- **Avoid:** preventive optimization — it is the pattern that shows up most without need.
+- **Signal:** a memory profile pointing at the same repeated value.
 
 #### Proxy
 
-- **Problema:** interpor controle no acesso a um objeto (lazy, permissão, cache, remoto).
-- **Quando usar:** o controle é ortogonal ao objeto e não deve morar nele.
-- **Evitar:** quando Decorator já expressa o mesmo (Proxy controla, Decorator adiciona).
-- **Custo:** indireção esconde latência; propague erro e timeout explicitamente.
+- **Problem:** interposing control on access to an object (lazy, permission, cache, remote).
+- **When to use:** the control is orthogonal to the object and must not live in it.
+- **Avoid:** when Decorator already expresses the same (Proxy controls, Decorator adds).
+- **Cost:** indirection hides latency; propagate error and timeout explicitly.
 
-### Comportamentais restantes
+### Remaining behavioral
 
 #### Chain of Responsibility
 
-- **Problema:** vários tratadores possíveis, e o escolhido depende do conteúdo.
-- **Quando usar:** pipeline de validação, middleware, aprovação por alçada.
-- **Evitar:** quando a ordem é irrelevante ou há exatamente um tratador.
-- **Custo:** cadeia mal configurada engole a requisição sem erro — termine com tratador que falha alto.
+- **Problem:** several possible handlers, and the chosen one depends on the content.
+- **When to use:** validation pipeline, middleware, approval by authority level.
+- **Avoid:** when the order is irrelevant or there is exactly one handler.
+- **Cost:** a badly configured chain swallows the request without an error — end it with a handler that fails loud.
 
 #### Mediator
 
-- **Problema:** `n` objetos conversando entre si formam `n²` acoplamentos.
-- **Quando usar:** coordenação central de interações complexas (UI, orquestração).
-- **Evitar:** quando o mediador vira Deus-objeto que concentra toda a regra.
-- **Sinal:** cada novo participante obriga mudar todos os outros.
+- **Problem:** `n` objects talking to each other form `n²` couplings.
+- **When to use:** central coordination of complex interactions (UI, orchestration).
+- **Avoid:** when the mediator becomes a God-object that concentrates all the rule.
+- **Signal:** each new participant forces changing all the others.
 
 #### Memento
 
-- **Problema:** desfazer/restaurar estado sem expor os internos do objeto.
-- **Quando usar:** undo, snapshot antes de operação arriscada, checkpoint.
-- **Evitar:** estado grande ou frequente — custo de memória domina.
-- **Custo:** snapshot profundo de agregado inteiro é caro; capture só o que a restauração exige.
+- **Problem:** undoing/restoring state without exposing the object's internals.
+- **When to use:** undo, snapshot before a risky operation, checkpoint.
+- **Avoid:** large or frequent state — memory cost dominates.
+- **Cost:** a deep snapshot of the whole aggregate is expensive; capture only what the restoration requires.
 
 #### State
 
-- **Problema:** comportamento muda conforme o estado, e hoje isso é um `switch` gigante.
-- **Quando usar:** transições explícitas e finitas (pedido, assinatura, job).
-- **Evitar:** quando há 2 estados triviais — um enum e um `if` bastam.
-- **Sinal:** `switch (status)` repetido em vários métodos da mesma classe.
+- **Problem:** behavior changes according to the state, and today that is a giant `switch`.
+- **When to use:** explicit and finite transitions (order, subscription, job).
+- **Avoid:** when there are 2 trivial states — an enum and an `if` are enough.
+- **Signal:** `switch (status)` repeated in several methods of the same class.
 
 #### Visitor
 
-- **Problema:** adicionar operação nova a uma hierarquia fechada sem alterar as classes.
-- **Quando usar:** estrutura estável, operações que crescem (relatório, validação, exportação).
-- **Evitar:** quando a hierarquia muda com frequência — cada novo tipo quebra todos os visitors.
-- **Custo:** `double dispatch` é difícil de ler; em Go, prefira type switch localizado.
+- **Problem:** adding a new operation to a closed hierarchy without changing the classes.
+- **When to use:** stable structure, operations that grow (report, validation, export).
+- **Avoid:** when the hierarchy changes often — each new type breaks all the visitors.
+- **Cost:** `double dispatch` is hard to read; in Go, prefer a localized type switch.
 
 #### Interpreter
 
-- **Problema:** avaliar uma linguagem pequena recorrente (regra, filtro, expressão).
-- **Quando usar:** gramática pequena e estável; Specification já não dá conta de composição.
-- **Evitar:** quando um parser pronto (ou DSL existente) resolve sem escrever gramática.
-- **Sinal de erro:** reimplementar parser de expressão à mão.
+- **Problem:** evaluating a small recurring language (rule, filter, expression).
+- **When to use:** a small and stable grammar; Specification no longer handles composition.
+- **Avoid:** when a ready-made parser (or an existing DSL) solves it without writing a grammar.
+- **Error signal:** reimplementing an expression parser by hand.
 
 #### Iterator
 
-- **Problema:** percorrer coleção sem expor sua estrutura interna.
-- **Quando usar:** quase nunca explicitamente — a linguagem já oferece (`for range`, `range`-protocol).
-- **Evitar:** criar tipo próprio quando slice/stream nativo resolve.
-- **Sinal de valor:** só quando a coleção é preguiçosa, remota ou paginada.
+- **Problem:** traversing a collection without exposing its internal structure.
+- **When to use:** almost never explicitly — the language already offers it (`for range`, `range`-protocol).
+- **Avoid:** creating your own type when a native slice/stream solves it.
+- **Value signal:** only when the collection is lazy, remote or paginated.
 
-## Seleção por sintoma
+## Selection by symptom
 
-Use a coluna "primeiro tente" antes de aceitar a indireção do padrão.
+Use the "try first" column before accepting the pattern's indirection.
 
-| Sintoma no código | Primeiro tente | Padrão se persistir |
+| Symptom in the code | Try first | Pattern if it persists |
 |---|---|---|
-| `if/switch` crescendo por variante | parâmetro + função | Strategy / State |
-| `switch` de criação espalhado | construtor explícito | Factory Method |
-| Tipo de terceiro vazando no domínio | função de conversão | Adapter (+ ACL) |
-| Pilha de log/retry/cache ao redor de chamada | injeção única | Decorator / Proxy |
-| Viagem de requisição por N camadas de repasse | chamada direta | Facade (ou remover camada) |
-| `m×n` subclasses por duas dimensões | uma dimensão só | Bridge |
-| Árvore de partes com operações uniformes | recursão simples | Composite |
-| Milhares de objetos com mesmo valor interno | medir memória | Flyweight |
-| Permissão/lazy/remoto no acesso a objeto | checagem no chamador | Proxy |
-| `n²` acoplamentos entre participantes | eventos simples | Mediator |
-| Operação nova em hierarquia fechada | função livre | Visitor |
-| Undo/restauração de estado | cópia explícita dos campos | Memento |
-| Sequência de tratadores por conteúdo | `if` ordenado | Chain of Responsibility |
-| Percorrer coleção paginada/remota | slice já carregado | Iterator |
+| `if/switch` growing per variant | parameter + function | Strategy / State |
+| scattered creation `switch` | explicit constructor | Factory Method |
+| third-party type leaking into the domain | conversion function | Adapter (+ ACL) |
+| stack of log/retry/cache around a call | single injection | Decorator / Proxy |
+| request traveling through N forwarding layers | direct call | Facade (or remove the layer) |
+| `m×n` subclasses for two dimensions | one dimension only | Bridge |
+| tree of parts with uniform operations | simple recursion | Composite |
+| thousands of objects with the same internal value | measure memory | Flyweight |
+| permission/lazy/remote on object access | check in the caller | Proxy |
+| `n²` couplings between participants | simple events | Mediator |
+| new operation on a closed hierarchy | free function | Visitor |
+| undo/state restoration | explicit copy of the fields | Memento |
+| sequence of handlers by content | ordered `if` | Chain of Responsibility |
+| traversing a paginated/remote collection | slice already loaded | Iterator |
 
-## Padrões de domínio e infraestrutura
+## Domain and infrastructure patterns
 
 ### Repository
 
-- **Problema:** desacoplar o domínio do mecanismo de persistência, expondo coleções.
-- **Quando usar:** agregados com leitura/escrita por identidade.
-- **Evitar:** um repositório genérico por tabela; modele por agregado.
-- **Sinal:** SQL/ORM invadindo casos de uso.
+- **Problem:** decoupling the domain from the persistence mechanism, exposing collections.
+- **When to use:** aggregates with read/write by identity.
+- **Avoid:** a generic repository per table; model per aggregate.
+- **Signal:** SQL/ORM invading the use cases.
 
 ### Unit of Work
 
-- **Problema:** coordenar alterações de vários repositórios em uma transação.
-- **Quando usar:** múltiplos agregados alterados na mesma operação.
-- **Evitar:** operações de um único agregado (transação local já resolve).
+- **Problem:** coordinating changes from several repositories in one transaction.
+- **When to use:** multiple aggregates changed in the same operation.
+- **Avoid:** operations on a single aggregate (a local transaction already solves it).
 
 ### Specification
 
-- **Problema:** regras de filtro/validação combináveis e reutilizáveis.
-- **Quando usar:** critérios compostos (E/OU/NÃO) que variam por caso de uso.
-- **Evitar:** quando um predicado simples basta.
+- **Problem:** combinable and reusable filter/validation rules.
+- **When to use:** composite criteria (AND/OR/NOT) that vary by use case.
+- **Avoid:** when a simple predicate is enough.
 
-## Checklist anti-over-engineering
+## Anti-over-engineering checklist
 
-- [ ] Existe variação real (mais de um caso concreto)?
-- [ ] O padrão remove acoplamento ou um `if` que cresceria?
-- [ ] Dá para testar a unidade isoladamente depois da mudança?
-- [ ] O nome revela intenção de domínio (não o nome do padrão)?
-- [ ] Adicionar o próximo caso ficou mais barato?
+- [ ] Is there real variation (more than one concrete case)?
+- [ ] Does the pattern remove coupling or an `if` that would grow?
+- [ ] Can the unit be tested in isolation after the change?
+- [ ] Does the name reveal domain intent (not the pattern's name)?
+- [ ] Did adding the next case become cheaper?
 
-Se duas ou mais respostas forem "não", **não aplique** o padrão.
+If two or more answers are "no", **do not apply** the pattern.

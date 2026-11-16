@@ -1,78 +1,78 @@
-# Headers de ciclo de vida da API (Sunset, Deprecation, traceparent)
+# API lifecycle headers (Sunset, Deprecation, traceparent)
 
-> Referencia carregada por `../SKILL.md` e por `reference/api-operations.md` §2 (lifecycle e janela de deprecacao).
-> Nao duplica: estados Planned/Beta/Live/Deprecated/Retired, gate de compatibilidade no CI e semver ficam em `reference/api-operations.md` §1-§5; propagacao de headers de tracing na validacao de release fica em §13 do mesmo arquivo.
-> O que esta aqui e a **mecanica de fio** dos tres headers: nome, formato de campo e semantica, sempre a partir da spec. Inferencia do autor marcada como **[inferencia]**.
+> Reference loaded by `../SKILL.md` and by `reference/api-operations.md` §2 (lifecycle and deprecation window).
+> Does not duplicate: Planned/Beta/Live/Deprecated/Retired states, compatibility gate in CI and semver stay in `reference/api-operations.md` §1-§5; tracing header propagation in release validation stays in §13 of the same file.
+> What is here is the **wire mechanics** of the three headers: name, field format and semantics, always from the spec. Author inference marked as **[inference]**.
 
-## 1. Tres headers, tres perguntas
+## 1. Three headers, three questions
 
-| Header | Pergunta que responde | Spec | Status | Formato do valor |
+| Header | Question it answers | Spec | Status | Value format |
 | --- | --- | --- | --- | --- |
-| `Deprecation` | quando deixa de ser recomendado | RFC 9745 | Standards Track, marco/2025 | Structured Field Date: `@` + segundos Unix |
-| `Sunset` | quando deixa de responder | RFC 8594 | Informational, maio/2019 | HTTP-date |
-| `traceparent` | em que trace/span este request esta | W3C Trace Context | Recommendation / Level 2 | `version-trace-id-parent-id-trace-flags` |
+| `Deprecation` | when it stops being recommended | RFC 9745 | Standards Track, March/2025 | Structured Field Date: `@` + Unix seconds |
+| `Sunset` | when it stops responding | RFC 8594 | Informational, May/2019 | HTTP-date |
+| `traceparent` | in which trace/span this request is | W3C Trace Context | Recommendation / Level 2 | `version-trace-id-parent-id-trace-flags` |
 
-Duas confusoes que custam caro em revisao de contrato:
+Two confusions that are expensive in contract review:
 
-- `Deprecation` e `Sunset` **nao usam o mesmo formato de data**. Um e epoch com `@`, o outro e HTTP-date textual.
-- `traceparent` nao e header de ciclo de vida; e observabilidade. Esta aqui porque e o que transforma "achamos que ninguem usa a v1" em medicao (§7).
+- `Deprecation` and `Sunset` **do not use the same date format**. One is epoch with `@`, the other is textual HTTP-date.
+- `traceparent` is not a lifecycle header; it is observability. It is here because it is what turns "we think nobody uses v1" into measurement (§7).
 
 ## 2. Sunset (RFC 8594)
 
-Abstract da spec: "This specification defines the Sunset HTTP response header field, which indicates that a URI is likely to become unresponsive at a specified point in the future. It also defines a sunset link relation type that allows linking to resources providing information about an upcoming resource or service sunset."
+Spec abstract: "This specification defines the Sunset HTTP response header field, which indicates that a URI is likely to become unresponsive at a specified point in the future. It also defines a sunset link relation type that allows linking to resources providing information about an upcoming resource or service sunset."
 
-Semantica (§3):
+Semantics (§3):
 
 - "The Sunset header field contains a single timestamp that advertises the point in time when the resource is expected to become unresponsive."
 - "The Sunset value is an HTTP-date timestamp, as defined in Section 7.1.1.1 of [RFC7231], and SHOULD be a timestamp in the future."
 - "It is safest to consider timestamps in the past mean the present time, meaning that the resource is expected to become unavailable at any time."
 - ABNF: `Sunset = HTTP-date`.
 
-Consequencias praticas:
+Practical consequences:
 
-- **`SHOULD` no futuro, nao `MUST`**: data no passado e legal e deve ser lida como "pode cair agora". Nao trate data passada como header invalido.
-- **`likely` nao e SLA**: o RFC anuncia expectativa, nao compromete disponibilidade ate a data nem garante queda depois dela.
-- **Informational**: e especificacao de header, nao norma de obrigatoriedade. Um cliente que ignora `Sunset` nao viola nada.
-- Formato: HTTP-date no subconjunto IMF-fixdate — tamanho fixo, zona unica, sempre `GMT` (RFC 7231 §7.1.1.1). Forma: `Sunset: Sun, 06 Nov 1994 08:49:37 GMT`.
-- O RFC descreve **o header**, nao o comportamento depois da data. Qual status code a rota devolve apos o sunset (410, 404, redirect) e decisao do provedor, que precisa estar documentada em outro lugar. **[inferencia]**
+- **`SHOULD` in the future, not `MUST`**: a past date is legal and must be read as "it may go down now". Do not treat a past date as an invalid header.
+- **`likely` is not an SLA**: the RFC announces an expectation, it does not commit availability until the date nor guarantee a shutdown after it.
+- **Informational**: it is a header specification, not a norm of obligation. A client that ignores `Sunset` violates nothing.
+- Format: HTTP-date in the IMF-fixdate subset — fixed size, single zone, always `GMT` (RFC 7231 §7.1.1.1). Form: `Sunset: Sun, 06 Nov 1994 08:49:37 GMT`.
+- The RFC describes **the header**, not the behavior after the date. Which status code the route returns after sunset (410, 404, redirect) is the provider's decision, which needs to be documented elsewhere. **[inference]**
 
 ## 3. Deprecation (RFC 9745)
 
 Abstract: "The Deprecation HTTP response header field is used to signal to consumers of a resource (identified by a URI) that the resource will be or has been deprecated."
 
-Semantica (§2.1), texto da spec:
+Semantics (§2.1), spec text:
 
 - "describes the deprecation of the resource identified with the response it occurred within (see Section 6.4.2 of [HTTP])."
 - "It conveys the deprecation date, which may be in the future (the resource in context will be deprecated at that date) or in the past (the resource in context was deprecated at that date)."
 - "`Deprecation` is an Item Structured Header Field; its value MUST be a Date as per Section 3.3.7 of [RFC9651]."
-- O documento "uses 'Structured Field Values for HTTP' [RFC9651] to specify syntax and parsing of date values".
+- The document "uses 'Structured Field Values for HTTP' [RFC9651] to specify syntax and parsing of date values".
 
-Exemplo da propria spec (recurso deprecado em sexta, 30 de junho de 2023, 23:59:59 UTC):
+Example from the spec itself (resource deprecated on Friday, June 30, 2023, 23:59:59 UTC):
 
 ```http
 Deprecation: @1688169599
 ```
 
-Leitura correta:
+Correct reading:
 
-- `@` + segundos desde epoch. **Nao** e HTTP-date; `Deprecation: Fri, 30 Jun 2023 23:59:59 GMT` esta errado.
-- Data no futuro = aviso antecipado. Data no passado = ja deprecado.
-- **Deprecation nao muda comportamento**: o recurso continua respondendo. O header so sinaliza que a migracao deve comecar.
-- Comparacao entre as duas specs: `Deprecation` responde "quando deixa de ser recomendado"; `Sunset` responde "quando deixa de responder". A RFC 9745 dedica §4 a `Sunset` justamente para marcar a diferenca.
-- Como os dois convivem: `Deprecation` <= `Sunset`. Deprecation depois do sunset e contradicao de contrato. **[inferencia]**
+- `@` + seconds since epoch. It is **not** HTTP-date; `Deprecation: Fri, 30 Jun 2023 23:59:59 GMT` is wrong.
+- Future date = advance notice. Past date = already deprecated.
+- **Deprecation does not change behavior**: the resource keeps responding. The header only signals that migration must start.
+- Comparison between the two specs: `Deprecation` answers "when it stops being recommended"; `Sunset` answers "when it stops responding". RFC 9745 dedicates §4 to `Sunset` precisely to mark the difference.
+- How the two coexist: `Deprecation` <= `Sunset`. Deprecation after sunset is a contract contradiction. **[inference]**
 
-## 4. Link relations: onde mora o "por que" e o "como migrar"
+## 4. Link relations: where the "why" and the "how to migrate" live
 
-Os dois headers dizem **quando**, nao **o que fazer**. O complemento e `Link`:
+The two headers say **when**, not **what to do**. The complement is `Link`:
 
-| Relation | Spec | Aponta para |
+| Relation | Spec | Points to |
 | --- | --- | --- |
-| `deprecation` | RFC 9745 §3 | documentacao da deprecacao e de como lidar com ela |
-| `sunset` | RFC 8594 | politica de sunset do recurso ou do servico |
+| `deprecation` | RFC 9745 §3 | documentation of the deprecation and of how to deal with it |
+| `sunset` | RFC 8594 | sunset policy of the resource or of the service |
 
-- Formato do `Link` e da RFC 8288 (Web Linking): URI entre `<>`, seguida de parametros `;`-separados, com `rel` obrigatorio.
-- RFC 9745 §3 e explicito sobre o proposito: informar "where to find more information about deprecation of the context", e isso vale "before the actual deprecation to make a deprecation policy discoverable or after deprecation when there may be documentation about the deprecation and how to manage it".
-- Exemplo de forma combinada (estrutura conforme as duas specs, valores ilustrativos):
+- `Link` format comes from RFC 8288 (Web Linking): URI between `<>`, followed by `;`-separated parameters, with `rel` mandatory.
+- RFC 9745 §3 is explicit about the purpose: to inform "where to find more information about deprecation of the context", and that holds "before the actual deprecation to make a deprecation policy discoverable or after deprecation when there may be documentation about the deprecation and how to manage it".
+- Example of the combined form (structure per the two specs, illustrative values):
 
 ```http
 Deprecation: @1688169599
@@ -80,11 +80,11 @@ Sunset: Sun, 06 Nov 1994 08:49:37 GMT
 Link: <https://developer.example.com/deprecation>; rel="deprecation"; type="text/html"
 ```
 
-- Header sem link e aviso sem instrucao: o consumidor sabe que vai quebrar e nao sabe o que fazer. Publicar o link e parte do aviso, nao enfeite. **[inferencia]**
+- A header without a link is a notice without instructions: the consumer knows it is going to break and does not know what to do. Publishing the link is part of the notice, not decoration. **[inference]**
 
 ## 5. traceparent (W3C Trace Context)
 
-O header tem quatro campos, nesta ordem: `version`, `trace-id`, `parent-id`, `trace-flags`. ABNF da spec (version 00):
+The header has four fields, in this order: `version`, `trace-id`, `parent-id`, `trace-flags`. Spec ABNF (version 00):
 
 ```abnf
 version-format = trace-id "-" parent-id "-" trace-flags
@@ -93,82 +93,82 @@ parent-id     = 16HEXDIGLC   ; 8 bytes. All zeroes forbidden
 trace-flags   = 2HEXDIGLC    ; 8 bit flags
 ```
 
-Regras que a spec enuncia:
+Rules the spec states:
 
-- `version` e 1 byte em dois caracteres hex; **`ff` e invalido**; a spec define version `00`.
-- `trace-id` e `parent-id` **todos zero sao proibidos** — nao sao "id vazio valido".
-- Hex e **lowercase** (`HEXDIGLC`). Uppercase e invalido.
-- `trace-flags` tem um bit em uso: o `sampled`.
-- Valor valido, do exemplo da spec: `00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01`.
-- Tamanho: para version 00, 32 + 16 + 2 caracteres hex mais 3 hifens = **55 caracteres**. **[inferencia]** aritmetica sobre a ABNF acima, nao frase da spec — o tamanho e fixo so nessa versao.
-- Pass-through **nao** deve interpretar a versao: a spec orienta que servicos de passagem "should not analyze the version" e "should expect that headers may have larger size limits in the future and only disallow prohibitively large headers". Parsear versao futura como erro quebra o trace de quem so repassa.
+- `version` is 1 byte in two hex characters; **`ff` is invalid**; the spec defines version `00`.
+- `trace-id` and `parent-id` **all zero are prohibited** — they are not a "valid empty id".
+- Hex is **lowercase** (`HEXDIGLC`). Uppercase is invalid.
+- `trace-flags` has one bit in use: the `sampled`.
+- Valid value, from the spec example: `00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01`.
+- Size: for version 00, 32 + 16 + 2 hex characters plus 3 hyphens = **55 characters**. **[inference]** arithmetic over the ABNF above, not a spec sentence — the size is fixed only in that version.
+- Pass-through **must not** interpret the version: the spec instructs forwarding services "should not analyze the version" and "should expect that headers may have larger size limits in the future and only disallow prohibitively large headers". Parsing a future version as an error breaks the trace of whoever only forwards.
 
-`tracestate` e o segundo header, que carrega o que nao cabe no `traceparent`:
+`tracestate` is the second header, which carries what does not fit in `traceparent`:
 
-- valor e uma `list` de `list-members` separados por virgula; cada member e `chave=valor`;
+- the value is a `list` of comma-separated `list-members`; each member is `key=value`;
 - "There can be a maximum of 32 `list-members`";
-- ao exceder, "the right-most `list-member` should be removed";
-- espacos e tabs em volta do member sao ignorados; members vazios sao permitidos.
+- when exceeded, "the right-most `list-member` should be removed";
+- spaces and tabs around the member are ignored; empty members are allowed.
 
-## 6. O que propagar entre servicos
+## 6. What to propagate between services
 
-Texto normativo da Trace Context, que separa os dois casos:
+Normative Trace Context text, which separates the two cases:
 
-- Com header recebido: "A vendor receiving a `traceparent` request header MUST send it to outgoing requests. It MAY mutate the value of this header before passing it to outgoing requests."
-- E o encadeamento com o `tracestate`: "If the value of the `traceparent` field wasn't changed before propagation, `tracestate` MUST NOT be modified as well" — quem so repassa nao mexe no `tracestate`.
-- Sem header recebido: "A vendor receiving a request without a `traceparent` header SHOULD generate `traceparent` headers for outbound requests, effectively starting a new trace." A spec observa que gerar mesmo sem amostrar e o esperado, para propagar a decisao de sampling para baixo.
+- With a header received: "A vendor receiving a `traceparent` request header MUST send it to outgoing requests. It MAY mutate the value of this header before passing it to outgoing requests."
+- And the chaining with `tracestate`: "If the value of the `traceparent` field wasn't changed before propagation, `tracestate` MUST NOT be modified as well" — whoever only forwards does not touch `tracestate`.
+- Without a header received: "A vendor receiving a request without a `traceparent` header SHOULD generate `traceparent` headers for outbound requests, effectively starting a new trace." The spec notes that generating even without sampling is the expected behavior, to propagate the sampling decision downstream.
 
-Regra operacional (**[inferencia]** a partir dos trechos acima):
+Operational rule (**[inference]** from the excerpts above):
 
-1. `trace-id` identifica o trace inteiro: **nunca** e regenerado no meio do caminho. Regenerar parte a arvore em duas.
-2. `parent-id` identifica o span do chamador. O span criado no servico passa a ser o novo `parent-id` no hop seguinte.
-3. `trace-flags` propaga a decisao de sampling para baixo; reescrever para "sampled" sem amostrar produz trace pela metade.
-4. `tracestate` so muda por quem tem entrada para adicionar, e respeitando o limite de 32.
-5. Header nao atravessa fila, topico ou job em background sozinho: o contexto precisa ser copiado para o envelope da mensagem, senao o trace morre no produtor. **[inferencia]**
+1. `trace-id` identifies the whole trace: it is **never** regenerated mid-path. Regenerating it splits the tree in two.
+2. `parent-id` identifies the caller's span. The span created in the service becomes the new `parent-id` on the next hop.
+3. `trace-flags` propagates the sampling decision downstream; rewriting it to "sampled" without sampling produces half a trace.
+4. `tracestate` only changes by whoever has an entry to add, and respecting the limit of 32.
+5. A header does not cross a queue, topic or background job by itself: the context needs to be copied into the message envelope, otherwise the trace dies at the producer. **[inference]**
 
-O que isso resolve em contrato de API: com `traceparent` propagado, "quem ainda chama `/v1/attendees`" deixa de ser pergunta para o time de produto e passa a ser consulta no coletor de traces. Ver tambem `api-operations.md` §13 (propagacao de headers e validacao de release), que cobre o lado do rollout.
+What this solves in an API contract: with `traceparent` propagated, "who still calls `/v1/attendees`" stops being a question for the product team and becomes a query in the trace collector. See also `api-operations.md` §13 (header propagation and release validation), which covers the rollout side.
 
-## 7. Como os tres entram na politica de deprecacao
+## 7. How the three fit into the deprecation policy
 
-Sequencia, com o header que carrega cada passo:
+Sequence, with the header that carries each step:
 
-| Passo | Header | O que muda para o consumidor |
+| Step | Header | What changes for the consumer |
 | --- | --- | --- |
-| anuncio | `Deprecation: @<futuro>` + `Link rel="deprecation"` | nada funciona diferente; a migracao comeca |
-| medicao | `traceparent` + log por rota/versao | nada; o provedor descobre quem ainda chama |
-| aviso final | `Sunset: <data>` | nada funciona diferente ate a data |
-| retirada | — (a janela fechou) | resposta muda ou deixa de existir |
+| announcement | `Deprecation: @<future>` + `Link rel="deprecation"` | nothing works differently; migration starts |
+| measurement | `traceparent` + log per route/version | nothing; the provider finds out who still calls |
+| final notice | `Sunset: <date>` | nothing works differently until the date |
+| retirement | — (the window closed) | response changes or stops existing |
 
-Decisoes que precisam estar escritas, nao assumidas:
+Decisions that need to be written down, not assumed:
 
-- **Em quais respostas o header aparece**: so 2xx ou todas, incluindo erro. As duas escolhas sao defensaveis; a omissao nao e — consumidor que so ve o header em 200 vai concluir que ele nao existe.
-- **`Deprecation` no primeiro dia da janela, `Sunset` quando a data ja e conhecida.** Inverter a ordem tira do consumidor a unica informacao acionavel (quanto tempo ele tem).
-- **Quem monitora o uso**: sem `traceparent` propagado e log por rota, a decisao de retirar a versao e palpite com data. O gate de compatibilidade de `api-operations.md` §5 protege o schema, nao revela consumidor.
-- **Sunset sem plano de resposta**: a data chega e a rota continua no ar "por seguranca". Isso ensina o consumidor que o header nao significa nada. **[inferencia]**
-- **Header em versao deprecated x header em versao Live**: so a versao em deprecacao carrega `Deprecation`/`Sunset`; emitir na Live transforma aviso em ruido.
+- **In which responses the header appears**: only 2xx or all, including errors. Both choices are defensible; omission is not — a consumer that only sees the header on 200 will conclude it does not exist.
+- **`Deprecation` on the first day of the window, `Sunset` when the date is already known.** Inverting the order takes away from the consumer the only actionable information (how much time it has).
+- **Who monitors usage**: without `traceparent` propagated and a log per route, the decision to retire the version is a guess with a date. The compatibility gate of `api-operations.md` §5 protects the schema, it does not reveal consumers.
+- **Sunset without a response plan**: the date arrives and the route stays up "to be safe". That teaches the consumer that the header means nothing. **[inference]**
+- **Header on a deprecated version x header on a Live version**: only the version under deprecation carries `Deprecation`/`Sunset`; emitting it on Live turns notice into noise.
 
 ## 8. Checklist
 
-- [ ] `Sunset` e HTTP-date IMF-fixdate, em GMT, com data no futuro ou no presente (data passada = "pode cair agora").
-- [ ] `Deprecation` e Structured Field Date: `@` + segundos Unix, nunca HTTP-date.
-- [ ] `Deprecation` <= `Sunset`; os dois nunca se contradizem.
-- [ ] `Link` com `rel="deprecation"` (e `rel="sunset"` quando houver politica publica) apontando para doc real.
-- [ ] Politica escrita define em quais respostas os headers aparecem.
-- [ ] `traceparent` gerado quando ausente e propagado quando presente, sem regenerar `trace-id`.
-- [ ] `tracestate` so modificado por quem adiciona entrada, respeitando o limite de 32 members.
-- [ ] Hex lowercase; `trace-id`/`parent-id` nunca todos zero; version `ff` rejeitada.
-- [ ] Contexto de trace copiado para envelope de mensagem em fluxo assincrono.
-- [ ] Uso da versao deprecada medido por rota/versao antes de fixar a data de `Sunset`.
+- [ ] `Sunset` is HTTP-date IMF-fixdate, in GMT, with a date in the future or in the present (past date = "it may go down now").
+- [ ] `Deprecation` is Structured Field Date: `@` + Unix seconds, never HTTP-date.
+- [ ] `Deprecation` <= `Sunset`; the two never contradict each other.
+- [ ] `Link` with `rel="deprecation"` (and `rel="sunset"` when there is a public policy) pointing to real doc.
+- [ ] Written policy defines in which responses the headers appear.
+- [ ] `traceparent` generated when absent and propagated when present, without regenerating `trace-id`.
+- [ ] `tracestate` only modified by whoever adds an entry, respecting the limit of 32 members.
+- [ ] Hex lowercase; `trace-id`/`parent-id` never all zero; version `ff` rejected.
+- [ ] Trace context copied to the message envelope in an asynchronous flow.
+- [ ] Usage of the deprecated version measured per route/version before fixing the `Sunset` date.
 
-## Fontes
+## Sources
 
-- **RFC 8594 — The Sunset HTTP Header Field** (E. Wilde, maio/2019, Informational): abstract, §3 semantica, `Sunset = HTTP-date`, `SHOULD` no futuro, leitura de data passada, link relation `sunset`. https://www.rfc-editor.org/rfc/rfc8594.html e https://www.rfc-editor.org/info/rfc8594/
-- **RFC 9745 — The Deprecation HTTP Response Header Field** (S. Dalal, E. Wilde, marco/2025, Standards Track): abstract, §2.1 (descricao, data passada/futura, "Item Structured Header Field; its value MUST be a Date as per Section 3.3.7 of [RFC9651]"), exemplo `Deprecation: @1688169599`, §3 link relation `deprecation`, §4 `Sunset`. https://www.rfc-editor.org/rfc/rfc9745.html
-- **RFC 7231 §7.1.1.1 — Date/Time Formats**: HTTP-date, IMF-fixdate como formato preferido, tamanho fixo e zona unica. https://www.rfc-editor.org/rfc/rfc7231.html (trecho lido em https://stackoverflow.com/questions/75235516/does-googles-http-server-return-a-header-with-the-wrong-date-time-format)
-- **RFC 9651 — Structured Field Values for HTTP**: syntax de Date usada pela RFC 9745 §3.3.7. https://www.rfc-editor.org/rfc/rfc9651.html (referenciada pela RFC 9745; nao aberta integralmente)
-- **RFC 8288 — Web Linking**: formato do `Link` e parametro `rel`. https://www.rfc-editor.org/rfc/rfc8288.html (referenciada; formato lido tambem em https://apiguide.dev/specifications/web-linking)
-- **W3C Trace Context (Recommendation, 2021-11-23)**: campos do `traceparent`, ABNF de `version-format`, `trace-id`/`parent-id` 32/16 HEXDIGLC com zero proibido, `ff` invalido, exemplo `00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01`, regra de pass-through, "MUST send it to outgoing requests", regra do `tracestate` inalterado, processing model sem header recebido. https://www.w3.org/TR/trace-context/
-- **W3C Trace Context Level 2 (2024-03-28)**: `tracestate` como lista de no maximo 32 `list-members`, remocao do right-most, texto de geracao de `traceparent` para outbound. https://www.w3.org/TR/trace-context-2/
-- **Trace Context — spec/30-processing-model.md (repo w3c/trace-context)**: passo a passo do caso "No traceparent Received". https://github.com/w3c/trace-context/blob/main/spec/30-processing-model.md
-- **Trace Context — spec/20-http_request_header_format.md (repo w3c/trace-context)**: ABNF e campos do `traceparent`. https://github.com/w3c/trace-context/blob/main/spec/20-http_request_header_format.md
-- **Nao confirmado**: numero de secao da Trace Context para `traceparent`/`tracestate` (citei por titulo de secao, nao por numero); texto literal que afirma o total de 55 caracteres (o valor foi derivado da ABNF); comportamento de status code apos `Sunset` (nenhuma das duas RFCs fixa isso).
+- **RFC 8594 — The Sunset HTTP Header Field** (E. Wilde, May/2019, Informational): abstract, §3 semantics, `Sunset = HTTP-date`, `SHOULD` in the future, reading of a past date, link relation `sunset`. https://www.rfc-editor.org/rfc/rfc8594.html and https://www.rfc-editor.org/info/rfc8594/
+- **RFC 9745 — The Deprecation HTTP Response Header Field** (S. Dalal, E. Wilde, March/2025, Standards Track): abstract, §2.1 (description, past/future date, "Item Structured Header Field; its value MUST be a Date as per Section 3.3.7 of [RFC9651]"), example `Deprecation: @1688169599`, §3 link relation `deprecation`, §4 `Sunset`. https://www.rfc-editor.org/rfc/rfc9745.html
+- **RFC 7231 §7.1.1.1 — Date/Time Formats**: HTTP-date, IMF-fixdate as the preferred format, fixed size and single zone. https://www.rfc-editor.org/rfc/rfc7231.html (excerpt read at https://stackoverflow.com/questions/75235516/does-googles-http-server-return-a-header-with-the-wrong-date-time-format)
+- **RFC 9651 — Structured Field Values for HTTP**: Date syntax used by RFC 9745 §3.3.7. https://www.rfc-editor.org/rfc/rfc9651.html (referenced by RFC 9745; not opened in full)
+- **RFC 8288 — Web Linking**: `Link` format and `rel` parameter. https://www.rfc-editor.org/rfc/rfc8288.html (referenced; format also read at https://apiguide.dev/specifications/web-linking)
+- **W3C Trace Context (Recommendation, 2021-11-23)**: `traceparent` fields, `version-format` ABNF, `trace-id`/`parent-id` 32/16 HEXDIGLC with zero prohibited, `ff` invalid, example `00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01`, pass-through rule, "MUST send it to outgoing requests", `tracestate` unchanged rule, processing model without a header received. https://www.w3.org/TR/trace-context/
+- **W3C Trace Context Level 2 (2024-03-28)**: `tracestate` as a list of at most 32 `list-members`, removal of the right-most, `traceparent` generation text for outbound. https://www.w3.org/TR/trace-context-2/
+- **Trace Context — spec/30-processing-model.md (repo w3c/trace-context)**: step by step of the case "No traceparent Received". https://github.com/w3c/trace-context/blob/main/spec/30-processing-model.md
+- **Trace Context — spec/20-http_request_header_format.md (repo w3c/trace-context)**: ABNF and `traceparent` fields. https://github.com/w3c/trace-context/blob/main/spec/20-http_request_header_format.md
+- **Not confirmed**: Trace Context section number for `traceparent`/`tracestate` (I cited by section title, not by number); literal text asserting the total of 55 characters (the value was derived from the ABNF); status code behavior after `Sunset` (neither of the two RFCs fixes it).

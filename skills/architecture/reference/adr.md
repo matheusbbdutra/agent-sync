@@ -1,60 +1,60 @@
 # Architecture Decision Records (ADR)
 
-> Absorvida por architecture (2026-11-16). Conteúdo original preservado (convenções locais `docs/ADR-*`, `D-N`/`A-N` mantidas).
+> Absorbed by architecture (2026-11-16). Original content preserved (local conventions `docs/ADR-*`, `D-N`/`A-N` kept).
 
-Padrões enxutos para registrar contexto, opções e consequências de decisões técnicas estruturantes.
+Lean patterns for recording context, options and consequences of structuring technical decisions.
 
 ## Use this skill when
 
-- Documentando decisões arquiteturais, escolha de libs, padrões de comunicação ou schemas.
-- Registrando trade-offs técnicos significativos e regras de evolução de contratos.
+- Documenting architectural decisions, choice of libs, communication patterns or schemas.
+- Recording significant technical trade-offs and contract evolution rules.
 
 ## Do not use this skill when
 
-- Mudança é detalhe interno de implementação, rotina de manutenção ou bug fix.
-- Decisão já está coberta por regra global ou convenção existente do repositório.
+- The change is an internal implementation detail, maintenance routine or bug fix.
+- The decision is already covered by a global rule or an existing repository convention.
 
-## Convenções neste repositório (`agent-sync`)
+## Conventions in this repository (`agent-sync`)
 
-1. **Localização e Nomes:**
-   - Documentos em `docs/ADR-<topico>.md` (ex: `docs/ADR-001-schema-output.md` ou `docs/ADR-session-event-jsonl-append-only.md`).
-   - Sincronização direta com `STATE.md` / `.agent-sync/session-state.json` através de IDs de decisão `D-N` e ações `A-N`.
-2. **Ciclo de Vida:**
-   - `Proposto` → `Implementado` → `Aceito` (após smoke/validação real) → `Superado` (linkando o substituto).
-3. **Princípios de Decisão:**
-   - Contratos fechados por padrão (`additionalProperties: false` em JSON Schema). Exceções devem ser justificadas na ADR.
-   - Mudanças de arquitetura requerem plano de verificação determinístico (ex: cenários de smoke documentados).
+1. **Location and Names:**
+   - Documents in `docs/ADR-<topico>.md` (e.g.: `docs/ADR-001-schema-output.md` or `docs/ADR-session-event-jsonl-append-only.md`).
+   - Direct synchronization with `STATE.md` / `.agent-sync/session-state.json` through decision IDs `D-N` and actions `A-N`.
+2. **Lifecycle:**
+   - `Proposto` → `Implementado` → `Aceito` (after real smoke/validation) → `Superado` (linking the replacement) [Proposed → Implemented → Accepted → Superseded].
+3. **Decision Principles:**
+   - Contracts closed by default (`additionalProperties: false` in JSON Schema). Exceptions must be justified in the ADR.
+   - Architecture changes require a deterministic verification plan (e.g.: documented smoke scenarios).
 
-## Template Canônico (MADR Enxuto)
+## Canonical Template (Lean MADR)
 
 ```markdown
-# ADR-NNN: [Título Conciso]
+# ADR-NNN: [Concise Title]
 
 ## Status
 [Proposto | Implementado | Aceito | Superado por ADR-MMM]
 
-## Contexto & Drivers
-- O que motivou a decisão? Quais os requisitos e restrições técnicas?
-- Problema real e limitações das abordagens atuais.
+## Context & Drivers
+- What motivated the decision? What are the technical requirements and constraints?
+- Real problem and limitations of the current approaches.
 
-## Opções Consideradas
-- **Opção 1 (Escolhida)**: Prós e contras.
-- **Opção 2**: Por que foi descartada.
+## Options Considered
+- **Option 1 (Chosen)**: Pros and cons.
+- **Option 2**: Why it was discarded.
 
-## Decisão
-- O que foi decidido, escopo e tecnologias envolvidas.
+## Decision
+- What was decided, scope and technologies involved.
 
-## Consequências & Trade-offs
-- **Positivas**: Ganhos imediatos e garantias.
-- **Negativas / Riscos**: Débitos assumidos ou complexidade adicional.
-- **Mitigação**: Como os riscos serão contornados.
+## Consequences & Trade-offs
+- **Positive**: Immediate gains and guarantees.
+- **Negative / Risks**: Debts taken on or additional complexity.
+- **Mitigation**: How the risks will be worked around.
 
-## Critérios de Aceite / Smoke
-- Condições práticas para mover o status de `Implementado` para `Aceito`.
+## Acceptance Criteria / Smoke
+- Practical conditions to move the status from `Implementado` to `Aceito`.
 ```
 
 ## Anti-patterns
 
-- ADR genérica sem impacto prático ou sem vínculo com código/tarefas (`A-N`).
-- Omitir trade-offs ou consequências negativas da escolha.
-- Editar o histórico de uma ADR já aceita sem registrar nova decisão ou marcar como superada.
+- Generic ADR without practical impact or without a link to code/tasks (`A-N`).
+- Omitting trade-offs or negative consequences of the choice.
+- Editing the history of an already accepted ADR without recording a new decision or marking it as superseded.

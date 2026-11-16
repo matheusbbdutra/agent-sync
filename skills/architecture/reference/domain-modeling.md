@@ -1,57 +1,57 @@
 # Domain Modeling (DDD)
 
-Referência carregada por `../SKILL.md` §1. Cobre nível estratégico (fronteiras, linguagem) e tático (agregados, VOs, eventos). A ordem segue Evans: design estratégico (Parte IV) e ciclo de vida do objeto de domínio (cap. 6).
+Reference loaded by `../SKILL.md` §1. Covers the strategic level (boundaries, language) and the tactical one (aggregates, VOs, events). The order follows Evans: strategic design (Part IV) and domain object lifecycle (ch. 6).
 
-## 1. Quando o modelo ganha dinheiro
+## 1. When the model earns money
 
-DDD é ferramenta de domínio complexo: o retorno vem de alinhar código e negócio por linguagem e fronteira. Em CRUD ou relatório sem regra, o custo de modelar supera o ganho — não use.
+DDD is a tool for complex domains: the return comes from aligning code and business through language and boundary. In CRUD or a report without rules, the cost of modeling exceeds the gain — do not use it.
 
-## 2. Linguagem ubíqua
+## 2. Ubiquitous language
 
-- Um vocabulário só, usado pelo negócio e pelo código, sem sinônimos escondidos: `Cliente`, não `Cliente` + `Customer` + `User` para a mesma coisa.
-- Termo ambíguo entre áreas vira **dois nomes diferentes** em contextos diferentes: `Cliente` de Vendas ≠ `Cliente` de Suporte.
-- Nome descreve intenção de domínio, não o padrão aplicado: `CalculadoraDeFrete`, não `FreteStrategy`.
+- A single vocabulary, used by the business and by the code, with no hidden synonyms: `Cliente`, not `Cliente` + `Customer` + `User` for the same thing.
+- An ambiguous term between areas becomes **two different names** in different contexts: Sales' `Cliente` ≠ Support's `Cliente`.
+- The name describes domain intent, not the applied pattern: `CalculadoraDeFrete`, not `FreteStrategy`.
 
-Teste rápido: um especialista lê um trecho do código e entende sem tradução. Se precisa de dicionário, a linguagem ainda não é ubíqua.
+Quick test: a specialist reads a stretch of the code and understands it without translation. If a dictionary is needed, the language is not ubiquitous yet.
 
-## 3. Subdomínios
+## 3. Subdomains
 
-| Tipo | Investimento | Exemplo |
+| Type | Investment | Example |
 |---|---|---|
-| Core | melhor modelagem, time sênior | precificação, risco de crédito |
-| Supporting | modelagem suficiente | cadastro interno específico |
-| Generic | comprar ou reusar | autenticação, e-mail, geração de PDF |
+| Core | best modeling, senior team | pricing, credit risk |
+| Supporting | sufficient modeling | specific internal registry |
+| Generic | buy or reuse | authentication, e-mail, PDF generation |
 
-Tratar autenticação como core e gastar modelagem onde não há vantagem competitiva é o erro simétrico de ignorar o core.
+Treating authentication as core and spending modeling where there is no competitive advantage is the symmetrical error of ignoring the core.
 
 ## 4. Bounded context
 
-Fronteira onde **um** modelo e **uma** linguagem são válidos. Dentro, os termos têm significado único; fora, não.
+The boundary where **one** model and **one** language are valid. Inside, the terms have a single meaning; outside, they do not.
 
-- Um contexto idealmente tem um time e um deploy; fronteira sem dono degrada.
-- Não compartilhe entidade entre contextos: integre por contrato (API/evento) com tradução.
-- Tamanho saudável: o menor limite que mantém a linguagem consistente. Grande demais volta a ter ambiguidade; pequeno demais gera integração sem valor.
+- A context ideally has one team and one deploy; a boundary without an owner degrades.
+- Do not share an entity between contexts: integrate by contract (API/event) with translation.
+- Healthy size: the smallest limit that keeps the language consistent. Too large and it has ambiguity again; too small and it generates integration with no value.
 
 ## 5. Context map
 
-| Padrão | Relação | Custo |
+| Pattern | Relation | Cost |
 |---|---|---|
-| Partnership | times evoluem juntos, dependência mútua | agenda acoplada |
-| Shared Kernel | pequeno modelo comum | quebra frequente |
-| Customer/Supplier | montante atende jusante com prioridade negociada | negociação contínua |
-| Conformist | jusante adota o modelo do montante sem traduzir | perde independência |
-| Anti-Corruption Layer | jusante traduz o modelo externo | código de tradução |
-| Open Host Service / Published Language | contrato estável e documentado | governança de versão |
+| Partnership | teams evolve together, mutual dependency | coupled schedule |
+| Shared Kernel | small common model | frequent breakage |
+| Customer/Supplier | upstream serves downstream with negotiated priority | continuous negotiation |
+| Conformist | downstream adopts the upstream model without translating | loses independence |
+| Anti-Corruption Layer | downstream translates the external model | translation code |
+| Open Host Service / Published Language | stable and documented contract | version governance |
 
-Regra prática: quanto menos poder de negociação o time tem, mais barato é ACL do que Conformist — Conformist acopla o modelo interno ao externo.
+Practical rule: the less negotiation power the team has, the cheaper an ACL is than Conformist — Conformist couples the internal model to the external one.
 
 ## 6. Entity × Value Object
 
-- **Entity**: identidade contínua, igualdade por ID (`Pedido`, `Conta`).
-- **Value Object**: imutável, igualdade estrutural (`Dinheiro`, `Email`, `Periodo`).
-- VO no lugar de primitivo remove validação repetida e erro de unidade (`Dinheiro` impede somar centavos com reais).
+- **Entity**: continuous identity, equality by ID (`Pedido`, `Conta`).
+- **Value Object**: immutable, structural equality (`Dinheiro`, `Email`, `Periodo`).
+- A VO in place of a primitive removes repeated validation and unit errors (`Dinheiro` prevents adding cents to reais).
 
-Go — VO como struct imutável com construtor validante:
+Go — VO as an immutable struct with a validating constructor:
 
 ```go
 package domain
@@ -76,7 +76,7 @@ func (d Dinheiro) Somar(o Dinheiro) (Dinheiro, error) {
 }
 ```
 
-TypeScript — mesma regra, construtor privado e fábrica estática:
+TypeScript — same rule, private constructor and static factory:
 
 ```ts
 export class Dinheiro {
@@ -98,14 +98,14 @@ export class Dinheiro {
 }
 ```
 
-## 7. Agregado e aggregate root
+## 7. Aggregate and aggregate root
 
-- **Agregado**: cluster tratado como unidade de consistência. A raiz é o único acesso externo e garante as invariantes.
-- **Uma transação altera um agregado.** Entre agregados, consistência eventual por evento.
-- Referencie outro agregado **por ID**, não por objeto: evita carregar o grafo inteiro e travar duas raízes.
-- Agregado pequeno reduz conflito de concorrência; se duas regras precisam ser atômicas, provavelmente são o mesmo agregado.
+- **Aggregate**: a cluster treated as a unit of consistency. The root is the only external access and guarantees the invariants.
+- **One transaction changes one aggregate.** Between aggregates, eventual consistency by event.
+- Reference another aggregate **by ID**, not by object: it avoids loading the entire graph and locking two roots.
+- A small aggregate reduces concurrency conflict; if two rules need to be atomic, they are probably the same aggregate.
 
-Go — raiz controlando invariantes e emitindo evento:
+Go — root controlling the invariants and emitting an event:
 
 ```go
 type Pedido struct {
@@ -141,7 +141,7 @@ func (p *Pedido) AdicionarItem(it Item) error {
 }
 ```
 
-TypeScript — mesma invariante, coleção encapsulada:
+TypeScript — same invariant, encapsulated collection:
 
 ```ts
 export class Pedido {
@@ -167,47 +167,47 @@ export class Pedido {
 
 ## 8. Domain event
 
-Fato do negócio no passado (`PedidoConfirmado`, `PagamentoRecusado`). Nomeie no passado, carregue dados suficientes para o consumidor não voltar ao produtor, versione o schema. Uso: integrar contextos e disparar efeito colateral sem acoplar agregados.
+A business fact in the past (`PedidoConfirmado`, `PagamentoRecusado`). Name it in the past, carry enough data so that the consumer does not go back to the producer, version the schema. Use: integrate contexts and trigger a side effect without coupling aggregates.
 
 ## 9. Domain service
 
-Operação de negócio que não pertence a uma entidade ou VO (ex.: transferência entre duas contas, com duas raízes). Parcimônia: serviço que concentra todas as regras é sintoma de modelo anêmico.
+A business operation that does not belong to an entity or VO (e.g.: transfer between two accounts, with two roots). Parsimony: a service that concentrates all the rules is a symptom of an anemic model.
 
-## 10. Repository e Factory
+## 10. Repository and Factory
 
-- **Repository**: coleção de agregados por identidade. Não é DAO por tabela; devolve agregado inteiro ou nada.
-- **Factory**: encapsula criação complexa garantindo objeto válido. Reconstituição a partir do banco pode usar caminho próprio, documentado.
+- **Repository**: collection of aggregates by identity. It is not a DAO per table; it returns the entire aggregate or nothing.
+- **Factory**: encapsulates complex creation guaranteeing a valid object. Reconstitution from the database may use its own documented path.
 
 ## 11. Specification / Policy
 
-Regra combinável e nomeada (`ClientePodeParcelar`, `PedidoIsentoDeFrete`), testável isoladamente. Vale quando o critério varia por contexto e é reutilizado; um `if` simples não precisa de Specification.
+A combinable and named rule (`ClientePodeParcelar`, `PedidoIsentoDeFrete`), testable in isolation. It is worth it when the criterion varies by context and is reused; a simple `if` does not need a Specification.
 
-## 12. Consistência entre agregados
+## 12. Consistency between aggregates
 
-- Dentro: transação imediata (ACID local).
-- Entre: evento + consumidor idempotente + compensação. Não abra transação distribuída para juntar agregados — idempotência é requisito, não detalhe.
+- Inside: immediate transaction (local ACID).
+- Between: event + idempotent consumer + compensation. Do not open a distributed transaction to join aggregates — idempotency is a requirement, not a detail.
 
-## 13. Erros comuns
+## 13. Common errors
 
-- Modelo anêmico: dados na classe, regra num "service" gigante.
-- Entidade ou tabela compartilhada entre bounded contexts.
-- Agregado deus com dezenas de entidades e trava de concorrência.
-- VO mutável tratado como Entity (ou o inverso).
-- SQL/HTTP vazando para dentro do domínio.
-- DDD aplicado a CRUD: custo alto, benefício nulo.
+- Anemic model: data in the class, rule in a giant "service".
+- Entity or table shared between bounded contexts.
+- God aggregate with dozens of entities and a concurrency lock.
+- Mutable VO treated as an Entity (or the reverse).
+- SQL/HTTP leaking into the domain.
+- DDD applied to CRUD: high cost, null benefit.
 
 ## 14. Checklist
 
-- [ ] Linguagem ubíqua no código, sem sinônimos.
-- [ ] Bounded contexts com fronteira e dono explícitos.
-- [ ] Cada regra com um único responsável (agregado/VO/serviço).
-- [ ] Agregados pequenos, raiz única, referência por ID.
-- [ ] Transação respeita o limite do agregado; integração por evento/ACL.
-- [ ] VOs substituíram primitivos de domínio relevantes.
+- [ ] Ubiquitous language in the code, with no synonyms.
+- [ ] Bounded contexts with explicit boundary and owner.
+- [ ] Each rule with a single owner (aggregate/VO/service).
+- [ ] Small aggregates, single root, reference by ID.
+- [ ] Transaction respects the aggregate boundary; integration by event/ACL.
+- [ ] VOs replaced relevant domain primitives.
 
-## Fontes
+## Sources
 
-- Evans, *Domain-Driven Design* (2003): design estratégico (bounded context, context map, distillation) e ciclo de vida do objeto de domínio (agregado, factory, repository). Paráfrase; nenhuma transcrição.
-- Vernon, *Implementing Domain-Driven Design* (2013): regras de projeto de agregados (cap. 10).
-- Consolidação local: corpo integrado a este arquivo em 2026-11-16 (skill de DDD absorvida nesta consolidação; conteúdo preservado).
-- Referências canônicas usadas na §4-5: Cockburn, Hexagonal Architecture — https://alistair.cockburn.us/hexagonal-architecture/ · Martin, Clean Architecture — https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html (URLs não re-fetchadas nesta sessão).
+- Evans, *Domain-Driven Design* (2003): strategic design (bounded context, context map, distillation) and domain object lifecycle (aggregate, factory, repository). Paraphrase; no transcription.
+- Vernon, *Implementing Domain-Driven Design* (2013): aggregate design rules (ch. 10).
+- Local consolidation: body integrated into this file on 2026-11-16 (DDD skill absorbed in this consolidation; content preserved).
+- Canonical references used in §4-5: Cockburn, Hexagonal Architecture — https://alistair.cockburn.us/hexagonal-architecture/ · Martin, Clean Architecture — https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html (URLs not re-fetched in this session).

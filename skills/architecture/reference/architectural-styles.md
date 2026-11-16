@@ -1,39 +1,39 @@
 # Architectural Styles
 
-> Absorvida por architecture (2026-11-16). Conteúdo original preservado; exemplos ponta a ponta portados para Go e TypeScript.
+> Absorbed by architecture (2026-11-16). Original content preserved; end-to-end examples ported to Go and TypeScript.
 
-Referência carregada por `../SKILL.md` §2. Modelagem de domínio (agregado, VO, evento, repository) fica em [domain-modeling.md](domain-modeling.md); aqui o assunto é **onde o código mora e quem pode importar quem**.
+Reference loaded by `../SKILL.md` §2. Domain modeling (aggregate, VO, event, repository) stays in [domain-modeling.md](domain-modeling.md); here the subject is **where the code lives and who may import whom**.
 
 ## 1. Clean Architecture
 
-Camadas, com dependência apontando para dentro:
+Layers, with the dependency pointing inward:
 
-| Camada | Conteúdo | Pode importar |
+| Layer | Content | May import |
 |---|---|---|
-| Entities | regra de negócio que não muda com o app | nada de fora |
-| Use Cases | orquestração da regra de aplicação | entities |
+| Entities | business rule that does not change with the app | nothing from outside |
+| Use Cases | orchestration of the application rule | entities |
 | Interface Adapters | controllers, presenters, gateways | use cases |
-| Frameworks & Drivers | UI, banco, serviços externos | tudo acima |
+| Frameworks & Drivers | UI, database, external services | everything above |
 
-Princípios:
+Principles:
 
-- Dependência aponta para dentro; camada interna não conhece camada externa.
-- Regra de negócio independente de framework.
-- Testável sem UI, banco ou serviço externo.
+- The dependency points inward; an internal layer does not know an external layer.
+- Business rule independent of framework.
+- Testable without UI, database or external service.
 
-## 2. Hexagonal (portas e adaptadores)
+## 2. Hexagonal (ports and adapters)
 
-- **Núcleo**: regra de negócio.
-- **Portas**: interfaces que declaram a interação.
-- **Adaptadores**: implementação da porta (banco, HTTP, fila).
+- **Core**: business rule.
+- **Ports**: interfaces that declare the interaction.
+- **Adapters**: implementation of the port (database, HTTP, queue).
 
-Ganhos: trocar implementação vira trocar adaptador, núcleo agnóstico de tecnologia, separação explícita de responsabilidade.
+Gains: changing implementation becomes changing the adapter, a core agnostic of technology, explicit separation of responsibility.
 
-**Regra de ouro:** a interface pertence ao **núcleo**, não ao adaptador. Porta declarada no pacote de infraestrutura é só acoplamento com nome bonito.
+**Golden rule:** the interface belongs to the **core**, not to the adapter. A port declared in the infrastructure package is just coupling with a pretty name.
 
-## 3. Estrutura de diretórios
+## 3. Directory structure
 
-Go — `internal/` impede import externo e torna a dependency rule verificável por `go list`:
+Go — `internal/` prevents external import and makes the dependency rule verifiable by `go list`:
 
 ```
 cmd/api/main.go                    # composition root: monta adaptadores e injeta
@@ -49,7 +49,7 @@ internal/adapters/stripe/          # adaptador de gateway
   gateway.go
 ```
 
-TypeScript — mesmos nomes, `domain/` sem import de `npm`:
+TypeScript — same names, `domain/` with no `npm` import:
 
 ```
 src/domain/usuario.ts  pedido.ts  dinheiro.ts  email.ts
@@ -60,11 +60,11 @@ src/http/usuario-rota.ts
 src/main.ts                        # composition root
 ```
 
-Sinal de que a estrutura é decorativa: `app/` importando `adapters/`, `domain/` importando `pg`/`http`, ou um `service/` que importa todos os pacotes.
+A sign that the structure is decorative: `app/` importing `adapters/`, `domain/` importing `pg`/`http`, or a `service/` that imports every package.
 
-## 4. Exemplo ponta a ponta — Go
+## 4. End-to-end example — Go
 
-Entidade com comportamento, sem framework:
+Entity with behavior, no framework:
 
 ```go
 // internal/domain/usuario.go
@@ -93,7 +93,7 @@ func (u Usuario) Ativo() bool { return u.ativo }
 func (u Usuario) PodeFazerPedido() bool { return u.ativo }
 ```
 
-Porta declarada pelo núcleo (`app`), sem conhecer SQL:
+Port declared by the core (`app`), without knowing SQL:
 
 ```go
 // internal/app/porta_repositorio.go
@@ -107,7 +107,7 @@ type RepositorioUsuario interface {
 }
 ```
 
-Caso de uso: orquestra, valida duplicidade, delega persistência:
+Use case: orchestrates, validates duplication, delegates persistence:
 
 ```go
 // internal/app/criar_usuario.go
@@ -147,7 +147,7 @@ func (c CriarUsuario) Executar(ctx context.Context, in CriarUsuarioEntrada) (*do
 }
 ```
 
-Adaptador de saída: SQL mora aqui e em nenhum outro lugar:
+Output adapter: SQL lives here and nowhere else:
 
 ```go
 // internal/adapters/postgres/usuario_repo.go
@@ -174,7 +174,7 @@ func (r UsuarioRepo) Salvar(ctx context.Context, u *domain.Usuario) (*domain.Usu
 }
 ```
 
-Adaptador de entrada: controller fino, só traduz HTTP ↔ caso de uso:
+Input adapter: thin controller, it only translates HTTP ↔ use case:
 
 ```go
 // internal/adapters/http/usuario_handler.go
@@ -202,7 +202,7 @@ func CriarUsuarioHandler(criar app.CriarUsuario) http.HandlerFunc {
 }
 ```
 
-## 5. Exemplo ponta a ponta — TypeScript
+## 5. End-to-end example — TypeScript
 
 ```ts
 // src/domain/usuario.ts
@@ -297,9 +297,9 @@ export function rotaCriarUsuario(criar: CriarUsuario): Router {
 }
 ```
 
-## 6. Portas, adaptadores e fake de teste
+## 6. Ports, adapters and test fake
 
-Serviço de domínio recebendo as três portas — nenhum import de infraestrutura. O adaptador de repositório persiste o agregado **e só depois** publica os eventos acumulados, limpando a lista em seguida; publicar antes do commit deixa consumidor reativo a fato que pode não ter sido gravado.
+A domain service receiving the three ports — no infrastructure import. The repository adapter persists the aggregate **and only then** publishes the accumulated events, clearing the list afterwards; publishing before the commit leaves the consumer reacting to a fact that may not have been recorded.
 
 ```go
 // Portas: o núcleo declara, a infraestrutura implementa.
@@ -341,7 +341,7 @@ func (s ServicoPedido) Confirmar(ctx context.Context, id domain.PedidoID) error 
 }
 ```
 
-Adaptador real (Stripe) — traduz o fornecedor para o tipo do domínio e classifica erro:
+Real adapter (Stripe) — translates the vendor into the domain type and classifies the error:
 
 ```go
 // internal/adapters/stripe/gateway.go
@@ -382,7 +382,7 @@ func (g Gateway) Cobrar(ctx context.Context, valor domain.Dinheiro, clienteID st
 }
 ```
 
-Fake de teste no lugar de mock framework — mesmo contrato, zero rede:
+Test fake in place of a mock framework — same contract, zero network:
 
 ```go
 // internal/app/confirmar_pedido_test.go
@@ -400,7 +400,7 @@ func (f *gatewayFake) Cobrar(_ context.Context, valor domain.Dinheiro, _ string)
 }
 ```
 
-Mesmo desenho em TypeScript — injeção por construtor, fake no teste:
+Same design in TypeScript — constructor injection, fake in the test:
 
 ```ts
 export interface GatewayPagamento {
@@ -434,15 +434,15 @@ class GatewayFake implements GatewayPagamento {
 }
 ```
 
-## 7. Composition root e teste
+## 7. Composition root and test
 
-Só o `main` conhece implementação concreta (banco, gateway, repositório); o resto recebe interface. O caso de uso roda com repositório em memória — se precisou subir banco para testar a regra de negócio, a dependência aponta para o lado errado.
+Only `main` knows the concrete implementation (database, gateway, repository); the rest receives an interface. The use case runs with an in-memory repository — if you had to bring up a database to test the business rule, the dependency points to the wrong side.
 
-## 8. Anti-padrões deste eixo
+## 8. Anti-patterns of this axis
 
-- Camada `service/` que importa `adapters/` — dependency rule invertida.
-- Entidade de domínio com tag de ORM ou `serializer` — domínio conhece persistência.
-- Controller com regra de negócio (validação de invariante, cálculo de total).
-- Porta com uma implementação que nunca varia e nenhum teste usando o dublê.
-- "Hexagonal" com interface declarada dentro do adaptador.
-- Repository devolvendo linha de tabela ou objeto do ORM.
+- A `service/` layer that imports `adapters/` — inverted dependency rule.
+- A domain entity with an ORM tag or `serializer` — the domain knows persistence.
+- Controller with business rule (invariant validation, total calculation).
+- A port with an implementation that never varies and no test using the double.
+- "Hexagonal" with the interface declared inside the adapter.
+- Repository returning a table row or an ORM object.
