@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/matheusdutra/agent-sync/internal/pathutil"
 )
@@ -109,15 +110,8 @@ func copyDir(src, dst string) error {
 }
 
 func syncSkills(srcDir, dstDir string) error {
-	if shouldDryRun() {
-		fmt.Printf("[dry-run] symlink skills %s -> %s\n", dstDir, srcDir)
-		return nil
-	}
 	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
 		return nil
-	}
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
-		return err
 	}
 
 	entries, err := os.ReadDir(srcDir)
@@ -125,18 +119,35 @@ func syncSkills(srcDir, dstDir string) error {
 		return err
 	}
 
+	dry := shouldDryRun()
+	if !dry {
+		if err := os.MkdirAll(dstDir, 0755); err != nil {
+			return err
+		}
+	}
+
+	managed := make(map[string]bool, len(entries))
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
 		skillName := entry.Name()
+		managed[skillName] = true
 		sourceSkill := filepath.Join(srcDir, skillName)
 		targetSkill := filepath.Join(dstDir, skillName)
 
-		// Remove link antigo apenas se existir — economiza syscall em skill
-		// nova na primeira instalação (targetSkill não existe → Lstat falha →
-		// pulamos o Remove). Em re-applys, o Remove ainda ocorre normalmente.
-		if _, err := os.Lstat(targetSkill); err == nil {
+		if dry {
+			fmt.Printf("[dry-run] symlink skill %s -> %s\n", targetSkill, sourceSkill)
+			continue
+		}
+
+		// Conteudo local com o mesmo nome de uma skill do repo nunca e apagado:
+		// -apply e aditivo para o que o manifest nao gerencia.
+		if fi, lerr := os.Lstat(targetSkill); lerr == nil {
+			if fi.Mode()&os.ModeSymlink == 0 {
+				fmt.Printf("[skip] %s existe e nao e symlink — preservado\n", targetSkill)
+				continue
+			}
 			_ = os.Remove(targetSkill)
 		}
 
@@ -146,7 +157,32 @@ func syncSkills(srcDir, dstDir string) error {
 			_ = copyDir(sourceSkill, targetSkill)
 		}
 	}
+
+	reportUnmanagedSkills(dstDir, managed, dry)
 	return nil
+}
+
+// reportUnmanagedSkills lista o que existe no destino e o repo não gerencia, para
+// que fique explícito que -apply não toca nessas entradas.
+func reportUnmanagedSkills(dstDir string, managed map[string]bool, dry bool) {
+	entries, err := os.ReadDir(dstDir)
+	if err != nil {
+		return
+	}
+	var kept []string
+	for _, e := range entries {
+		if !managed[e.Name()] {
+			kept = append(kept, e.Name())
+		}
+	}
+	if len(kept) == 0 {
+		return
+	}
+	prefix := ""
+	if dry {
+		prefix = "[dry-run] "
+	}
+	fmt.Printf("%spreservadas (fora do repo): %s\n", prefix, strings.Join(kept, ", "))
 }
 
 func findBaseDir(starts []string) (string, bool) {
