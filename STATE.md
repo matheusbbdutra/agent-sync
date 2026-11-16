@@ -3,19 +3,19 @@
 # STATE — agent-sync
 
 > Fonte de verdade: `.agent-sync/session-state.json` (schema v1.2).
-> Renderizado por `agent-sync state render` em 2026-10-15T19:03:11Z. Não edite à mão.
+> Renderizado por `agent-sync state render` em 2026-11-16T18:43:24Z. Não edite à mão.
 
 ## Estado do repositório
 
 - Branch: `main`
-- HEAD: `dc99cc0`
-- Working tree: modificado (D-138/D-139: camada anti-UI-de-IA na visual-design-system + handoff arquivado + stash de symlinks mortos podado)
+- HEAD: `58489e7`
+- Working tree: limpo (10 commits locais a frente de origin/main)
 
 ## Sessão atual
 
 - ID: `sess-20260920-170000`
 - Início: 2026-09-19T18:37:59Z
-- Última atualização: 2026-10-15T19:03:11Z
+- Última atualização: 2026-11-16T18:43:24Z
 
 ## Decisões
 
@@ -65,6 +65,7 @@
 - **D-138** Skill visual-design-system ganha camada anti-generico (UI com cara de IA) — Em 2026-10-27, a pedido do usuario (nao quero front com cara de IA), a skill cobria tokens/estados/WCAG mas nenhuma regra sobre o visual generico de UI gerada por IA. O catalogo ui-design do marketplace (~1.4k linhas) e mais fundo, porem seu quick-start prescreve Inter + #2563eb (visual-design-foundations/SKILL.md:106,121), entao portar 1:1 reforcaria o problema. Decisao: expandir a skill canonica 52->112 linhas com direcao obrigatoria antes do markup, deny-list de padroes de IA, cor com intencao, tipografia com medida 45-75ch, ritmo vertical variado, motion com prefers-reduced-motion e aceitacao com teste do print 1440/390. Wiring: frontend-developer carrega a skill antes de tela nova; frontend-ui-designer ganha principio, 2 itens de checklist e diagnostico de originalidade. Fora de escopo: skill frontend-design-direction (entrevista de direcao) — criar so se houver demanda recorrente de landing page. Validacao: skills lint 54 skills/0 erros; make apply em 5 CLIs. (2026-10-27)
 - **D-139** STATE.md vira render puro (handoff arquivado) e stash de 391 symlinks mortos e podado — Em 2026-10-27, aprovadas as opcoes A nos dois achados. (1) O bloco manual Handoff A-80/A-87 (270 linhas, 52% do STATE.md) foi movido para docs/archive/sessoes/2026-09-26-handoff-cline/README.md: o renderer nao tem campo handoff e cada render o apagava (o commit 658c824 ja recolava a mao conferindo sha256). Pendencia aberta n.5 (higiene pos-merge) foi verificada e fechada: 6/6 hooks resolvem para ~/Projects/agent-sync/hooks e zero refs ao worktree a73 em ~/.codex/hooks.json e ~/.claude/settings.json. STATE.md agora e render puro e idempotente (render vs arquivo = diff vazio). (2) Podados 391 symlinks mortos em ~/.config/opencode/disabled (189 skills + 202 agents) que apontavam para /home/matheusdutra, home inexistente; os alvos reais vivem em ~/agents/.opencode (gitignored, regeneravel por make generate HARNESS=opencode). A secao Reversibilidade da A-38 foi corrigida: o rollback documentado restaurava 391 links quebrados. (2026-10-27)
 - **D-14** OpenCode granular permissions — (default ON via `AGENT_SYNC_OPENCODE_GRANULAR=1`). (2026-09-19)
+- **D-140** Skills unificadas: um dominio = uma skill, detalhe em reference/ singular — As 3 ondas de poda (57->45->37->32) ja assumiam a convencao na pratica; formalizada em docs/ADR-skills-unificadas.md. Regras: um dominio = uma skill; subdiretorio de detalhe e reference/ singular; assets/ e scripts/ so existem se o arquivo existir; description e gatilho com Jaccard < 0.25 (internal/skills/lint.go:74); SKILL.md < 500 linhas; ao absorver uma skill, remover citacoes ao nome antigo. Motivo concreto da regra de arquivo inexistente: 45 links mortos herdados de skills vendorizadas (20 em references/*.md, 25 em assets/+scripts/), removidos no commit efc24ce. templates/skill.md.tpl alinhado para reference/. Divida residual: 8 skills citadas em Related Skills que nao existem no repo (agentic-browser-testing, playwright-automation, qa-metrics, qa-project-context, release, risk-based-testing, test-planning, test-reliability). (2026-11-16)
 - **D-15** PreCompact do Claude Code — (2026-09-18): sem injeção de contexto. Handoff via `SessionStart`. Só OpenCode tem injeção real. Substituído por `agent-sync state next-action` (Estágio A da ADR-002 fechado em 2026-09-19; Estágio B fechado em 2026-09-19 com cross-process + migração). (2026-09-19)
 - **D-16** SMOKE-TEST-Q (ADR-003 smoke protocolo) — : `docs/SMOKE-TEST-Q.md` criado em 2026-09-19 com verificação rápida do wirado (5 checks), procedimento ≥30min × 2 sessões com ≥6 critérios, template de evidência YAML, comandos de inspeção a cada 10min, simulação de compactação. ADR-003 passa de "Implementado" → "Aceito" após 2/2 smokes. (2026-09-19)
 - **D-17** SMOKE-TEST-R (Trilha A smoke protocolo) — : `docs/SMOKE-TEST-R.md` criado em 2026-09-19 com verificação rápida do wirado (4 checks), 2 cenários obrigatórios (alegação sem evidência bloqueia / com evidência passa) + 1 bônus, critérios C1-C5, template de evidência YAML. Wiração confirmada: `~/.cursor/hooks.json:42-46` + `cmd/agent-sync/cursor.go:34` + `hooks/agent-stop.cursor.sh` + `false-success-guard` no PATH. (2026-09-19)
@@ -241,7 +242,6 @@
 - **A-97** [done] Migradas as 42 decisoes orfas: JSON de 80 -> 122 decisions, state validate ok, zero orfaos de A-N e D-N. D-98/D-103 vieram sem rationale (schema exige minLength 1) e foram reconstruidos do titulo, marcados como tal. A execucao em 2 lotes revelou que 29 das 42 so existiam em `## Tarefas` (formato sem separador), nao em `## Decisoes`.
 - **A-98** [done] Removidas as 3 duplicatas: B-1 e B-2 (mesmo blocker repetido, a 2a copia com prefixo [medium] que e severidade vazada no campo status) e D-37 em `## Tarefas` (copia byte-identica de 1406 chars da secao `## Decisoes`). STATE.md sem nenhuma duplicata.
 - **A-99** [pending] Reportar I-2 (MiniMax /v1/responses 400 'tool call result does not follow tool call', 2013) no canal da MiniMax. Payload minimo e matriz de reproducao estao na descricao de I-2; scripts de repro usados na sessao que abriu o achado estao em /tmp/matrix{,2,3,4}.py. Pedido: 'o /v1/responses rejeita custom_tool_call quando ha item intermediario, embora function_call aceite, e a regra e inconsistente por role (developer passa com function_call, falha com custom_tool_call; system falha).'
-- **A-100** [done] Impeccable design hook cross-host (OpenCode + Antigravity) — entregue 2026-11-10. Bridge Go `agent-sync hook impeccable --host=...` (`internal/hooks/impeccable_runtime.go`) reusa o binário oficial `impeccable hook` (sem reimplementar regras), com gate skill instalada + `.impeccable`/`PRODUCT.md`/`DESIGN.md` e fail-open. OpenCode: plugin TS `hooks/impeccable-design.opencode.v2.ts` via `tool.execute.after` + `session.hook("context")`. Antigravity: script fino `hooks/impeccable-design.antigravity.sh` wirado em PostToolUse (`{}` + pending por conversationId) e PreInvocation (`injectSteps.systemMessage`). Validado: `go test ./...` raiz+tools, harness do plugin com binário real (finding gradient-text), script wirado com payload simulado e `agy -p /hooks` listando os 2 eventos. Risco residual: injeção `systemMessage` no PreInvocation do agy não foi smokeada em turno real de modelo. Refs: `docs/ADR-impeccable-design-hook.md`.
 
 ## Issues
 
