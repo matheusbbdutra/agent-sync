@@ -30,6 +30,6 @@ description: "{{description}}"
 Mantenha este SKILL.md enxuto (<500 linhas) e mova o detalhe para arquivos carregados sob demanda
 (progressive disclosure da spec):
 
-- `references/` — documentação técnica de apoio
+- `reference/` — documentação técnica de apoio
 - `assets/` — templates, imagens, tabelas de consulta
 - `scripts/` — código executável autocontido
