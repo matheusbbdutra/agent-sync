@@ -162,6 +162,8 @@ func syncHookCommandAtEvent(baseDir string, target TargetCLI, hookName, command,
 		}
 	}
 
+	pruneDeadScriptHooks(hooksRoot)
+
 	settings["hooks"] = hooksRoot
 
 	return writeJSONObject(target.HooksSettingsPath, settings)
@@ -250,6 +252,52 @@ func upsertHookEntry(entries []hookEntry, scriptPath, hookName, matcher string, 
 		})
 	}
 	return filtered
+}
+
+// pruneDeadScriptHooks remove entradas cujo `command` e um caminho absoluto
+// inexistente em disco. Cobre hook renomeado/movido (ex.:
+// context-guard-nudge.sh -> context-guard-nudge.pretooluse.sh no 7f90e87):
+// o wiring antigo fica orfao sem `name`, o upsert nao casa nem por nome nem
+// por path, e a CLI spawna um script ausente a cada evento (exit 127, no
+// stderr do host). Preserva comandos relativos e comandos com argumentos
+// (nao validaveis por Stat). Retorna true se removeu algo.
+func pruneDeadScriptHooks(hooksRoot map[string]interface{}) bool {
+	changed := false
+	for event, raw := range hooksRoot {
+		entries := decodeHookEntries(raw)
+		if len(entries) == 0 {
+			continue
+		}
+		filtered := make([]hookEntry, 0, len(entries))
+		eventChanged := false
+		for _, e := range entries {
+			kept := make([]hookCmd, 0, len(e.Hooks))
+			for _, h := range e.Hooks {
+				if strings.HasPrefix(h.Command, "/") && !strings.Contains(h.Command, " ") {
+					if _, err := os.Stat(h.Command); err != nil {
+						eventChanged = true
+						continue
+					}
+				}
+				kept = append(kept, h)
+			}
+			if len(kept) == 0 {
+				continue
+			}
+			e.Hooks = kept
+			filtered = append(filtered, e)
+		}
+		if !eventChanged {
+			continue
+		}
+		changed = true
+		if len(filtered) == 0 {
+			delete(hooksRoot, event)
+			continue
+		}
+		hooksRoot[event] = filtered
+	}
+	return changed
 }
 
 // decodeHookEntries converte uma interface{} (vinda de JSON unmarshal) em

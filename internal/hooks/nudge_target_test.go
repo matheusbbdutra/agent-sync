@@ -277,3 +277,90 @@ func TestSyncHookCommandAtEventClearsOrphans(t *testing.T) {
 		}
 	}
 }
+
+// TestPruneDeadScriptHooksRemoveLegacyRenamed replica o defeito observado em
+// ~/.claude/settings.json (2026-11-16): hook renomeado de .sh para
+// .pretooluse.sh deixa o wiring antigo orfao em PostToolUse, sem `name`,
+// apontando para um script inexistente (exit 127 a cada evento).
+func TestPruneDeadScriptHooksRemoveLegacyRenamed(t *testing.T) {
+	tempBase := t.TempDir()
+	hooksDir := filepath.Join(tempBase, "hooks")
+	if err := os.MkdirAll(hooksDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	scriptPath := filepath.Join(hooksDir, "context-guard-nudge.pretooluse.sh")
+	if err := os.WriteFile(scriptPath, []byte("#!/bin/sh\necho {}\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Hook de terceiro, valido, nao gerenciado por nos: deve sobreviver.
+	keepPath := filepath.Join(hooksDir, "keep.sh")
+	if err := os.WriteFile(keepPath, []byte("#!/bin/sh\necho {}\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	seed := `{"hooks":{"PostToolUse":[{"matcher":"*","hooks":[` +
+		`{"type":"command","command":"` + filepath.Join(hooksDir, "context-guard-nudge.sh") + `","timeout":10,"if":"Edit(*)"},` +
+		`{"type":"command","command":"` + keepPath + `","timeout":10}` +
+		`]},{"matcher":"*","hooks":[{"type":"command","command":"ctx-window hook claude","timeout":10}]}]}}`
+	if err := os.WriteFile(settingsPath, []byte(seed), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	target := TargetCLI{
+		Name:              "claude",
+		AgentKind:         "claude",
+		HooksSettingsPath: settingsPath,
+		HooksEvent:        "PostToolUse",
+	}
+	// Mesma chamada que syncHooks faz para Claude/Codex (hooks_all.go:29).
+	if err := syncStandardHookAtEvent(tempBase, target, contextGuardHookName,
+		"context-guard-nudge.pretooluse.sh", "*", "PreToolUse", nudgeIfFilters); err != nil {
+		t.Fatalf("syncStandardHookAtEvent falhou: %v", err)
+	}
+
+	root, err := readJSONObject(settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hooks := root["hooks"].(map[string]interface{})
+
+	// 1. Nenhum wiring aponta para o script legado inexistente.
+	for event, raw := range hooks {
+		for _, e := range decodeHookEntries(raw) {
+			for _, h := range e.Hooks {
+				if strings.HasSuffix(h.Command, "context-guard-nudge.sh") {
+					t.Errorf("%s ainda aponta para o script legado: %s", event, h.Command)
+				}
+			}
+		}
+	}
+
+	// 2. Preservados: script valido de terceiro e comando relativo.
+	post := decodeHookEntries(hooks["PostToolUse"])
+	cmds := map[string]bool{}
+	for _, e := range post {
+		for _, h := range e.Hooks {
+			cmds[h.Command] = true
+		}
+	}
+	if !cmds[keepPath] {
+		t.Errorf("hook de terceiro valido foi removido: %s", keepPath)
+	}
+	if !cmds["ctx-window hook claude"] {
+		t.Errorf("comando relativo foi removido")
+	}
+
+	// 3. O script novo esta wirar em PreToolUse.
+	found := false
+	for _, e := range decodeHookEntries(hooks["PreToolUse"]) {
+		for _, h := range e.Hooks {
+			if h.Command == scriptPath {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Errorf("PreToolUse nao tem o script novo %s", scriptPath)
+	}
+}

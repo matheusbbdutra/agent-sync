@@ -63,13 +63,18 @@ func buildSummarizePrompt(history string, budgetTokens int) string {
 // knownCLIs maps a CLI name to the binary/flags that run it non-interactively
 // with a single prompt and print the response to stdout. Verified live via
 // `<bin> --help` on 2026-09-17 (see docs/ADR-context-window-strategy.md).
+//
+// codex: `exec` recusa rodar fora de um repo git confiavel ("Not inside a
+// trusted directory") e o summarize roda no cwd do projeto, que muitas vezes
+// nao e repo (ex.: $HOME). `--skip-git-repo-check` e aceito pelo codex 0.167.1
+// e evita o exit 1 nesse caso.
 var knownCLIs = map[string]struct {
 	bin        string
 	staticArgs []string // args placed before the model flag/prompt
 	modelFlag  string   // flag name used to select a model, "" if unsupported here
 }{
 	"claude":      {bin: "claude", staticArgs: []string{"-p"}, modelFlag: "--model"},
-	"codex":       {bin: "codex", staticArgs: []string{"exec"}, modelFlag: "--model"},
+	"codex":       {bin: "codex", staticArgs: []string{"exec", "--skip-git-repo-check"}, modelFlag: "--model"},
 	"opencode":    {bin: "opencode", staticArgs: []string{"run", "--pure"}, modelFlag: "-m"},
 	"antigravity": {bin: "agy", staticArgs: []string{"-p"}, modelFlag: "--model"},
 }

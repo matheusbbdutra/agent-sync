@@ -2,6 +2,12 @@
 
 .DEFAULT_GOAL := help
 
+# Pina a toolchain declarada em go.mod/go.tools (go 1.24.0 + toolchain
+# go1.24.13). Sem isto o go local mais novo (ex.: 1.27.4) e usado no lugar da
+# toolchain declarada, e o build de tools/ falha em go-libsql:
+#   "disallowed LTO section \".llvmbc\" in #cgo LDFLAGS" -> rc=1.
+export GOTOOLCHAIN := go1.24.13
+
 help: ## Lista os comandos disponíveis
 	@echo "Uso: make <alvo>"
 	@echo ""

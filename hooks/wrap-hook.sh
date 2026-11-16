@@ -5,6 +5,18 @@
 # Exit code: o mesmo do script_real (preserva contrato com a CLI)
 set -uo pipefail
 
+# Hooks chamam subcomandos do agent-sync (budget nudge, memory ...) que
+# resolvem a raiz pelo marcador rules/global-rules.md via AGENT_SYNC_HOME,
+# diretorio do binario ou cwd. Em PostToolUse o cwd e o projeto, nao o repo,
+# entao sem esta exportacao todo subcomando saia 1 ("nao encontrado a partir
+# de ..."). Deriva do proprio script (hooks/..), so quando o marcador existe.
+if [ -z "${AGENT_SYNC_HOME:-}" ]; then
+  _root="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)"
+  if [ -f "$_root/rules/global-rules.md" ]; then
+    export AGENT_SYNC_HOME="$_root"
+  fi
+fi
+
 if [[ "${1:-}" =~ ^--cli=(.+)$ ]]; then
   export AGENT_SYNC_CLI="${BASH_REMATCH[1]}"
   shift

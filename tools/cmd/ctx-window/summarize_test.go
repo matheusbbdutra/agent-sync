@@ -18,7 +18,7 @@ func TestSummarizerCommandDispatchesPerCLI(t *testing.T) {
 		wantParts []string
 	}{
 		{"claude", "claude", []string{"-p", "--model", "opus", "hello"}},
-		{"codex", "codex", []string{"exec", "--model", "opus", "hello"}},
+		{"codex", "codex", []string{"exec", "--skip-git-repo-check", "--model", "opus", "hello"}},
 		{"opencode", "opencode", []string{"run", "--pure", "-m", "opus", "hello"}},
 		{"antigravity", "agy", []string{"-p", "--model", "opus", "hello"}},
 	}

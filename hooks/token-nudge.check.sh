@@ -69,7 +69,19 @@ if [ -n "$transcript_path" ]; then
 fi
 
 # Mensagem vem do Go (fonte unica, -message): vazia = sem nudge.
-message="$("$BIN" budget nudge "${args[@]}" -message 2>/dev/null || true)"
+# stderr vai para arquivo temporario: `2>/dev/null` engolia stderr E o exit
+# code, entao falha do budget nudge nunca chegava em hooks/errors.jsonl
+# (A-94). O hook segue exit 0 — postToolUse e observacional, nunca bloqueia.
+budget_err="$(mktemp)"
+message="$("$BIN" budget nudge "${args[@]}" -message 2>"$budget_err")"
+budget_status=$?
+if [ "$budget_status" -ne 0 ]; then
+  AGENT_SYNC_CLI="$CLI_KIND" HOOK_STATUS=fail \
+    "$(dirname "$0")/observe-error.sh" "PostToolUse" "budget_nudge_failed" \
+    "$(head -c 512 "$budget_err")" 2>/dev/null || true
+  message=""
+fi
+rm -f "$budget_err"
 
 if [ -z "$message" ]; then
   exit 0
