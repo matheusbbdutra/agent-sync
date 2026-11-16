@@ -1,6 +1,11 @@
 # ADR — Impeccable design hook no OpenCode e Antigravity (A-100)
 
-- **Status**: Aceito
+- **Status**: **Superado** (removido em 2026-11-16, D-141). A integração dependia da skill de
+  terceiros `impeccable` (não gerida neste repo, ausente de `~/.agents/skills`), com risco de
+  comportamento indefinido quando instalada em versão divergente. O hook fail-open escondia a
+  falha em vez de expor. Removidos: `hooks/impeccable-design.{opencode.v2.ts,antigravity.sh}`,
+  `internal/hooks/{impeccable_runtime,apply_impeccable_design}.go` + testes, as 2 entradas em
+  `internal/hooks/apply_table.go` e o subcomando `agent-sync hook impeccable`.
 - **Data**: 2026-11-10
 - **Decisor**: usuário + agente (ses_atual)
 - **Fonte**: `~/.config/opencode/skills/impeccable/reference/hooks.md`,

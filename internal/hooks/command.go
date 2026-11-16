@@ -21,8 +21,6 @@ func RunCommand(args []string) error {
 	switch args[0] {
 	case "help", "-h", "--help":
 		return hookUsage(os.Stdout)
-	case "impeccable":
-		return runImpeccableHook(args[1:])
 	case "pi":
 		return runPiBridge(args[1:])
 	default:
@@ -37,7 +35,6 @@ func RunCommand(args []string) error {
 func hookUsage(w io.Writer) error {
 	fmt.Fprintf(w, "Uso: agent-sync hook <subcomando> [flags]\n\n")
 	fmt.Fprintf(w, "Subcomandos:\n")
-	fmt.Fprintf(w, "  impeccable --host=opencode|antigravity  bridge de runtime do design hook\n")
 	fmt.Fprintf(w, "  pi --event=<evento>                     bridge do adapter TS do Pi (hooks/pi-extension.ts)\n\n")
 	fmt.Fprintf(w, "O wiramento de hooks Cline migrou para o plugin TS autocontido em\n")
 	fmt.Fprintf(w, "  cline-plugin/src/plugin.ts (entry: cline-plugin/scripts/install.ts).\n")

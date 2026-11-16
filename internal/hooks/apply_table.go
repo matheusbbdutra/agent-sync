@@ -68,9 +68,6 @@ var standardHooks = []hookSpec{
 	{name: "opencode-docs-cache", fn: syncOpenCodeDocsCachePlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetail},
 	{name: "opencode-repo-map-warmup", fn: syncOpenCodeRepoMapWarmupPlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetail},
 	{name: "opencode-memory-pipeline", fn: syncOpenCodeMemoryPipelinePlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetail},
-	// Design detector do Impeccable no OpenCode (nao ha hook nativo upstream).
-	// O plugin delega ao binario Go `agent-sync hook impeccable`.
-	{name: "opencode-impeccable-design", fn: syncOpenCodeImpeccableDesignPlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetail},
 	// Auto-prune SessionStart proxy (A-69). tool.execute.after + flag armed ate
 	// @opencode/plugin expor session.hook("created") nativo.
 	{name: "opencode-memory-prune-session-start", fn: syncOpenCodeMemoryPruneSessionStartPlugin, agentKinds: []string{"opencode"}, detail: openCodePluginDetail},
@@ -91,10 +88,6 @@ var standardHooks = []hookSpec{
 	// OpenCode fica A-69 (sem hook nativo SessionStart em
 	// @opencode/plugin v2.0.11).
 	{name: "memory-prune-session-start", fn: syncMemoryPruneSessionStartHook, detail: settingsPathDetail},
-	// Impeccable design hook no Antigravity: PostToolUse acumula findings,
-	// PreInvocation injeta via injectSteps. O detector e o binario oficial da
-	// skill; o Go apenas traduz o contrato.
-	{name: "impeccable-design", fn: syncImpeccableDesignHook, agentKinds: []string{"antigravity"}, detail: settingsPathDetail},
 	// bash-guardian: 3 entradas porque cada CLI tem implementação própria
 	// (permissions.ask no Claude, PreToolUse ask no Antigravity, permission.bash
 	// no OpenCode). Codex fica fora — PreToolUse só suporta allow/deny binário.
