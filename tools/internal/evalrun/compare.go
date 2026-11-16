@@ -56,6 +56,11 @@ func CompareBaseline(baseline, current *RunRecord, tolerance float64) Comparison
 			baseline.TargetHash, current.TargetHash)
 		return cmp
 	}
+	if baseline.Runner != current.Runner {
+		cmp.Reason = fmt.Sprintf("runner diverge (baseline %q, atual %q): a saida e gerada por comando diferente, pass_rate nao e comparavel",
+			baseline.Runner, current.Runner)
+		return cmp
+	}
 	cmp.Comparable = true
 
 	baseSlices := map[string]SliceStats{}

@@ -66,6 +66,7 @@ type RunRecord struct {
 	Target        string       `json:"target"`
 	TargetHash    string       `json:"target_hash"`
 	Model         string       `json:"model"`
+	Runner        string       `json:"runner,omitempty"`
 	Totals        Totals       `json:"totals"`
 	BySlice       []SliceStats `json:"by_slice"`
 	Baseline      *BaselineRef `json:"baseline,omitempty"`

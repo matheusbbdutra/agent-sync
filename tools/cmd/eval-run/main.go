@@ -45,6 +45,9 @@ Usage:
 Flags de run:
   --suite <arquivo>    suite JSONL de casos
   --target <arquivo>   artefato avaliado (o conteudo do arquivo e o output de cada caso)
+  --runner-cmd <cmd>   processo externo que gera a saida de cada caso
+                       (stdin {"case"} -> stdout = saida). Sem default: quem roda
+                       escolhe o CLI. Com runner, --target passa a ser opcional.
   --baseline <valor>   caminho de registro ou run_id usado como baseline
   --tolerance <float>  queda de pass_rate que conta como regressao (default 0.02)
   --judge-cmd <cmd>    processo externo de judge (stdin {"case","output"} -> stdout {"score","reason"})
@@ -138,6 +141,7 @@ func runEval(args []string, stdout, stderr io.Writer) int {
 	baseline := fs.String("baseline", "", "caminho de registro ou run_id do baseline")
 	tolerance := fs.Float64("tolerance", 0.02, "queda de pass_rate que conta como regressao")
 	judgeCmd := fs.String("judge-cmd", "", "processo externo de judge")
+	runnerCmd := fs.String("runner-cmd", "", "processo externo que gera a saida de cada caso (sem default)")
 	sliceName := fs.String("slice", "", "restringe a execucao a um slice")
 	model := fs.String("model", "", "modelo registrado no run")
 	recordPath := fs.String("record", evalrun.DefaultRecordPath, "registro append-only")
@@ -150,8 +154,8 @@ func runEval(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "eval-run run: argumento inesperado %q\n", fs.Arg(0))
 		return exitUsage
 	}
-	if *suitePath == "" || *targetPath == "" {
-		fmt.Fprintf(stderr, "eval-run run: --suite e --target sao obrigatorios\n\n%s", usage)
+	if *suitePath == "" || (*targetPath == "" && *runnerCmd == "") {
+		fmt.Fprintf(stderr, "eval-run run: --suite e (--target ou --runner-cmd) sao obrigatorios\n\n%s", usage)
 		return exitUsage
 	}
 	if *tolerance < 0 {
@@ -183,20 +187,27 @@ func runEval(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "eval-run run: %v\n", err)
 		return exitUsage
 	}
-	raw, err := os.ReadFile(*targetPath)
-	if err != nil {
-		fmt.Fprintf(stderr, "eval-run run: %v\n", err)
-		return exitUsage
-	}
-	targetHash, err := evalrun.HashFile(*targetPath)
-	if err != nil {
-		fmt.Fprintf(stderr, "eval-run run: %v\n", err)
-		return exitUsage
+	// --target e opcional quando ha runner: no modo offline o conteudo do
+	// artefato e a saida de todo caso; no modo runner a saida vem do comando.
+	var output, targetHash string
+	if *targetPath != "" {
+		raw, err := os.ReadFile(*targetPath)
+		if err != nil {
+			fmt.Fprintf(stderr, "eval-run run: %v\n", err)
+			return exitUsage
+		}
+		output = string(raw)
+		targetHash, err = evalrun.HashFile(*targetPath)
+		if err != nil {
+			fmt.Fprintf(stderr, "eval-run run: %v\n", err)
+			return exitUsage
+		}
 	}
 
-	// O conteudo do target e o output de cada caso: a suite mede o artefato,
-	// nao uma chamada de modelo.
-	output := string(raw)
+	var runner evalrun.Runner
+	if *runnerCmd != "" {
+		runner = evalrun.ExecRunner{Command: *runnerCmd}
+	}
 	var judge evalrun.Judge
 	if *judgeCmd != "" {
 		judge = evalrun.ExecJudge{Command: *judgeCmd}
@@ -204,7 +215,16 @@ func runEval(args []string, stdout, stderr io.Writer) int {
 
 	results := make([]evalrun.CaseResult, 0, len(cases))
 	for _, c := range cases {
-		res, err := evalrun.ScoreCase(c, output, judge)
+		caseOutput := output
+		if runner != nil {
+			out, rerr := runner.Run(c)
+			if rerr != nil {
+				fmt.Fprintf(stderr, "eval-run run: caso %s: %v\n", c.ID, rerr)
+				return exitUsage
+			}
+			caseOutput = out
+		}
+		res, err := evalrun.ScoreCase(c, caseOutput, judge)
 		if err != nil {
 			fmt.Fprintf(stderr, "eval-run run: caso %s: %v\n", c.ID, err)
 			return exitUsage
@@ -228,6 +248,7 @@ func runEval(args []string, stdout, stderr io.Writer) int {
 		Target:        *targetPath,
 		TargetHash:    targetHash,
 		Model:         *model,
+		Runner:        *runnerCmd,
 		Totals:        totals,
 		BySlice:       bySlices,
 	}
