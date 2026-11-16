@@ -64,8 +64,6 @@ Leituras que o `--help` induz a erro:
   nome da tool (`activity.go:26-40`).
 - `skeleton`: esqueleto de `.py/.ts/.js/.go` cacheado por fingerprint (mtime+tamanho+hash), mas so a partir de
   8 KiB — abaixo disso devolve o arquivo inteiro com `reduction_pct = 0` (`skeleton.go:29-31,44-54`).
-- `bash-compress`: whitelist de comandos read-only (`bash_compress.go:17-31`) com fail-open em qualquer pipe,
-  redirecionamento, `$` ou flag destrutiva (`bash_compress.go:38-52`).
 - `archive`/`expand`: arquiva acima de 4096 bytes guardando apenas 500 chars de preview (`archive.go:27-32`).
 
 ## 4. Camadas de estado e o que cada uma preserva
@@ -123,8 +121,6 @@ Onde o binario **esta alinhado** com o livro e vale registrar para nao "corrigir
 - Truncagem de `--brief` e explicita: corta calls/importers/symbols em blocos de 8/8/10 e marca o resto com
   `"... (N mais)"` (`repomap.go:789-813`) — respeita o alerta de que truncar sem aviso perde informacao
   (NLP with Transformers, p.51).
-- `bash-compress` e fail-open: sem match de whitelist ou com padrao unsafe, devolve o original
-  (`bash_compress.go:79-90`).
 
 ## 7. Regras acionaveis
 

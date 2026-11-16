@@ -26,24 +26,25 @@ Rodado com `--cache-dir /tmp/p4bench/cache` para nao escrever cache no repo.
 | --- | --- | --- | --- | --- |
 | `repo-map --update` (cache frio) | 413 ms | — | 526 arquivos varridos | — |
 | `repo-map --update` (sem mudanca) | 64 ms | — | delta vazio | 6,5x mais rapido que frio |
-| `repo-map --summary` | 33 ms | 81.308 B (~20k tokens) | — | **nenhum** |
-| `repo-map --summary --max-tokens 500` | 43 ms | 4.638 B | — | -94% vs summary livre |
-| `repo-map --summary --max-tokens 2000` | 34 ms | 19.575 B | — | -76% vs summary livre |
+| `repo-map --summary` (default 1000) | 33 ms | 4.288 B | — | -93% vs sem limite |
+| `repo-map --summary --max-tokens 500` | 43 ms | 2.180 B | — | -96% vs sem limite |
+| `repo-map --summary --max-tokens 2000` | 34 ms | 8.429 B | — | -85% vs sem limite |
+| `repo-map --summary --max-tokens 0` | 33 ms | 57.442 B (~14k tokens) | — | **nenhum** |
 | `repo-map --focus <arquivo>` | 31 ms | 2.242 B | 17.620 B (`store.go`) | -87% |
 | `repo-map --brief <arquivo>` | 29 ms | 3.685 B | 17.620 B | -79% |
 | `ast-outline <arquivo>` | 2 ms | 1.276 B / 39 linhas | 17.620 B / 592 linhas | -93% |
 | `ctx-window skeleton <arquivo>` | 3 ms | 2.001 chars, `reduction_pct 88` | 17.620 B | -88% |
 | `trace-strip` (stack trace sintetico) | 4 ms | 6 linhas mantidas | 8 linhas | 2 linhas ocultadas |
-| `ctx-window bash-compress --cmd "ls -la"` | 2 ms | 2.279 B | 2.291 B | **0%** |
 
 Fatos de custo que a tabela esconde:
 
-- `--summary` sem `--max-tokens` e o unico caminho que **piora** o contexto: 81 KB de saida num repo medio.
-  Nao e otimizacao, e despejo. Use `--max-tokens` sempre.
+- `--summary --max-tokens 0` e o unico caminho que **piora** o contexto: 57.442 B (~14k tokens) em 1236 hubs
+  neste repo. Nao e otimizacao, e despejo — por isso o default e 1000, com aviso de truncamento na ultima
+  linha. Nunca passe `0` por curiosidade.
 - O cache do `repo-map` pesa 2.887.723 B em disco. Custa disco, nao contexto — a economia esta no
   `--focus`/`--brief`, nao no cache.
-- `--max-tokens` tem duas semanticas: palavras no `--summary` (`repomap.go:1148-1156`) e `len(data)/4` no
-  `--brief` (`repomap.go:789-791`). O mesmo numero produz cortes diferentes conforme o modo.
+- `--max-tokens` conta `len/4` tanto no `--summary` quanto no `--brief` (`repomap.go:789-791`). Antes o
+  `--summary` contava palavras e entregava ~2,4x o valor pedido; corrigido em 2026-11-16.
 - `ast-outline` so usa AST real em Go (`astoutline.go:25-27`); `.py/.js/.ts/.php` caem em regex
   (`astoutline.go:29-35`). O ganho de 93% nao garante esqueleto correto fora de Go.
 - `skeleton` so economiza acima de 8 KiB (`skeletonMinBytes`, `skeleton.go:29-31`); abaixo disso devolve o
@@ -89,8 +90,6 @@ Fatos de custo que a tabela esconde:
 
 ## 5. O que nao vale a pena otimizar
 
-- **`bash-compress` em comando pequeno.** Medido: `ls -la` deu 2.291 -> 2.279 B, `reduction_pct 0`, e mesmo
-  assim `applied: true`. Acerto de whitelist nao e ganho. So use quando a saida esperada for grande.
 - **`trace-strip` em texto que nao e stack trace.** Ele so descarta linha que casa com 3 regexes
   (`node_modules|vendor/|site-packages|/usr/local/go|/lib/python`, `internal/process|runtime/asm_|runtime/proc.go`,
   `org.springframework|jakarta.|javax.`) e corta em `-max 25` (`tracestrip.go:12-16`). Em log comum o ganho e zero.
@@ -128,19 +127,17 @@ Fatos de custo que a tabela esconde:
 - Use `ast-outline` como etapa de localizacao e depois leia a faixa exata; nao trate o esqueleto como
   substituto do arquivo fora de Go.
 - Nao rode `repo-map --update` para uma leitura; rode quando houver 3+ buscas estruturais na sessao.
-- Meca antes de otimizar: `reduction_pct`/`applied` estao no JSON de `bash-compress` e `reduction_pct` no de
-  `skeleton` — decida pelo numero, nao pela sensacao.
+- Meca antes de otimizar: `reduction_pct` esta no JSON de `skeleton` — decida pelo numero, nao pela sensacao.
 - Nao apresente wall clock de uma amostra como garantia de performance; para isso faltam percentis.
 
 ## 8. Verificacao rapida
 
 ```bash
-repo-map --summary | wc -c                                  # 81k no repo agent-sync: use --max-tokens
-repo-map --summary --max-tokens 500 | wc -c                 # 4,6k
+repo-map --summary | wc -c                                  # 4,3k (default 1000 tokens)
+repo-map --summary --max-tokens 500 | wc -c                 # 2,2k
 repo-map --focus tools/cmd/ctx-window/store.go | wc -c      # 2,2k
 ast-outline tools/cmd/ctx-window/store.go | wc -lc          # 1,2k / 39 linhas
 ctx-window skeleton --json <arquivo> | grep reduction_pct   # 0 abaixo de 8 KiB
-ctx-window bash-compress --json --cmd "ls -la" --stdin < <(ls -la) | grep reduction_pct
 ctx-window gain <session>                                   # o que a compactacao contabilizou
 ```
 
