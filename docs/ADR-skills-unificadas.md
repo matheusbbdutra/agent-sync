@@ -79,13 +79,11 @@ O problema que motivou a poda não era quantidade, era **granularidade errada**:
 
 - `reference/` grande pode não ser lido: o `SKILL.md` precisa apontar cada arquivo com uma linha
   do que ele contém, senão o detalhe fica inalcançável na prática.
-- Absorção deixa rastro: `skills/backend/reference/{go,ts,php}.md` ainda têm o nome da skill antiga
-  como H1 e como cabeçalho de seção (`# golang-pro` em `go.md:1`, `# typescript-pro` em `ts.md:1`,
-  `# php-pro` em `php.md:1`, `## De symfony` em `php.md:61`, `## De doctrine` em `php.md:146`,
-  `## De phpunit-symfony` em `php.md:231`, `## De javascript-pro` em `ts.md:51`,
-  `## De nodejs-backend-patterns` em `ts.md:101`, `## De go-concurrency-patterns` em `go.md:174`).
-  Pior: `php.md:76-77,86,144,229,246` instrui "use `php-pro`" / "use `doctrine`" / "ver
-  `phpunit-symfony`" — skills que não existem mais.
+- Absorção deixa rastro, e o rastro precisa ser limpo: `skills/backend/reference/{go,ts,php}.md`
+  tinham o nome da skill antiga como H1 e como cabeçalho de seção (`# golang-pro` em `go.md:1`,
+  `# typescript-pro` em `ts.md:1`, `# php-pro` em `php.md:1`, além de 6 headers `## De <skill>`),
+  e `php.md` instruía "use `php-pro`" / "use `doctrine`" / "ver `phpunit-symfony`" — skills que
+  não existem mais. Corrigido: 15 substituições, verificado com `grep` = 0 resquícios.
 - O template continua ensinando o padrão antigo: `templates/skill.md.tpl:33` lista `references/`.
 
 **Mitigação**
@@ -103,8 +101,8 @@ O problema que motivou a poda não era quantidade, era **granularidade errada**:
 - [ ] Nenhuma skill cita skill inexistente em "Related Skills" — **aberto**: 8 nomes
       (`agentic-browser-testing`, `playwright-automation`, `qa-metrics`, `qa-project-context`,
       `release`, `risk-based-testing`, `test-planning`, `test-reliability`).
-- [ ] Nomes antigos removidos de `skills/backend/reference/{go,ts,php}.md` — **aberto** (ver
-      Consequências).
+- [x] Nomes antigos removidos de `skills/backend/reference/{go,ts,php}.md` (15 substituições:
+      3 H1, 6 headers `## De <skill>` e 7 instruções de roteamento).
 - [ ] Decisão registrada como `D-N` em `.agent-sync/session-state.json` via
       `agent-sync state write` + `state render` — **aberto**.
 
@@ -112,10 +110,12 @@ O problema que motivou a poda não era quantidade, era **granularidade errada**:
 
 | Arquivo | Linhas | Defeito |
 |---|---|---|
-| `skills/backend/reference/go.md` | 1, 174 | H1 e seção com nome de skill absorvida |
-| `skills/backend/reference/ts.md` | 1, 51, 101 | idem |
-| `skills/backend/reference/php.md` | 1, 61, 76-77, 86, 144, 146, 229, 231, 246, 315 | idem + instruções de roteamento para skill inexistente |
-| `skills/*/SKILL.md` ("Related Skills") | — | 8 skills citadas que não existem no repo |
+| `skills/backend/reference/{go,ts,php}.md` | — | **Resolvido.** Eram 3 H1, 6 headers `## De <skill>` e 7 instruções de roteamento apontando para skills absorvidas. |
+| `skills/*/SKILL.md` ("Related Skills") | — | 8 skills citadas que não existem no repo (**aberto**) |
+
+Observação não corrigida (estrutural, não é referência quebrada): `php.md` tem quatro H1
+(`# PHP`, `# Symfony (PHP 8+)`, `# Doctrine ORM`, `# PHPUnit no Symfony`) porque foi concatenado
+de skills absorvidas. Funciona e navega, mas a hierarquia ideal seria H2 nas seções internas.
 
 Não confundir com falso positivo: `skills/docs-research/SKILL.md:47-50` cita `symfony` e `doctrine`
 como **URLs de documentação** (`symfony.com/doc`, `doctrine-project.org`), não como skills.

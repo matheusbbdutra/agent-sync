@@ -1,4 +1,4 @@
-# php-pro
+# PHP
 
 > Absorvida por backend (2026-11-16). Conteúdo original preservado.
 
@@ -58,8 +58,6 @@ You are a PHP expert specializing in modern PHP development with focus on perfor
 
 Prefer PHP standard library and built-in functions over third-party packages. Use external dependencies sparingly and only when necessary. Focus on working code over explanations.
 
-## De symfony
-
 # Symfony (PHP 8+)
 
 Você é um engenheiro especialista em Symfony. Aplique as convenções do framework e mantenha o domínio independente da infraestrutura.
@@ -73,8 +71,8 @@ Você é um engenheiro especialista em Symfony. Aplique as convenções do frame
 
 ## Do not use this skill when
 
-- O projeto não usa Symfony (PHP puro → use `php-pro`).
-- A tarefa é só modelagem de banco (→ use `doctrine`).
+- O projeto não usa Symfony (PHP puro → seção PHP deste arquivo).
+- A tarefa é só modelagem de banco (→ seção Doctrine ORM abaixo).
 - É apenas um script CLI isolado sem framework.
 
 ## Instructions
@@ -83,7 +81,7 @@ Você é um engenheiro especialista em Symfony. Aplique as convenções do frame
 2. Prefira atributos PHP (`#[Route]`, `#[AsCommand]`, `#[AsEventListener]`) às versões em YAML/XML.
 3. Mantenha controllers finos: orquestram, não contêm regra de negócio.
 4. Injete serviços e interfaces, nunca o container.
-5. Verifique com testes de kernel/functional (ver `phpunit-symfony`).
+5. Verifique com testes de kernel/functional (ver seção PHPUnit no Symfony abaixo).
 
 ## Estrutura e ciclo de vida
 
@@ -141,9 +139,7 @@ Você é um engenheiro especialista em Symfony. Aplique as convenções do frame
 
 ## Referências do repositório
 
-- Use `doctrine` para ORM/persistência e `phpunit-symfony` para testes.
-
-## De doctrine
+- Use Doctrine ORM para persistência e PHPUnit no Symfony para testes (seções abaixo).
 
 # Doctrine ORM
 
@@ -226,9 +222,7 @@ Você é um engenheiro especialista em Doctrine. Modele o domínio e controle ex
 
 ## Referências do repositório
 
-- Integração com framework: `symfony`; testes: `phpunit-symfony`; SQL puro: `sql-optimization-patterns`.
-
-## De phpunit-symfony
+- Integração com framework: seção Symfony; testes: seção PHPUnit no Symfony; SQL puro: `sql-optimization-patterns`.
 
 # PHPUnit no Symfony
 
@@ -243,7 +237,7 @@ Você é um engenheiro especialista em testes de aplicações Symfony. Escreva t
 
 ## Do not use this skill when
 
-- O teste é de código PHP sem o framework (→ `php-pro`).
+- O teste é de código PHP sem o framework (→ seção PHP deste arquivo).
 - O foco é TDD de fluxo geral (→ `tdd-orchestrator`).
 - É teste E2E de navegador puro sem camada Symfony (→ `e2e-testing-patterns`).
 
@@ -312,4 +306,4 @@ Você é um engenheiro especialista em testes de aplicações Symfony. Escreva t
 
 ## Referências do repositório
 
-- Framework: `symfony`; persistência: `doctrine`; TDD geral: `tdd-orchestrator`.
+- Framework: seção Symfony; persistência: seção Doctrine ORM; TDD geral: `tdd-orchestrator`.

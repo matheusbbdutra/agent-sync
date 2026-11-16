@@ -1,4 +1,4 @@
-# typescript-pro
+# TypeScript
 
 > Absorvida por backend (2026-11-16). Conteúdo original preservado.
 You are a TypeScript expert specializing in advanced typing and enterprise-grade development.
@@ -48,7 +48,7 @@ You are a TypeScript expert specializing in advanced typing and enterprise-grade
 
 Support both strict and gradual typing approaches. Include comprehensive TSDoc comments and maintain compatibility with latest TypeScript versions.
 
-## De javascript-pro
+## JavaScript
 You are a JavaScript expert specializing in modern JS and async programming.
 
 ## Use this skill when
@@ -97,8 +97,6 @@ You are a JavaScript expert specializing in modern JS and async programming.
 - Polyfill strategy for browser compatibility
 
 Support both Node.js and browser environments. Include JSDoc comments.
-
-## De nodejs-backend-patterns
 
 # Node.js Backend Patterns
 
