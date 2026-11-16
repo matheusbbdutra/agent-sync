@@ -6,37 +6,197 @@
     "skillsDir": "~/.gemini/config/plugins/antigravity-skills-manager/skills"
   },
   "skills": [
-    { "id": "api-design-principles", "domain": "api-docs", "bundleRef": "core-dev" },
-    { "id": "architecture", "domain": "architecture", "bundleRef": ["core-dev", "agent-core"] },
-    { "id": "debugging-strategies", "domain": "backend-quality" },
-    { "id": "tdd-orchestrator", "domain": "testing" },
-    { "id": "error-handling-patterns", "domain": "backend-quality" },
-    { "id": "dependency-management-deps-audit", "domain": "backend-quality", "bundleRef": "security-core" },
-    { "id": "auth-implementation-patterns", "domain": "security", "bundleRef": "security-core" },
-    { "id": "security-auditor", "domain": "security", "bundleRef": ["ops-core", "security-core"] },
-    { "id": "sast-configuration", "domain": "security", "bundleRef": "security-core" },
-    { "id": "sql-optimization-patterns", "domain": "database", "bundleRef": "data-core" },
-    { "id": "openapi-spec-generation", "domain": "api-docs", "bundleRef": ["core-dev", "security-core"] },
-    { "id": "backend", "domain": "language", "bundleRef": ["core-dev", "data-core"] },
-    { "id": "javascript-testing-patterns", "domain": "testing", "bundleRef": "core-dev" },
-    { "id": "e2e-testing-patterns", "domain": "testing", "bundleRef": "ops-core" },
-    { "id": "postmortem-writing", "domain": "ops", "bundleRef": "ops-core" },
-    { "id": "microservices-patterns", "domain": "distributed-architecture", "bundleRef": "k8s-core" },
-    { "id": "cqrs-implementation", "domain": "distributed-architecture" },
-    { "id": "agent-delegate", "domain": "agent-discipline", "bundleRef": "agent-core" },
-    { "id": "agent-react", "domain": "agent-discipline", "bundleRef": "agent-core" },
-    { "id": "context-guard", "domain": "agent-discipline", "bundleRef": "agent-core" },
-    { "id": "mcp-advisor", "domain": "agent-discipline", "bundleRef": "agent-core" },
-    { "id": "token-saving-toolkit", "domain": "agent-discipline", "bundleRef": "agent-core" },
-    { "id": "docs-research", "domain": "web-research", "bundleRef": "core-dev" },
-    { "id": "sentry", "domain": "ops", "bundleRef": "ops-core" },
-    { "id": "object-calisthenics", "domain": "backend-quality", "bundleRef": "core-dev" },
-    { "id": "cli-mr-review", "domain": "backend-quality" },
-    { "id": "visual-design-system", "domain": "frontend-design", "bundleRef": "core-dev" },
-    { "id": "repo-auditor", "domain": "agent-discipline", "bundleRef": "agent-core" },
-    { "id": "agent-learn", "domain": "agent-discipline", "bundleRef": "agent-core" },
-    { "id": "product-brainstorming", "domain": "product", "source": { "repository": "https://github.com/anthropics/knowledge-work-plugins", "commit": "e91a134584eb798bac7fb0379358006a2b63b965", "license": "Apache-2.0", "skillsDir": "product-management/skills" } },
-    { "id": "gtp", "domain": "product", "source": { "repository": "https://github.com/kevlar10x/gtp", "commit": "35bea378158bd3dbf95cb3c9ddff249a9ff41756", "license": "MIT", "skillsDir": "skills" } },
-    { "id": "exploratory-testing", "domain": "testing", "source": { "repository": "https://github.com/petrkindlmann/qa-skills", "commit": "5087a3461d49da76b1e794d9b0bfbd23f38dc75b", "license": "MIT", "skillsDir": "skills" } }
+    {
+      "id": "api-design-principles",
+      "domain": "api-docs",
+      "bundleRef": "core-dev"
+    },
+    {
+      "id": "architecture",
+      "domain": "architecture",
+      "bundleRef": [
+        "core-dev",
+        "agent-core"
+      ]
+    },
+    {
+      "id": "debugging-strategies",
+      "domain": "backend-quality"
+    },
+    {
+      "id": "tdd-orchestrator",
+      "domain": "testing"
+    },
+    {
+      "id": "error-handling-patterns",
+      "domain": "backend-quality"
+    },
+    {
+      "id": "dependency-management-deps-audit",
+      "domain": "backend-quality",
+      "bundleRef": "security-core"
+    },
+    {
+      "id": "auth-implementation-patterns",
+      "domain": "security",
+      "bundleRef": "security-core"
+    },
+    {
+      "id": "security-auditor",
+      "domain": "security",
+      "bundleRef": [
+        "ops-core",
+        "security-core"
+      ]
+    },
+    {
+      "id": "sast-configuration",
+      "domain": "security",
+      "bundleRef": "security-core"
+    },
+    {
+      "id": "sql-optimization-patterns",
+      "domain": "database",
+      "bundleRef": "data-core"
+    },
+    {
+      "id": "openapi-spec-generation",
+      "domain": "api-docs",
+      "bundleRef": [
+        "core-dev",
+        "security-core"
+      ]
+    },
+    {
+      "id": "backend",
+      "domain": "language",
+      "bundleRef": [
+        "core-dev",
+        "data-core"
+      ]
+    },
+    {
+      "id": "javascript-testing-patterns",
+      "domain": "testing",
+      "bundleRef": "core-dev"
+    },
+    {
+      "id": "e2e-testing-patterns",
+      "domain": "testing",
+      "bundleRef": "ops-core"
+    },
+    {
+      "id": "postmortem-writing",
+      "domain": "ops",
+      "bundleRef": "ops-core"
+    },
+    {
+      "id": "microservices-patterns",
+      "domain": "distributed-architecture",
+      "bundleRef": "k8s-core"
+    },
+    {
+      "id": "cqrs-implementation",
+      "domain": "distributed-architecture"
+    },
+    {
+      "id": "agent-delegate",
+      "domain": "agent-discipline",
+      "bundleRef": "agent-core"
+    },
+    {
+      "id": "agent-react",
+      "domain": "agent-discipline",
+      "bundleRef": "agent-core"
+    },
+    {
+      "id": "context-guard",
+      "domain": "agent-discipline",
+      "bundleRef": "agent-core"
+    },
+    {
+      "id": "mcp-advisor",
+      "domain": "agent-discipline",
+      "bundleRef": "agent-core"
+    },
+    {
+      "id": "token-saving-toolkit",
+      "domain": "agent-discipline",
+      "bundleRef": "agent-core"
+    },
+    {
+      "id": "docs-research",
+      "domain": "web-research",
+      "bundleRef": "core-dev"
+    },
+    {
+      "id": "sentry",
+      "domain": "ops",
+      "bundleRef": "ops-core"
+    },
+    {
+      "id": "object-calisthenics",
+      "domain": "backend-quality",
+      "bundleRef": "core-dev"
+    },
+    {
+      "id": "cli-mr-review",
+      "domain": "backend-quality"
+    },
+    {
+      "id": "visual-design-system",
+      "domain": "frontend-design",
+      "bundleRef": "core-dev"
+    },
+    {
+      "id": "repo-auditor",
+      "domain": "agent-discipline",
+      "bundleRef": "agent-core"
+    },
+    {
+      "id": "agent-learn",
+      "domain": "agent-discipline",
+      "bundleRef": "agent-core"
+    },
+    {
+      "id": "product-brainstorming",
+      "domain": "product",
+      "source": {
+        "repository": "https://github.com/anthropics/knowledge-work-plugins",
+        "commit": "e91a134584eb798bac7fb0379358006a2b63b965",
+        "license": "Apache-2.0",
+        "skillsDir": "product-management/skills"
+      }
+    },
+    {
+      "id": "gtp",
+      "domain": "product",
+      "source": {
+        "repository": "https://github.com/kevlar10x/gtp",
+        "commit": "35bea378158bd3dbf95cb3c9ddff249a9ff41756",
+        "license": "MIT",
+        "skillsDir": "skills"
+      }
+    },
+    {
+      "id": "exploratory-testing",
+      "domain": "testing",
+      "source": {
+        "repository": "https://github.com/petrkindlmann/qa-skills",
+        "commit": "5087a3461d49da76b1e794d9b0bfbd23f38dc75b",
+        "license": "MIT",
+        "skillsDir": "skills"
+      }
+    },
+    {
+      "id": "prompt-engineering",
+      "domain": "agent-discipline",
+      "bundleRef": "agent-core"
+    },
+    {
+      "id": "llm-eval",
+      "domain": "agent-discipline",
+      "bundleRef": "agent-core"
+    }
   ]
 }
