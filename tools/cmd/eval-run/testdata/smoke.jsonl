@@ -1,0 +1,10 @@
+{"id":"roteamento-pt-01","slice":"pt-br","weight":1,"input":{"kind":"prompt","text":"audite o repo e liste os débitos técnicos"},"expect":{"must_match":["repo-auditor"]}}
+{"id":"roteamento-pt-02","slice":"pt-br","weight":1,"input":{"kind":"prompt","text":"verifique a saúde do projeto antes da refatoração"},"expect":{"must_match":["repo-auditor"]}}
+{"id":"roteamento-pt-03","slice":"pt-br","weight":1,"input":{"kind":"prompt","text":"revise este merge request e aponte os riscos"},"expect":{"must_match":["cli-mr-review"]}}
+{"id":"roteamento-pt-04","slice":"pt-br","weight":1,"input":{"kind":"prompt","text":"escreva testes e2e para o fluxo de login"},"expect":{"must_match":["e2e-testing-patterns"]}}
+{"id":"roteamento-pt-05","slice":"pt-br","weight":1,"input":{"kind":"prompt","text":"otimize esta query sql que está lenta"},"expect":{"must_match":["sql-optimization-patterns"]}}
+{"id":"roteamento-en-06","slice":"en","weight":1,"input":{"kind":"prompt","text":"audit the repo for technical debt"},"expect":{"must_match":["repo-auditor"]}}
+{"id":"roteamento-en-07","slice":"en","weight":1,"input":{"kind":"prompt","text":"write a postmortem for yesterday's outage"},"expect":{"must_match":["postmortem-writing"]}}
+{"id":"roteamento-en-08","slice":"en","weight":1,"input":{"kind":"prompt","text":"configure sast scanning in the ci pipeline"},"expect":{"must_match":["sast-configuration"]}}
+{"id":"roteamento-neg-09","slice":"negativo","weight":2,"input":{"kind":"prompt","text":"audite as vulnerabilidades de segurança deste serviço"},"expect":{"must_match":["security-auditor"],"must_not_match":["repo-auditor"]}}
+{"id":"roteamento-aberto-10","slice":"aberto","weight":1,"input":{"kind":"prompt","text":"resuma o que este agente fez nesta sessão e o que ficou pendente"},"judge":{"rubric":"O resumo cita ao menos um arquivo alterado e ao menos uma pendência concreta? 5 = ambos com evidência; 3 = apenas um; 0 = resumo genérico.","max_score":5,"threshold":0.6}}

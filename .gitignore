@@ -39,3 +39,6 @@ cline-plugin/package-lock.json
 .claude/
 cline-plugin/.agent-sync/
 *.jsonl
+# Exceção: suites de teste do eval-run são insumo de teste, não log de runtime.
+# Sem isto, suite_test.go carrega um arquivo que nunca entra no clone.
+!tools/cmd/eval-run/testdata/*.jsonl

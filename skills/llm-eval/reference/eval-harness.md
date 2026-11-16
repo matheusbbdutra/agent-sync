@@ -194,6 +194,54 @@ p.228, 3× de diferença exige 10× de amostra).
   majoritária "acerta" e é inútil (p.302, "correct 998 times and wrong only twice… accuracy is
   not a useful evaluation metric").
 
+## 12. Avaliação de roteamento
+
+Roteamento é a decisão "dado este pedido, qual skill o agente escolhe". A suite real vive em
+`tools/cmd/eval-run/testdata/routing.jsonl`: 12 casos, slice `pt-br` (5), `en` (4) e
+`negativo` (3), cada um com um pedido escrito como usuário escreveria e o `name` da skill que
+deveria ser escolhida em `expect.must_match`. Nos casos de `negativo` o `must_match` aponta a
+skill correta e o `must_not_match` aponta o vizinho tentador (`security-auditor` contra
+`repo-auditor`, `dependency-management-deps-audit` contra `repo-auditor`, `prompt-engineering`
+contra `llm-eval`).
+
+Por que isso não se mede no modo offline: sem `--runner-cmd` o output avaliado é o conteúdo do
+`--target`, o mesmo texto para todos os casos. `must_match` de nome de skill então só prova
+que aquele arquivo foi escolhido: todo `SKILL.md` contém o próprio nome (0 exceções em 34), e
+nenhum arquivo da árvore contém os 12 nomes esperados (o máximo medido é 3, em
+`prompt-engineering`). Medido: `routing.jsonl` com `--target skills/repo-auditor/SKILL.md` dá
+`pass 1 fail 11`, e `smoke.jsonl` no mesmo molde dá `pass 3 fail 6 skipped 1` — o resultado
+para num conjunto de nomes que o arquivo contém, não na decisão do roteador. O roteamento só
+se mede com a saída de cada caso vindo do roteador.
+
+O contrato do runner é o mesmo do `--judge-cmd`: o binário escreve `{"case":...}` em stdin e
+lê a saída do caso em stdout. `tools/cmd/eval-run/testdata/routing-runner.sh` (bash, cola fina)
+extrai `input.text`, monta um prompt com o catálogo (`name` + `description` do frontmatter de
+`skills/*/SKILL.md`), chama o CLI apontado por `EVAL_CLI` e imprime só o id escolhido. O CLI é
+livre: `opencode run`, `claude -p` ou qualquer coisa. Sem `EVAL_CLI` o runner sai com `2`, e
+exit diferente de zero no runner é erro de infraestrutura: a run aborta com exit `2` em vez de
+marcar `fail`.
+
+```bash
+# roteamento real (gasta modelo)
+EVAL_CLI='opencode run' ./bin/eval-run run \
+  --suite tools/cmd/eval-run/testdata/routing.jsonl \
+  --runner-cmd tools/cmd/eval-run/testdata/routing-runner.sh --no-record
+
+# encanamento sem modelo: o fake responde sempre um id fixo
+EVAL_CLI='bash tools/cmd/eval-run/testdata/fake-cli.sh' FAKE_ANSWER=repo-auditor \
+  ./bin/eval-run run --suite tools/cmd/eval-run/testdata/routing.jsonl \
+  --runner-cmd 'bash tools/cmd/eval-run/testdata/routing-runner.sh' --no-record
+```
+
+Com `FAKE_ANSWER=repo-auditor` o resultado é `pass 1  fail 11`: passa só o caso que aponta
+para essa skill. Se o encanamento estiver quebrado, o padrão muda (0 pass, todos `fail`, ou
+abort por runner) — é o teste do encanamento, não da qualidade do roteamento.
+
+Limite explícito: 12 casos não provam qualidade de roteamento, provam regressão. Eles pegam
+mudança que empurra o pedido para a skill errada, não cobrem a cauda longa de pedidos
+ambíguos. Suite nova aqui é caso novo com pedido real (p.316, amostragem de produção), e
+colisão entre skills vizinhas vira caso `negativo` com `weight` maior.
+
 ## Fontes
 
 - Huyen, *AI Engineering* (O'Reilly, 2025) — cap. 3 (Evaluation Methodology): p.139, p.147–149;
