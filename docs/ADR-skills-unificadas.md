@@ -98,9 +98,11 @@ O problema que motivou a poda não era quantidade, era **granularidade errada**:
 - [x] Zero links `reference(s)/*.md` apontando para arquivo inexistente.
 - [x] Zero links `assets/` e `scripts/` apontando para arquivo inexistente.
 - [x] `templates/skill.md.tpl` usa `reference/` singular.
-- [ ] Nenhuma skill cita skill inexistente em "Related Skills" — **aberto**: 8 nomes
-      (`agentic-browser-testing`, `playwright-automation`, `qa-metrics`, `qa-project-context`,
-      `release`, `risk-based-testing`, `test-planning`, `test-reliability`).
+- [x] Nenhuma skill cita skill inexistente — **fechado**: 9 nomes externos removidos de
+      `exploratory-testing` (agentic-browser-testing, playwright-automation, test-planning,
+      risk-based-testing, test-reliability, qa-metrics, qa-project-context, ai-system-testing,
+      ai-bug-triage), 3 de `gtp` (impeccable, anti-slop-art, humanizer) e 2 de
+      `visual-design-system/reference/consumer-fintech.md` (ui-ux-pro-max, impeccable).
 - [x] Nomes antigos removidos de `skills/backend/reference/{go,ts,php}.md` (15 substituições:
       3 H1, 6 headers `## De <skill>` e 7 instruções de roteamento).
 - [ ] Decisão registrada como `D-N` em `.agent-sync/session-state.json` via
@@ -111,7 +113,7 @@ O problema que motivou a poda não era quantidade, era **granularidade errada**:
 | Arquivo | Linhas | Defeito |
 |---|---|---|
 | `skills/backend/reference/{go,ts,php}.md` | — | **Resolvido.** Eram 3 H1, 6 headers `## De <skill>` e 7 instruções de roteamento apontando para skills absorvidas. |
-| `skills/*/SKILL.md` ("Related Skills") | — | 8 skills citadas que não existem no repo (**aberto**) |
+| `skills/*/SKILL.md` ("Related Skills") | — | **Resolvido.** 14 referências a skills/ferramentas externas removidas (ver Critérios de Aceite). `release` em `sentry` era falso positivo (texto sobre Sentry). |
 
 Observação não corrigida (estrutural, não é referência quebrada): `php.md` tem quatro H1
 (`# PHP`, `# Symfony (PHP 8+)`, `# Doctrine ORM`, `# PHPUnit no Symfony`) porque foi concatenado

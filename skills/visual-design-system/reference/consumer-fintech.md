@@ -105,13 +105,6 @@ camada humana é só o texto que aparece na tela:
   mesmo cabeçalho overline + número gigante + hairline em todas as abas é a síndrome de PDF
   editorial que o §2 bane — a âncora muda, o esqueleto de navegação não.
 
-## 6. Precedência com outras skills
-
-- `ui-ux-pro-max` recomenda Glassmorphism + Dark Mode OLED para "Personal Finance Tracker" e
-  "Fintech/Crypto" (data/products.csv). É recomendação genérica de catálogo e **cede** a este
-  reference e ao §2: app de finanças pessoais não é cripto nem landing de banco.
-- Nomeie o modo do `impeccable` como **Operate** antes de desenhar.
-
 ## 7. Aceite específico (além do §11)
 
 - [ ] Todo número na tela declara o estado (efetivado / previsto / reservado / livre).

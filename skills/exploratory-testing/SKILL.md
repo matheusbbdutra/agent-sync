@@ -7,9 +7,7 @@ description: >-
   findings to automated tests. Use when: "exploratory testing," "SBTM," "manual testing,"
   "bug hunting," "test charter," "heuristic testing."
   Not for: an AI browser agent autonomously exploring the app from a natural-language
-  goal — use agentic-browser-testing. Not for: testing your product's own AI/LLM
-  features — use ai-system-testing.
-  Related: test-planning, ai-bug-triage, risk-based-testing, agentic-browser-testing.
+  goal, nor for testing your product's own AI/LLM features.
 license: MIT
 metadata:
   author: kindlmann
@@ -46,7 +44,7 @@ Before designing a session, gather context. Check `.agents/qa-project-context.md
 - What feature, module, or flow is the exploration target?
 - Is this a new feature (discovery mode) or existing feature (regression mode)?
 - What is the most recent change to this area?
-- Are there known risk areas or previous bug clusters here? (See `risk-based-testing` for risk data.)
+- Are there known risk areas or previous bug clusters here?
 
 ### Hypotheses and Suspicions
 
@@ -200,7 +198,7 @@ Not all testing should be exploratory, and not all testing should be automated. 
 
 Every reproducible bug found through exploration should become an automated regression test, so future sessions focus on new areas instead of re-checking old bugs. See `reference/heuristics-and-automation.md` for the full pipeline diagram, the conversion steps, and a worked Playwright regression example (BUG-456 email validation).
 
-When an exploratory *smoke* charter stabilizes ("the happy path still works at all"), graduate it in two steps rather than one: first hand the charter to `agentic-browser-testing` as a natural-language goal run to confirm the flow is stable without writing a script, then promote the stabilized flow to a scripted `playwright-automation` test once it earns a maintained selector.
+When an exploratory *smoke* charter stabilizes ("the happy path still works at all"), graduate it in two steps rather than one: first run the charter as a natural-language goal with an agent that drives the browser, to confirm the flow is stable without writing a script, then promote the stabilized flow to a scripted test once it earns a maintained selector.
 
 ---
 
@@ -232,8 +230,6 @@ You can run a session with an LLM as oracle and idea-generator while keeping cri
 - Choosing what to explore. The charter must come from your understanding of risk and stakeholder concerns.
 - Deciding whether something is a bug. "The model says it looks fine" is not a debrief.
 - Writing the testing story. Specific, situated detail is the point of exploratory testing — generic LLM prose is the opposite.
-
-For testing AI features themselves (not just using AI to test), see `ai-system-testing`.
 
 ---
 
@@ -301,13 +297,3 @@ Prove the session produced real, accountable artifacts — not just a feeling th
 
 - **session-templates.md** — Charter examples, environment-prep checklist, session-flow timings, debrief template, and the note-taking session-log format.
 - **heuristics-and-automation.md** — Boundary/state/error/"what if" heuristic test-idea banks, the exploration-to-automation pipeline diagram, and a worked Playwright regression example.
-
-## Related Skills
-
-- **agentic-browser-testing** -- The automated cousin: a browser agent explores the app from a natural-language goal with no script. Use it for unattended exploratory smoke; use exploratory-testing for human, charter-driven SBTM sessions and bug hunting.
-- **playwright-automation** -- Where stabilized exploratory findings graduate into maintained, deterministic regression tests.
-- **test-planning** -- Sprint test plans allocate time for exploratory sessions and reference charters.
-- **risk-based-testing** -- Risk assessment identifies which areas deserve exploratory attention.
-- **test-reliability** -- Flaky or unreliable areas identified through exploration feed into test reliability improvements.
-- **qa-metrics** -- Track exploratory session counts, bug discovery rates, and charter coverage as QA metrics.
-- **qa-project-context** -- The project context file identifies known risk areas and previous bug clusters that guide charter writing.

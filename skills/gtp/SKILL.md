@@ -52,7 +52,7 @@ Answer each from the real product, not from what it was meant to be. A weak answ
 
 ## 5. Fix the gaps
 
-Fix everything that's safe to fix now: code, defaults, UX, mod page or readme copy, install steps, compatibility notes, screenshot plan. The usual rules still apply: humanizer for public writing, impeccable or anti-slop-art for visuals, publishing rules before anything goes public, and verify fixes before calling them done.
+Fix everything that's safe to fix now: code, defaults, UX, mod page or readme copy, install steps, compatibility notes, screenshot plan. The usual rules still apply: the writing style rules for public copy, the visual design rules for anything visual, publishing rules before anything goes public, and verify fixes before calling them done.
 
 Gaps that need money, a public post, or a change to what the product fundamentally is: list them for the user instead of acting.
 
