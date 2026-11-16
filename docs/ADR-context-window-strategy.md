@@ -20,7 +20,7 @@ Implementar a estratégia **sliding window + incremental summary**, alinhada ao 
    - K configurável por sessão via `ctx-window set-k`.
 
 2. **Compressed memory (sumário)**: gerada por LLM sob demanda quando o working memory estoura (tokens > budget ou N tool calls > threshold).
-   - Formato YAML estruturado com 6 seções: `decisions`, `active_hypotheses`, `artifacts`, `resolved_errors`, `next_steps`, `constraints` (ver `skills/context-window-strategy/prompts/summarize.md`).
+   - Formato YAML estruturado com 6 seções: `decisions`, `active_hypotheses`, `artifacts`, `resolved_errors`, `next_steps`, `constraints` (prompt em `tools/cmd/ctx-window/summarize.go:36`; fallback em `heuristic.go:92`).
    - Versionada em `summary_v{N}.md` para auditoria.
    - Budget default: 1000 tokens (`AGENT_SYNC_CTX_BUDGET`).
 
@@ -84,8 +84,8 @@ Implementar a estratégia **sliding window + incremental summary**, alinhada ao 
 
 | Componente | Localização | Função |
 | --- | --- | --- |
-| Skill (protocolo) | `skills/context-window-strategy/SKILL.md` | Defaults, comandos, quando disparar |
-| Prompt de sumarização | `skills/context-window-strategy/prompts/summarize.md` | Contrato de prompt LLM |
+| Skill (protocolo) | `skills/context-guard/SKILL.md` | Defaults, comandos, quando disparar |
+| Prompt de sumarização | `tools/cmd/ctx-window/summarize.go` | Contrato de prompt LLM (a skill não tem `prompts/`; o prompt vive no binário) |
 | Tool CLI | `tools/cmd/ctx-window/` | `show`, `compact` (heurística), `summarize`, `on-tool-call-llm`, `hook <cli>`, `set-k`, `doctor`, `benchmark` |
 | Heurística (fallback) | `tools/cmd/ctx-window/heuristic.go` | Regex bilíngue para paths |
 | LLM summarizer | `tools/cmd/ctx-window/summarize.go` | Dispatch por `--cli` (`summarizerCommand`): `claude -p`, `codex exec`, `opencode run --pure`, `cursor-agent -p`, `agy -p` — cada CLI resume via seu próprio modo não-interativo, não só via opencode |

@@ -3,19 +3,19 @@
 # STATE — agent-sync
 
 > Fonte de verdade: `.agent-sync/session-state.json` (schema v1.2).
-> Renderizado por `agent-sync state render` em 2026-11-16T19:00:35Z. Não edite à mão.
+> Renderizado por `agent-sync state render` em 2026-11-16T20:03:05Z. Não edite à mão.
 
 ## Estado do repositório
 
 - Branch: `main`
-- HEAD: `b30358f`
+- HEAD: `6ac8461`
 - Working tree: limpo
 
 ## Sessão atual
 
 - ID: `sess-20260920-170000`
 - Início: 2026-09-19T18:37:59Z
-- Última atualização: 2026-11-16T19:00:35Z
+- Última atualização: 2026-11-16T20:03:05Z
 
 ## Decisões
 
@@ -68,6 +68,7 @@
 - **D-140** Skills unificadas: um dominio = uma skill, detalhe em reference/ singular — As 3 ondas de poda (57->45->37->32) ja assumiam a convencao na pratica; formalizada em docs/ADR-skills-unificadas.md. Regras: um dominio = uma skill; subdiretorio de detalhe e reference/ singular; assets/ e scripts/ so existem se o arquivo existir; description e gatilho com Jaccard < 0.25 (internal/skills/lint.go:74); SKILL.md < 500 linhas; ao absorver uma skill, remover citacoes ao nome antigo. Motivo concreto da regra de arquivo inexistente: 45 links mortos herdados de skills vendorizadas (20 em references/*.md, 25 em assets/+scripts/), removidos no commit efc24ce. templates/skill.md.tpl alinhado para reference/. Divida residual: 8 skills citadas em Related Skills que nao existem no repo (agentic-browser-testing, playwright-automation, qa-metrics, qa-project-context, release, risk-based-testing, test-planning, test-reliability). (2026-11-16)
 - **D-141** Impeccable design hook removido: dependencia de skill de terceiros nao gerida — O hook dependia da skill de terceiros `impeccable` (contrato versionado fora deste repo) e era fail-open, escondendo divergencia de versao em vez de expor. Removido do repo no commit fa3392d: 6 arquivos (2 hooks por host, 2 Go + 2 testes), 2 entradas em internal/hooks/apply_table.go e o subcomando `agent-sync hook impeccable`; docs/ADR-impeccable-design-hook.md marcado como Superado. CRITICO: o wiring vivo NAO era o bridge Go — ~/.claude/settings.json (3 entradas) e ~/.codex/hooks.json (2 entradas) chamavam o script de terceiros direto (`<skill>/scripts/impeccable hook`). Essas 5 entradas tambem foram removidas, com backup em settings.json.bak-impeccable-<ts> e hooks.json.bak-impeccable-<ts>. Verificado: JSON valido; conteudo fora de hooks/description identico ao backup; Claude 32->29 entradas, Codex 22->20. As skills de terceiros em ~/.claude/skills/impeccable e ~/.agents/skills/impeccable permanecem no disco — so o hook foi desligado. (2026-11-16)
 - **D-142** Impeccable e reverse-engineer-anything ficam de fora: nao absorver skills de terceiros — Decidido nao absorver as duas skills de ~/.agents/skills como conteudo reescrito. Motivo: impeccable tem 25MB com scripts/assets proprios e contrato versionado fora deste repo; reverse-engineer-anything tem 53 arquivos markdown. Absorver exigiria manter upstream de terceiros sem licenca/versionamento definidos, o que reintroduz a dependencia que motivou o D-141. Referencias vivas ja foram removidas no commit 58c635c (14 ocorrencias em exploratory-testing, gtp e consumer-fintech). Permanecem apenas registros historicos: docs/ADR-impeccable-design-hook.md (Superado), D-141 e este D-142 — apagar esses falsificaria o historico, que o proprio repo define como anti-pattern de ADR. (2026-11-16)
+- **D-143** llm-app-engineering fica de fora: nao construir LLM, so entender o comportamento — Decidido nao criar skill de engenharia de aplicacao LLM (17 unidades de AI Engineering + AI Agents: stack, RAG, RAG-vs-finetuning, guardrails, custo/latencia, monitoramento). Motivo: o projeto nao vai construir nem operar modelo proprio; o valor esta em usar melhor o modelo de terceiros. O recorte aproveitado foi o inverso: como o LLM funciona para melhorar o uso, entregue em skills/prompt-engineering/reference/model-behavior.md (175 linhas, 105 citacoes p.N, cada secao fechando em Consequencia para o uso) no commit e8f2a31. RAG/vector store seguem sem casa por decisao: memory-mcp usa FTS5/BM25 (tools/internal/agentmemory/store.go:96), sem indice vetorial. (2026-11-16)
 - **D-15** PreCompact do Claude Code — (2026-09-18): sem injeção de contexto. Handoff via `SessionStart`. Só OpenCode tem injeção real. Substituído por `agent-sync state next-action` (Estágio A da ADR-002 fechado em 2026-09-19; Estágio B fechado em 2026-09-19 com cross-process + migração). (2026-09-19)
 - **D-16** SMOKE-TEST-Q (ADR-003 smoke protocolo) — : `docs/SMOKE-TEST-Q.md` criado em 2026-09-19 com verificação rápida do wirado (5 checks), procedimento ≥30min × 2 sessões com ≥6 critérios, template de evidência YAML, comandos de inspeção a cada 10min, simulação de compactação. ADR-003 passa de "Implementado" → "Aceito" após 2/2 smokes. (2026-09-19)
 - **D-17** SMOKE-TEST-R (Trilha A smoke protocolo) — : `docs/SMOKE-TEST-R.md` criado em 2026-09-19 com verificação rápida do wirado (4 checks), 2 cenários obrigatórios (alegação sem evidência bloqueia / com evidência passa) + 1 bônus, critérios C1-C5, template de evidência YAML. Wiração confirmada: `~/.cursor/hooks.json:42-46` + `cmd/agent-sync/cursor.go:34` + `hooks/agent-stop.cursor.sh` + `false-success-guard` no PATH. (2026-09-19)
