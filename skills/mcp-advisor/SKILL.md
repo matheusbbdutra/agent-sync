@@ -1,42 +1,42 @@
 ---
 name: mcp-advisor
-description: "Avalia necessidade de usar ou construir servidores MCP para integração segura de sistemas."
+description: "Evaluates the need to use or build MCP servers for secure system integration."
 ---
 
-# Quando sugerir um MCP em vez de código customizado
+# When to suggest an MCP instead of custom code
 
-Responda em PT-BR, objetivo (AGENTS.md global). O objetivo aqui é **avaliar**, não empurrar MCP para tudo — muita integração simples e pontual continua sendo mais barata como código direto.
+Answer in PT-BR, objective (global AGENTS.md). The goal here is to **evaluate**, not to push MCP for everything — many simple, one-off integrations remain cheaper as direct code.
 
-## Sinais de que vale um MCP
+## Signals that an MCP is worth it
 
-- A integração é **repetida** ao longo do projeto/sessões (mesma API sendo chamada em vários pontos), não uma chamada única e isolada.
-- O sistema externo muda com frequência (dados ao vivo: produção, tickets, documentos, dashboards) e o agente precisaria "reconsultar" em conversas futuras — código customizado não persiste esse acesso entre sessões, um MCP sim.
-- Já existe um MCP conhecido e mantido para esse sistema (ex.: banco de dados, Slack, GitHub, ferramentas de nuvem) — reinventar client custom é retrabalho e superfície extra de bugs.
-- A tarefa precisa de ação autenticada e recorrente em um serviço de terceiros (não só um GET público ocasional).
+- The integration is **repeated** across the project/sessions (the same API being called in several places), not a single, isolated call.
+- The external system changes often (live data: production, tickets, documents, dashboards) and the agent would need to "re-query" in future conversations — custom code does not persist that access between sessions, an MCP does.
+- A known, maintained MCP already exists for that system (e.g.: database, Slack, GitHub, cloud tools) — reinventing a custom client is rework and extra bug surface.
+- The task needs authenticated, recurring action on a third-party service (not just an occasional public GET).
 
-## Sinais de que NÃO vale (ficar com código direto)
+## Signals that it is NOT worth it (stay with direct code)
 
-- É uma chamada de API única, dentro do escopo de uma feature específica do próprio produto do usuário (ex.: o app do cliente chamando a própria API de pagamento) — isso é código de produto, não tooling do agente.
-- Não existe MCP para o sistema em questão e criar um do zero seria desproporcional ao valor (uma automação pontual não justifica manter um servidor MCP).
-- O acesso é simples, estável e não precisa ser reusado entre conversas (ex.: ler um arquivo CSV local uma vez).
+- It is a single API call, within the scope of a specific feature of the user's own product (e.g.: the client's app calling its own payment API) — that is product code, not agent tooling.
+- No MCP exists for the system in question and creating one from scratch would be disproportionate to the value (a one-off automation does not justify maintaining an MCP server).
+- The access is simple, stable and does not need to be reused between conversations (e.g.: reading a local CSV file once).
 
-## Como conduzir a avaliação
+## How to conduct the evaluation
 
-1. Identifique o sistema externo envolvido e se é algo que reaparecerá em outras tarefas.
-2. Confirme se já existe um MCP relevante — pergunte ao usuário quais MCPs ele já tem configurados (`ListAgents`/config não mostram isso diretamente; pergunte ou verifique `.claude/settings.json`/config MCP do projeto) antes de sugerir instalar um novo.
-3. Se não houver MCP e a integração for recorrente, apresente a opção como sugestão curta — não decida sozinho por instalar/configurar nada sem aprovação (mudança de configuração conta como ação que precisa de confirmação, conforme AGENTS.md).
-4. Se for código de produto do próprio usuário (não tooling do agente), não sugira MCP — isso é escopo de aplicação, não de assistente.
+1. Identify the external system involved and whether it is something that will reappear in other tasks.
+2. Confirm whether a relevant MCP already exists — ask the user which MCPs they already have configured (`ListAgents`/config do not show this directly; ask or check `.claude/settings.json`/the project's MCP config) before suggesting installing a new one.
+3. If there is no MCP and the integration is recurring, present the option as a short suggestion — do not decide on your own to install/configure anything without approval (a configuration change counts as an action that needs confirmation, per AGENTS.md).
+4. If it is the user's own product code (not agent tooling), do not suggest an MCP — that is application scope, not assistant scope.
 
-## Descoberta e segurança antes de instalar
+## Discovery and security before installing
 
-Se a decisão for usar um MCP, avalie a origem antes de configurar qualquer coisa:
+If the decision is to use an MCP, evaluate the origin before configuring anything:
 
-- **Descoberta**: o catálogo oficial é o MCP Registry (publicação via `server.json` + CLI `mcp-publisher`); o namespace denuncia a posse (`io.github.<usuario>/...` exige login GitHub; domínio próprio exige challenge DNS/HTTP). Prefira o servidor mantido por quem mantém o sistema a um fork de terceiro.
-- **Manutenção**: confira último push, issues abertas e licença — servidor abandonado vira superfície de risco no tooling do agente.
-- **Scan antes de instalar**: existem scanners que cobrem agentes, servidores MCP e skills (ex.: `snyk/agent-scan`); trate skill/servidor de terceiro como código não auditado.
-- **Execução isolada**: nunca rode servidor MCP não confiável direto no filesystem/credenciais do usuário — use sandbox, container ou microVM com capabilities restritas.
-- **Escala**: com vários servidores/MCPs no time, avalie um gateway de agregação (auth centralizada, rate limit, observabilidade) em vez de espalhar N configurações por CLI — só vale quando o número de servidores justificar o processo a mais.
+- **Discovery**: the official catalog is the MCP Registry (published via `server.json` + the `mcp-publisher` CLI); the namespace reveals ownership (`io.github.<usuario>/...` requires GitHub login; your own domain requires a DNS/HTTP challenge). Prefer the server maintained by whoever maintains the system over a third-party fork.
+- **Maintenance**: check the last push, open issues and license — an abandoned server becomes a risk surface in the agent's tooling.
+- **Scan before installing**: there are scanners that cover agents, MCP servers and skills (e.g.: `snyk/agent-scan`); treat a third-party skill/server as unaudited code.
+- **Isolated execution**: never run an untrusted MCP server directly on the user's filesystem/credentials — use a sandbox, container or microVM with restricted capabilities.
+- **Scale**: with several servers/MCPs in the team, evaluate an aggregation gateway (centralized auth, rate limit, observability) instead of spreading N configurations across CLIs — it is only worth it when the number of servers justifies the extra process.
 
-## Formato da sugestão
+## Suggestion format
 
-Seja direto: nome do sistema, por que um MCP ajudaria mais que código custom, e pergunte se o usuário quer que você configure/verifique isso — não implemente a integração custom "de qualquer jeito" e depois mencione o MCP como nota de rodapé.
+Be direct: the system name, why an MCP would help more than custom code, and ask whether the user wants you to configure/verify it — do not implement the custom integration "anyhow" and then mention the MCP as a footnote.

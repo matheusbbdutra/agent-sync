@@ -1,84 +1,84 @@
 ---
 name: sentry
-description: "Use when investigating errors or performance issues reported in Sentry. Depuração e rastreamento de erros no Sentry: triagem de issues, breadcrumbs e transações."
+description: "Use when investigating errors or performance issues reported in Sentry. Error debugging and tracing in Sentry: triage of issues, breadcrumbs and transactions."
 ---
 
-# Sentry — Depuração de Erros e Performance
+# Sentry — Error and Performance Debugging
 
-Você investiga problemas a partir do **Sentry** e chega à causa raiz no código, com evidência. Nunca trate só o sintoma.
+You investigate problems from **Sentry** and reach the root cause in the code, with evidence. Never treat only the symptom.
 
 ## Use this skill when
 
-- Investigar um **issue/event** do Sentry (exceção, crash, regressão).
-- Entender agrupamento (por que virou 1 ou N issues) e ruído de alertas.
-- Correlacionar erro de produção com **release/commit** e código.
-- Analisar **performance** (transactions/spans, p95, queries lentas).
-- Configurar o SDK (DSN, release, environment, sample rates, PII).
+- Investigate a **issue/event** in Sentry (exception, crash, regression).
+- Understand grouping (why it became 1 or N issues) and alert noise.
+- Correlate a production error with the **release/commit** and the code.
+- Analyze **performance** (transactions/spans, p95, slow queries).
+- Configure the SDK (DSN, release, environment, sample rates, PII).
 
 ## Do not use this skill when
 
-- O erro está reproduzível e claro localmente sem telemetria (depure direto).
-- A tarefa é só monitoramento/alertas sem um incidente concreto.
-- É uma vulnerabilidade → use `security-auditor`.
+- The error is reproducible and clear locally without telemetry (debug directly).
+- The task is only monitoring/alerts without a concrete incident.
+- It is a vulnerability → use `security-auditor`.
 
 ## Instructions
 
-1. Colete **contexto do evento**: projeto, ambiente, release, primeira/última ocorrência, nº de eventos e usuários afetados.
-2. Leia o **stack trace** (filtre ruído com `trace-strip`); identifique o frame da aplicação.
-3. Revise **breadcrumbs** (ações que precederam) e **tags/context** (user, url, request, device).
-4. **Localize no código do release** (`path:line`) — confirme o commit.
-5. Formule **hipóteses** (input/estado que disparou) e valide cada uma.
-6. Identifique a **causa raiz**, proponha a correção mínima e um teste que evite reincidência.
-7. Confirme que o erro cessa no release seguinte; considere alerta de regressão.
+1. Collect **event context**: project, environment, release, first/last occurrence, number of events and affected users.
+2. Read the **stack trace** (filter noise with `trace-strip`); identify the application frame.
+3. Review **breadcrumbs** (the actions that preceded it) and **tags/context** (user, url, request, device).
+4. **Locate it in the release code** (`path:line`) — confirm the commit.
+5. Formulate **hypotheses** (the input/state that triggered it) and validate each one.
+6. Identify the **root cause**, propose the minimal fix and a test that prevents recurrence.
+7. Confirm that the error stops in the next release; consider a regression alert.
 
-## Conceitos-chave
+## Key concepts
 
-- **Organization / Project / Environment:** escopo; sempre confirme o ambiente (prod ≠ staging).
-- **Issue × Event:** *issue* é o agrupamento; *event* é uma ocorrência com dados próprios.
-- **Release / Dist:** liga eventos a uma versão/distribuição; use para achar **suspect commits** e regressões.
-- **Breadcrumbs:** trilha de ações antes do erro (HTTP, logs, navegação).
-- **Tags × Context:** tags são indexadas/filtráveis; context é estrutura por evento.
-- **Fingerprint:** regra de agrupamento; mexer nela pode unir/dividir issues.
-- **Transaction / Span:** tracing de performance; identifique o span lento no caminho.
+- **Organization / Project / Environment:** scope; always confirm the environment (prod ≠ staging).
+- **Issue × Event:** an *issue* is the grouping; an *event* is an occurrence with its own data.
+- **Release / Dist:** ties events to a version/distribution; use it to find **suspect commits** and regressions.
+- **Breadcrumbs:** trail of actions before the error (HTTP, logs, navigation).
+- **Tags × Context:** tags are indexed/filterable; context is per-event structure.
+- **Fingerprint:** grouping rule; changing it can merge/split issues.
+- **Transaction / Span:** performance tracing; identify the slow span on the path.
 
-## Triagem de um issue
+## Triaging an issue
 
-- **Impacto:** frequência, usuários únicos, ambientes afetados, se é regressão (novo na release X).
-- **Erro × causa:** a mensagem nem sempre é a causa; siga o frame mais interno **do seu código**.
-- **Dados do request:** método, rota, status, corpo (com PII mascarada).
-- **Hipótese → evidência:** cada hipótese precisa de evidência (log, código, reprodução).
+- **Impact:** frequency, unique users, affected environments, whether it is a regression (new in release X).
+- **Error × cause:** the message is not always the cause; follow the innermost frame **of your code**.
+- **Request data:** method, route, status, body (with PII masked).
+- **Hypothesis → evidence:** every hypothesis needs evidence (log, code, reproduction).
 
-## Source maps, símbolos e grouping
+## Source maps, symbols and grouping
 
-- **JS/TS:** sem **source maps** o trace aparece minificado — garanta o upload (`sentry-cli sourcemaps upload` / plugin de build) por release.
-- **Go/native:** envie **debug symbols** quando aplicável.
-- **Grouping:** mensagens com valores dinâmicos (IDs, datas) podem fragmentar em vários issues → use fingerprinting/`scope.setFingerprint`. O oposto (erros distintos no mesmo issue) indica fingerprint genérico.
-- **Merge/Split/Ignore:** agrupe corretamente; ignore apenas ruído real (com regra e prazo).
+- **JS/TS:** without **source maps** the trace shows up minified — ensure the upload (`sentry-cli sourcemaps upload` / build plugin) per release.
+- **Go/native:** send **debug symbols** when applicable.
+- **Grouping:** messages with dynamic values (IDs, dates) can fragment into several issues → use fingerprinting/`scope.setFingerprint`. The opposite (distinct errors in the same issue) indicates a generic fingerprint.
+- **Merge/Split/Ignore:** group correctly; ignore only real noise (with a rule and a deadline).
 
 ## Performance / Tracing
 
-- Compare **p95/p99** do span suspeito; procure N+1, chamadas externas, serialização.
-- Use **trace** de um evento lento para achar o span culpado; correlacione com o código.
-- Meça, não especule: colete baseline antes/depois da correção.
+- Compare the **p95/p99** of the suspect span; look for N+1, external calls, serialization.
+- Use the **trace** of a slow event to find the culprit span; correlate it with the code.
+- Measure, do not speculate: collect a baseline before/after the fix.
 
-## Configuração do SDK (armadilhas comuns)
+## SDK configuration (common pitfalls)
 
-- **DSN** via variável de ambiente — nunca hardcoded/commitado.
-- **release** e **environment** sempre definidos (senão perde correlação).
-- **Sample rates:** `traces_sample_rate`/`profiles_sample_rate` conforme volume; cuidado com custo.
-- **PII:** mantenha `send_default_pii` desligado por padrão; configure scrubbing.
-- **Integrações de framework:** Symfony (`SentryBundle`), Laravel, Express/Node, browser JS — verifique a config do framework.
-- **Erros engolidos:** não capture e ignore sem relançar; evite duplicar eventos (capturar no mesmo nível).
+- **DSN** via environment variable — never hardcoded/committed.
+- **release** and **environment** always set (otherwise you lose correlation).
+- **Sample rates:** `traces_sample_rate`/`profiles_sample_rate` according to volume; mind the cost.
+- **PII:** keep `send_default_pii` off by default; configure scrubbing.
+- **Framework integrations:** Symfony (`SentryBundle`), Laravel, Express/Node, browser JS — check the framework config.
+- **Swallowed errors:** do not capture and ignore without rethrowing; avoid duplicating events (capture at the same level).
 
-## Ferramentas
+## Tools
 
-- **Sentry MCP** (opcional): `https://mcp.sentry.dev/mcp/{org}/{project}` (OAuth) — permite buscar issues/eventos e traços diretamente. Ver `mcp-advisor`.
-- **API do Sentry / UI:** para consultas pontuais e links canônicos.
-- **`trace-strip`**: filtre frames de biblioteca ao analisar o trace.
-- **`ast-outline`**: localize a função no código do release antes de ler o trecho.
+- **Sentry MCP** (optional): `https://mcp.sentry.dev/mcp/{org}/{project}` (OAuth) — lets you fetch issues/events and traces directly. See `mcp-advisor`.
+- **Sentry API / UI:** for one-off queries and canonical links.
+- **`trace-strip`**: filter library frames when analyzing the trace.
+- **`ast-outline`**: locate the function in the release code before reading the snippet.
 
 ## Guardrails
 
-- **Nunca** exiba ou cole PII/segredos (e-mails, tokens, dados de usuário): referencie a posição, mascare.
-- Investigação é **read-only** por padrão; alteração de comportamento só com correção intencional e testada.
-- Cite a evidência (`evento`, `path:line`, `release`); diferencie fato verificado de hipótese.
+- **Never** display or paste PII/secrets (e-mails, tokens, user data): reference the position, mask it.
+- Investigation is **read-only** by default; behavior change only with an intentional, tested fix.
+- Cite the evidence (`event`, `path:line`, `release`); distinguish verified fact from hypothesis.
