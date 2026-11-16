@@ -1,52 +1,52 @@
 ---
 name: docs-research
-description: "Use when researching official documentation for a library/framework/API with low token cost. Pesquisa eficiente em documentações oficiais com baixo consumo de tokens."
+description: "Use when researching official documentation for a library/framework/API with low token cost. Efficient research in official documentation with low token consumption."
 ---
 
-# Pesquisa de Documentação e Web
+# Documentation and Web Research
 
-Você pesquisa em **fontes oficiais** antes de afirmar qualquer coisa sobre bibliotecas, APIs ou versões. Priorize precisão e economia de tokens.
+You research **official sources** before stating anything about libraries, APIs or versions. Prioritize precision and token economy.
 
 ## Use this skill when
 
-- Consultar documentação oficial de um framework/biblioteca.
-- Confirmar assinatura de API, comportamento, depreciação ou versão.
-- Buscar um erro/stack trace e a solução canônica.
-- Precisar citar a fonte de uma afirmação técnica.
+- Consulting the official documentation of a framework/library.
+- Confirming API signature, behavior, deprecation or version.
+- Searching for an error/stack trace and the canonical solution.
+- Needing to cite the source of a technical statement.
 
 ## Do not use this skill when
 
-- A informação está no próprio repositório (leia o código antes).
-- Você pode responder com conhecimento verificável local (evite sair para a web).
-- A tarefa é revisão de código/debug local sem dependência externa.
+- The information is in the repository itself (read the code first).
+- You can answer with verifiable local knowledge (avoid going out to the web).
+- The task is code review/local debug without an external dependency.
 
 ## Instructions
 
-1. **Defina a pergunta** e a versão exata da stack (ex.: Symfony 7.2, Doctrine ORM 3, Go 1.24).
-2. **Busque** com 2–3 variações; prefira domínios oficiais e versionados.
-3. **Mapeie antes de ler**: use `docs-fetch -outline <url>` para ver a estrutura e escolher a seção.
-4. **Extraia o mínimo**: `docs-fetch <url>` (texto) ou `-grep <termo>`; evite despejar páginas inteiras.
-5. **Cite** URL + versão; separe o que foi verificado do que é suposição.
-6. Se as fontes conflitarem, mostre as duas e o contexto da versão.
+1. **Define the question** and the exact version of the stack (e.g.: Symfony 7.2, Doctrine ORM 3, Go 1.24).
+2. **Search** with 2–3 variations; prefer official and versioned domains.
+3. **Map before reading**: use `docs-fetch -outline <url>` to see the structure and choose the section.
+4. **Extract the minimum**: `docs-fetch <url>` (text) or `-grep <term>`; avoid dumping entire pages.
+5. **Cite** URL + version; separate what was verified from what is assumption.
+6. If the sources conflict, show both and the version context.
 
-## Ferramentas
+## Tools
 
-- **Busca nativa da CLI:** `websearch`/`webfetch` (OpenCode), `WebSearch`/`WebFetch` (Claude), web search (Codex), grounding (Gemini).
-- **`docs-fetch`** (agent-sync): baixa e cacheia docs, extrai texto e títulos.
-  - `docs-fetch -outline <url>` → títulos (h1-h6) para mapear a página.
-  - `docs-fetch <url>` → texto limpo (sem script/style).
-  - `docs-fetch -grep <termo> <url>` → só linhas relevantes.
-  - `docs-fetch -raw <url>` → conteúdo bruto (ex.: markdown/RST).
-  - Cache em `~/.cache/agent-sync/docs`; use `-refresh` para atualizar.
-- **[`search-specialist`](reference/search-specialist.md)** (absorvida nesta skill) para pesquisa ampla/competitiva e verificação factual.
+- **CLI native search:** `websearch`/`webfetch` (OpenCode), `WebSearch`/`WebFetch` (Claude), web search (Codex), grounding (Gemini).
+- **`docs-fetch`** (agent-sync): downloads and caches docs, extracts text and titles.
+  - `docs-fetch -outline <url>` → titles (h1-h6) to map the page.
+  - `docs-fetch <url>` → clean text (without script/style).
+  - `docs-fetch -grep <term> <url>` → only the relevant lines.
+  - `docs-fetch -raw <url>` → raw content (e.g.: markdown/RST).
+  - Cache in `~/.cache/agent-sync/docs`; use `-refresh` to update.
+- **[`search-specialist`](reference/search-specialist.md)** (absorbed into this skill) for broad/competitive research and factual verification.
 
-## Fontes oficiais por stack
+## Official sources per stack
 
 ### PHP / Symfony / Doctrine
 
-- **Symfony:** `https://symfony.com/doc/current/` (troque por `/doc/<versão>/`, ex.: `/doc/7.2/`); API `https://api.symfony.com/`.
+- **Symfony:** `https://symfony.com/doc/current/` (replace with `/doc/<version>/`, e.g.: `/doc/7.2/`); API `https://api.symfony.com/`.
 - **Symfony components:** `https://symfony.com/components`.
-- **Doctrine ORM:** `https://www.doctrine-project.org/projects/doctrine-orm/en/current/` (versionado, ex.: `/en/3.3/`).
+- **Doctrine ORM:** `https://www.doctrine-project.org/projects/doctrine-orm/en/current/` (versioned, e.g.: `/en/3.3/`).
 - **Doctrine DBAL / Migrations:** `.../projects/doctrine-dbal/en/current/`, `.../doctrine-migrations/en/current/`.
 - **PHP:** `https://www.php.net/manual/en/`; RFCs `https://wiki.php.net/rfc`.
 - **PSRs:** `https://www.php-fig.org/psr/`.
@@ -55,8 +55,8 @@ Você pesquisa em **fontes oficiais** antes de afirmar qualquer coisa sobre bibl
 
 ### Go
 
-- **Guia/linguagem:** `https://go.dev/doc/` e `https://go.dev/ref/spec`.
-- **Pacotes/API:** `https://pkg.go.dev/<pacote>`.
+- **Guide/language:** `https://go.dev/doc/` and `https://go.dev/ref/spec`.
+- **Packages/API:** `https://pkg.go.dev/<package>`.
 - **Release notes:** `https://go.dev/doc/devel/release`.
 
 ### JavaScript / TypeScript / Node
@@ -66,23 +66,23 @@ Você pesquisa em **fontes oficiais** antes de afirmar qualquer coisa sobre bibl
 - **Node.js API:** `https://nodejs.org/api/`.
 - **npm:** `https://docs.npmjs.com/`.
 
-### Banco de dados e segurança
+### Database and security
 
-- **PostgreSQL:** `https://www.postgresql.org/docs/<versão>/` (ex.: `/docs/16/`).
+- **PostgreSQL:** `https://www.postgresql.org/docs/<version>/` (e.g.: `/docs/16/`).
 - **OWASP Top 10:** `https://owasp.org/www-project-top-ten/`.
 - **Git:** `https://git-scm.com/doc`.
 
-## Regras de qualidade
+## Quality rules
 
-- **Nunca invente** nomes de funções, flags, pacotes ou endpoints: confirme na fonte antes de citar.
-- Prefira **versão versionada** da doc à `current` quando o projeto fixa uma versão.
-- Diferencie claramente: **verificado na doc** vs **inferência**.
-- Cite sempre a URL; para afirmações fortes, inclua o trecho exato.
-- Não use blogs/fóruns como fonte primária; use como pista e confirme na doc oficial.
-- Respeite `robots.txt`/limites: prefira páginas específicas em vez de crawling amplo.
+- **Never invent** function, flag, package or endpoint names: confirm in the source before citing.
+- Prefer the **versioned** doc to `current` when the project pins a version.
+- Clearly differentiate: **verified in the doc** vs **inference**.
+- Always cite the URL; for strong statements, include the exact excerpt.
+- Do not use blogs/forums as a primary source; use them as a clue and confirm in the official doc.
+- Respect `robots.txt`/limits: prefer specific pages instead of broad crawling.
 
-## Referências do repositório
+## Repository references
 
-- Integração Symfony/Doctrine: `backend/reference/php.md`.
-- Avaliação de MCP dedicado a docs: `mcp-advisor`.
-- [search-specialist](reference/search-specialist.md) — Operadores de busca, filtragem de domínio e verificação factual.
+- Symfony/Doctrine integration: `backend/reference/php.md`.
+- Evaluation of an MCP dedicated to docs: `mcp-advisor`.
+- [search-specialist](reference/search-specialist.md) — Search operators, domain filtering and factual verification.

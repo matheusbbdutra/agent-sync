@@ -1,33 +1,33 @@
 ---
 name: tdd-orchestrator
-description: "Use when implementing features or fixing bugs via Red-Green-Refactor TDD cycles. Ciclo TDD (Red-Green-Refactor) com cobertura de casos de borda e design guiado por testes. discipline, multi-agent workflow coordination, and comprehensive test-driven development practices. Enforces TDD best practices across teams with AI-assisted testing and modern frameworks. Use PROACTIVELY for TDD implementation and governance."
+description: "Use when implementing features or fixing bugs via Red-Green-Refactor TDD cycles. TDD cycle (Red-Green-Refactor) with edge case coverage and test-guided design. discipline, multi-agent workflow coordination, and comprehensive test-driven development practices. Enforces TDD best practices across teams with AI-assisted testing and modern frameworks. Use PROACTIVELY for TDD implementation and governance."
 ---
 
 ## Use this skill when
 
-- Vai escrever/atualizar testes em qualquer módulo deste repo.
-- Implementa lógica que ainda não tem cobertura (red-green-refactor).
-- Vai refatorar código que já tem testes (regressão safety net).
+- You are going to write/update tests in any module of this repo.
+- Implements logic that does not yet have coverage (red-green-refactor).
+- You are going to refactor code that already has tests (regression safety net).
 
 ## Do not use this skill when
 
-- Tarefa é puramente documentação/markdown.
-- Já existe cobertura e a mudança é trivial (typo, log, copy).
-- Problema é harness/orquestração (use `agent-react` ou `debugging-strategies`).
+- Task is purely documentation/markdown.
+- Coverage already exists and the change is trivial (typo, log, copy).
+- Problem is harness/orchestration (use `agent-react` or `debugging-strategies`).
 
-## Mecânica neste repo
+## Mechanics in this repo
 
-1. **Teste primeiro.** Não escreva implementação sem teste falhando correspondente.
-2. **Localização.** Tests no mesmo pacote que o código: `pkg.go` → `pkg_test.go`. Cobertura por comando: `tools/cmd/<cmd>/`.
-3. **Comandos.** `go test ./...` para tudo; `go test -run TestX ./pkg/` para alvo; `go test -race ./...` antes de PR com concorrência.
-4. **Cobertura.** Sem threshold numérico enforced hoje. Foque em casos de borda e paths de erro — não em %.
-5. **Mocks.** Prefira interfaces e `testify/mock` ou mocks manuais. `gomock` raramente necessário.
-6. **Tabela-driven.** Quando ≥3 casos de teste similares, use `[]struct{...}{...}` + `t.Run`.
+1. **Test first.** Do not write implementation without a corresponding failing test.
+2. **Location.** Tests in the same package as the code: `pkg.go` → `pkg_test.go`. Coverage per command: `tools/cmd/<cmd>/`.
+3. **Commands.** `go test ./...` for everything; `go test -run TestX ./pkg/` for a target; `go test -race ./...` before a PR with concurrency.
+4. **Coverage.** No numeric threshold enforced today. Focus on edge cases and error paths — not on %.
+5. **Mocks.** Prefer interfaces and `testify/mock` or manual mocks. `gomock` rarely needed.
+6. **Table-driven.** When ≥3 similar test cases, use `[]struct{...}{...}` + `t.Run`.
 
-## Anti-patterns (rejeitar antes de PR)
+## Anti-patterns (reject before PR)
 
-- Teste que faz setup mas nunca assert.
-- Teste que depende de ordem de execução.
-- Sleep/time.Sleep para sincronizar (use channels ou polling).
-- Cobertura alta via testes triviais (smoke de getters).
-- Teste que ignora erro (`_, _ = fn()`).
+- Test that does setup but never asserts.
+- Test that depends on execution order.
+- Sleep/time.Sleep to synchronize (use channels or polling).
+- High coverage via trivial tests (getter smoke tests).
+- Test that ignores the error (`_, _ = fn()`).

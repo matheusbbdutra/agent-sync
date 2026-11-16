@@ -1,137 +1,139 @@
-# Leitura de grafo de dependencias
+# Reading a dependency graph
 
-Criterio de leitura para grafo de imports/chamadas de um repositorio: o que se pode afirmar, o que
-precisa ser certificado e o que nao pode ser prometido. Este arquivo **nao** define como calcular:
-calculo e do `repo-map`.
+Reading criterion for a repository's import/call graph: what can be asserted, what needs to be
+certified and what cannot be promised. This file **does not** define how to compute: computing belongs
+to `repo-map`.
 
-## 1. Divisao de trabalho: calculo no `repo-map`, criterio aqui
+## 1. Division of labor: computing in `repo-map`, criterion here
 
-- O binario expoe hoje, conforme `repo-map --help`: `--update` (cache incremental), `--focus
-  <caminho>` (subgrafo), `--brief <caminho>` (JSON delimitado), `--summary` (hubs de chamadas/imports)
-  e `--audit-removal <alvo>`; com `-depth`, `-max-tokens` e `-root` como ajustes.
-- Se o numero que voce precisa (componentes, corte, ciclo) nao sai desses modos, calcule fora e
-  valide o resultado com os testes da secao 2 — nao apresente o numero sem passa-los.
-- O que este reference governa: qual afirmacao o relatorio pode fazer com o grafo que o `repo-map`
-  produziu (conectividade, componente, acoplamento, ciclo, particao, otimalidade).
+- The binary exposes today, according to `repo-map --help`: `--update` (incremental cache), `--focus
+  <path>` (subgraph), `--brief <path>` (delimited JSON), `--summary` (call/import hubs) and
+  `--audit-removal <target>`; with `-depth`, `-max-tokens` and `-root` as adjustments.
+- If the number you need (components, cut, cycle) does not come out of those modes, compute it outside
+  and validate the result with the tests of section 2 — do not present the number without passing them.
+- What this reference governs: which assertion the report can make with the graph that `repo-map`
+  produced (connectivity, component, coupling, cycle, partition, optimality).
 
-## 2. Valide o grafo antes de concluir qualquer coisa
+## 2. Validate the graph before concluding anything
 
-- **Normalize para grafo simples.** Colapse arestas duplicadas entre o mesmo par de vertices e
-  descarte lacos (`v->v`, ex.: funcao recursiva) antes de contar grau, componente ou ciclo: o modelo
-  do livro e `A ⊆ V(2)`, sem aresta repetida e sem ponta coincidente (p.8).
-- **Nao conte linha de import como aresta.** Duas referencias entre os mesmos dois modulos sao uma
-  aresta; contar cada linha infla grau, infla contagem de ciclos e cria "ciclo" de modulo consigo
-  mesmo (p.8).
-- **Rode o teste de integridade dos graus:** `Σ g(v) = 2·|A|` (p.14) e o numero de vertices de grau
-  impar e par (p.15). Falha em qualquer um = export truncado, aresta duplicada ou ponta inexistente.
-- **Aborte em vez de reportar.** Conclusao tirada de grafo corrompido ("sem ciclos", "sem
-  dependencias") e pior que ausencia de conclusao (p.14-15).
-- **Comece pelo corte vazio e total:** `∇(∅) = ∇(V(G)) = ∅` (p.14). Se o seu calculo de fronteira
-  devolve aresta para esses dois casos, o export esta errado.
+- **Normalize to a simple graph.** Collapse duplicate edges between the same pair of vertices and
+  discard loops (`v->v`, e.g.: recursive function) before counting degree, component or cycle: the
+  book's model is `A ⊆ V(2)`, with no repeated edge and no coinciding endpoint (p.8).
+- **Do not count an import line as an edge.** Two references between the same two modules are one
+  edge; counting each line inflates degree, inflates the cycle count and creates a module "cycle" with
+  itself (p.8).
+- **Run the integrity test of the degrees:** `Σ g(v) = 2·|A|` (p.14) and the number of vertices of odd
+  degree is even (p.15). Failure in either one = truncated export, duplicate edge or nonexistent
+  endpoint.
+- **Abort instead of reporting.** A conclusion drawn from a corrupted graph ("no cycles", "no
+  dependencies") is worse than absence of conclusion (p.14-15).
+- **Start with the empty and total cut:** `∇(∅) = ∇(V(G)) = ∅` (p.14). If your boundary computation
+  returns an edge for those two cases, the export is wrong.
 
-## 3. Componentes e conectividade
+## 3. Components and connectivity
 
-- **Certifique conectividade por alcance exaustivo**, nunca por amostragem: travessia a partir de um
-  vertice semente e contagem igual a `n`. O criterio equivalente e `∇(X) ≠ ∅` para todo subconjunto
-  proprio e nao-vazio `X` (p.18).
-- **Nao use 2-3 caminhos de exemplo como prova.** Entrypoint -> modulo A -> B nao cobre ilhas
-  (scripts, testes, codigo morto) que ficam fora do alcance (p.18).
-- **Decomponha em componentes antes de ordenar, agendar ou medir impacto.** Componente e o subgrafo
-  conexo maximal; cada vertice pertence a exatamente um; o grafo e conexo se e somente se tem um
-  unico componente (p.18).
-- **Ordene e paralelize por componente.** Nao existe ordem que atravesse componentes desconexos:
-  emitir uma prioridade global unica mistura ilhas independentes que poderiam correr em paralelo
+- **Certify connectivity by exhaustive reach**, never by sampling: traversal from a seed vertex and
+  count equal to `n`. The equivalent criterion is `∇(X) ≠ ∅` for every proper and non-empty subset `X`
   (p.18).
-- **Trate "3 componentes" como achado de arquitetura**, nao como nota de rodape (p.18).
+- **Do not use 2-3 example paths as proof.** Entrypoint -> module A -> B does not cover islands
+  (scripts, tests, dead code) that stay out of reach (p.18).
+- **Decompose into components before ordering, scheduling or measuring impact.** A component is the
+  maximal connected subgraph; each vertex belongs to exactly one; the graph is connected if and only
+  if it has a single component (p.18).
+- **Order and parallelize by component.** There is no order that crosses disconnected components:
+  emitting a single global priority mixes independent islands that could run in parallel (p.18).
+- **Treat "3 components" as an architecture finding**, not as a footnote (p.18).
 
-## 4. Acoplamento pelo corte, nao pela contagem total
+## 4. Coupling by the cut, not by the total count
 
-- **Calcule `|∇(X)|`** = arestas com exatamente uma ponta em `X` e outra fora; arestas internas a `X`
-  nao entram (p.14).
-- **Reporte esse numero como acoplamento da fronteira.** Dois cortes de particoes diferentes ficam
-  comparaveis pela cardinalidade (p.14).
-- **Nao eleja "modulo mais acoplado" por fan-in/fan-out absoluto:** modulo grande sempre ganha, e
-  import interno contado como externo faz qualquer particao parecer igualmente ruim (p.14).
+- **Compute `|∇(X)|`** = edges with exactly one endpoint in `X` and the other outside; edges internal
+  to `X` do not enter (p.14).
+- **Report that number as the coupling of the boundary.** Two cuts of different partitions become
+  comparable by cardinality (p.14).
+- **Do not elect the "most coupled module" by absolute fan-in/fan-out:** a large module always wins,
+  and an internal import counted as external makes any partition look equally bad (p.14).
 
-## 5. Ciclos e arestas redundantes
+## 5. Cycles and redundant edges
 
-- **Teste de remocao:** uma aresta `a` participa de ciclo se, e somente se, `G − a` continua conexo no
-  componente em que ela vive (p.18).
-- **Equivalencia util para "sem ciclo":** o grafo e floresta se, e somente se, cada aresta e um corte
-  (p.17); conexo e floresta se, e somente se, `G − a` deixa de ser conexo para toda aresta (p.18).
-- **Orcamento barato de ciclo:** `m ≥ n − c`, com `c` = numero de componentes (p.18). `m − n + c`
-  crescente ao adicionar aresta que nao muda conectividade e sinal de ciclo.
-- **Nao venda `m − n + c` como numero de ciclos simples:** e limitante/dimensao, nao enumeracao
-  (p.18; o proprio digest marca essa leitura como confianca media).
-- **Antes de manter uma dependencia, pergunte se ela e um corte.** Aresta que sai sem desconectar e
-  excedente para a conectividade: trate como candidata a remocao, nao como dependencia necessaria
+- **Removal test:** an edge `a` takes part in a cycle if, and only if, `G − a` remains connected in the
+  component where it lives (p.18).
+- **Useful equivalence for "no cycle":** the graph is a forest if, and only if, each edge is a cut
+  (p.17); connected and forest if, and only if, `G − a` stops being connected for every edge (p.18).
+- **Cheap cycle budget:** `m ≥ n − c`, with `c` = number of components (p.18). `m − n + c` growing
+  when adding an edge that does not change connectivity is a sign of a cycle.
+- **Do not sell `m − n + c` as the number of simple cycles:** it is a bound/dimension, not an
+  enumeration (p.18; the digest itself marks that reading as medium confidence).
+- **Before keeping a dependency, ask whether it is a cut.** An edge that leaves without disconnecting
+  is surplus for connectivity: treat it as a removal candidate, not as a necessary dependency
   (p.17-18).
 
-## 6. Particao em 2 camadas: exija certificado
+## 6. Partition into 2 layers: demand a certificate
 
-- **Para afirmar que da:** exiba a bicoloracao completa. Bicolorivel se e somente se nao tem circuito
-  impar (p.33).
-- **Para afirmar que nao da:** exiba um unico circuito impar concreto. "O unico motivo para a
-  inexistencia de uma bicoloracao e a presenca de um circuito impar" (p.34), e o circuito impar e
-  "um certificado simples e convincente" (p.34).
-- **Bicoloracao parcial nao serve** como prova de layering; ela nao cobre todos os vertices (p.33-34).
-- **Em componente conexo a bicoloracao e unica** (p.35): se voce encontrou duas distintas, ha mais de
-  um componente — volte para a secao 3.
+- **To assert that it works:** display the full bicoloring. Bicolorable if and only if it has no odd
+  circuit (p.33).
+- **To assert that it does not work:** display a single concrete odd circuit. "O unico motivo para a
+  inexistencia de uma bicoloracao e a presenca de um circuito impar" (p.34) [the only reason for the
+  nonexistence of a bicoloring is the presence of an odd circuit], and the odd circuit is "um
+  certificado simples e convincente" (p.34) [a simple and convincing certificate].
+- **A partial bicoloring does not serve** as proof of layering; it does not cover all the vertices
+  (p.33-34).
+- **In a connected component the bicoloring is unique** (p.35): if you found two distinct ones, there
+  is more than one component — go back to section 3.
 
-## 7. O que o relatorio pode prometer
+## 7. What the report can promise
 
-| Pergunta do relatorio | Pode afirmar | Base |
+| Report question | Can assert | Basis |
 | --- | --- | --- |
-| "esse modulo e o mais acoplado" | so com `|∇(X)|` da fronteira proposta | p.14 |
-| "o repo e um grafo conectado" | so com alcance exaustivo = `n` | p.18 |
-| "esse import e redundante" | so com teste de remocao | p.18 |
-| "da para separar em 2 camadas" | so com bicoloracao completa | p.33-35 |
-| "da para separar em 2 camadas" (negativo) | so com circuito impar exibido | p.34 |
-| "esse e o conjunto minimo de arquivos para revisar" | nao, salvo prova: conjunto estavel maximo e `2^n` | p.28 |
+| "that module is the most coupled one" | only with `|∇(X)|` of the proposed boundary | p.14 |
+| "the repo is a connected graph" | only with exhaustive reach = `n` | p.18 |
+| "that import is redundant" | only with the removal test | p.18 |
+| "it can be split into 2 layers" | only with a full bicoloring | p.33-35 |
+| "it can be split into 2 layers" (negative) | only with an odd circuit displayed | p.34 |
+| "that is the minimal set of files to review" | no, unless proven: maximum stable set is `2^n` | p.28 |
 
-- **Rotule heuristica como maximal.** Todo conjunto estavel maximal tem pelo menos `n/(Δ+1)` vertices
-  (p.21); isso e garantia proporcional, nao otimalidade. No caso de emparelhamento, achar um maximal
-  e facil e procurar o maximo e "bem mais dificil" (p.37).
-- **Classifique a tratabilidade antes de prometer otimo:** conjunto estavel maximo e coloracao minima
-  custam `2^n` (p.28, p.36); isomorfismo exato custa `n!` (p.13); decidir se o indice cromatico vale
-  `Δ` ou `Δ+1` nao tem algoritmo rapido conhecido (p.53).
-- **O que e polinomial no livro:** emparelhamento maximo (p.47) e, em grafo bipartido, emparelhamento
-  maximo igual a cobertura minima (König, p.41).
-- **Sem certificado barato, diga isso:** fora do caso bicolorivel nao se conhece certificado
-  substancialmente melhor (p.36).
+- **Label a heuristic as maximal.** Every maximal stable set has at least `n/(Δ+1)` vertices
+  (p.21); that is a proportional guarantee, not optimality. In the matching case, finding a maximal one
+  is easy and looking for the maximum is "much harder" (p.37).
+- **Classify tractability before promising optimum:** maximum stable set and minimum coloring cost
+  `2^n` (p.28, p.36); exact isomorphism costs `n!` (p.13); deciding whether the chromatic index is
+  `Δ` or `Δ+1` has no known fast algorithm (p.53).
+- **What is polynomial in the book:** maximum matching (p.47) and, in a bipartite graph, maximum
+  matching equal to minimum cover (König, p.41).
+- **Without a cheap certificate, say so:** outside the bicolorable case no substantially better
+  certificate is known (p.36).
 
-## 8. Limite do modelo: grafo nao-dirigido
+## 8. Limit of the model: undirected graph
 
-- O livro trata exclusivamente de grafos simples **nao-dirigidos** e finitos (p.8). Ele responde "quem
-  esta ligado a quem", nao "quem depende de quem".
-- **Ordenacao topologica, DAG e caminho critico nao estao nesta fonte** (verificado no digest: zero
-  ocorrencias de `topológ`, `acícl`, `DAG`, `direcionad`, `digrafo`, `orientad`). Nao use p.N deste
-  livro para sustentar ordem de build ou caminho critico.
-- Consequencia pratica: direcao de dependencia, fan-in/fan-out direcionado e sequenciamento ficam
-  fora do que este reference pode afirmar.
+- The book deals exclusively with simple **undirected** and finite graphs (p.8). It answers "who is
+  linked to whom", not "who depends on whom".
+- **Topological ordering, DAG and critical path are not in this source** (verified in the Portuguese digest: zero
+  occurrences of `topológ`, `acícl`, `DAG`, `direcionad`, `digrafo`, `orientad`). Do not use p.N of
+  this book to support build order or critical path.
+- Practical consequence: dependency direction, directed fan-in/fan-out and sequencing stay outside
+  what this reference can assert.
 
-## 9. Checklist antes de escrever o achado
+## 9. Checklist before writing the finding
 
-- [ ] Grafo normalizado (sem aresta duplicada, sem laco) (p.8).
-- [ ] `Σ g(v) = 2·|A|` e paridade dos graus conferidas (p.14-15).
-- [ ] Componentes calculados e reportados como unidade (p.18).
-- [ ] Conectividade certificada por alcance, nao por exemplo (p.18).
-- [ ] Acoplamento medido por `|∇(X)|` (p.14).
-- [ ] Ciclo comprovado por remocao, nao por suspeita (p.18).
-- [ ] Layering com certificado (bicoloracao ou circuito impar) (p.33-34).
-- [ ] Heuristica rotulada como maximal, com limitante (p.21, p.37).
-- [ ] Nenhuma afirmacao de ordem/caminho critico atribuida a esta fonte (p.8).
+- [ ] Graph normalized (no duplicate edge, no loop) (p.8).
+- [ ] `Σ g(v) = 2·|A|` and parity of the degrees checked (p.14-15).
+- [ ] Components computed and reported as a unit (p.18).
+- [ ] Connectivity certified by reach, not by example (p.18).
+- [ ] Coupling measured by `|∇(X)|` (p.14).
+- [ ] Cycle proven by removal, not by suspicion (p.18).
+- [ ] Layering with certificate (bicoloring or odd circuit) (p.33-34).
+- [ ] Heuristic labeled as maximal, with a bound (p.21, p.37).
+- [ ] No assertion of order/critical path attributed to this source (p.8).
 
-## Fontes
+## Sources
 
-- Uma Introducao Sucinta a Teoria dos Grafos (P. Feofiloff, Y. Kohayakawa, Y. Wakabayashi) — cap. 1
-  (p.8: grafo simples nao-dirigido, sem aresta repetida e sem laco; p.13: isomorfismo `n!`; p.14:
-  corte `∇(X)`, identidade `Σ g(v) = 2·|A|`; p.15: paridade dos graus; p.17: floresta e aresta de
-  corte; p.18: conectividade, componentes, teste de remocao, `m ≥ n − c`); cap. 2 (p.21: `α(G) ≥
-  n/(Δ+1)`; p.28: conjunto estavel maximo em `2^n`); cap. 3 (p.33-35: bicoloracao, circuito impar como
-  certificado, unicidade em componente conexo; p.36: ausencia de certificado barato); cap. 4 (p.37:
-  maximal vs maximo; p.41: König; p.47: emparelhamento maximo polinomial); cap. 5 (p.53: decisao `Δ`
-  vs `Δ+1` sem algoritmo rapido).
-- Ferramenta: `repo-map --help` (modos e flags citados na secao 1), executado no ambiente local; o
-  binario nao documenta calculo de componentes, corte ou ciclo, por isso a secao 1 separa calculo de
-  criterio.
+- Uma Introducao Sucinta a Teoria dos Grafos (P. Feofiloff, Y. Kohayakawa, Y. Wakabayashi) — ch. 1
+  (p.8: simple undirected graph, with no repeated edge and no loop; p.13: isomorphism `n!`; p.14:
+  cut `∇(X)`, identity `Σ g(v) = 2·|A|`; p.15: parity of the degrees; p.17: forest and cut edge;
+  p.18: connectivity, components, removal test, `m ≥ n − c`); ch. 2 (p.21: `α(G) ≥
+  n/(Δ+1)`; p.28: maximum stable set in `2^n`); ch. 3 (p.33-35: bicoloring, odd circuit as
+  certificate, uniqueness in a connected component; p.36: absence of a cheap certificate); ch. 4 (p.37:
+  maximal vs maximum; p.41: König; p.47: maximum matching polynomial); ch. 5 (p.53: decision `Δ`
+  vs `Δ+1` without a fast algorithm).
+- Tool: `repo-map --help` (modes and flags cited in section 1), run in the local environment; the
+  binary does not document computation of components, cut or cycle, which is why section 1 separates
+  computing from criterion.

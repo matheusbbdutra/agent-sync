@@ -1,6 +1,6 @@
 # search-specialist
 
-> Absorvida por `docs-research` (2026-11-16). Conteúdo original preservado.
+> Absorbed by `docs-research` (2026-11-16). Original content preserved.
 
 ## Use this skill when
 

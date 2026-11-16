@@ -1,105 +1,105 @@
 ---
 name: agent-react
-description: "Use when the task has 3+ steps, requires hypothesis validation, or risks looping. Disciplina o loop ReAct em tarefas multi-etapa, forçando validação de hipóteses antes de concluir."
+description: "Use when the task has 3+ steps, requires hypothesis validation, or risks looping. Disciplines the ReAct loop in multi-step tasks, forcing hypothesis validation before concluding."
 ---
 
 # Agent ReAct
 
-Responda em PT-BR, objetivo (AGENTS.md global). O harness já faz ReAct “cru”; esta skill **disciplina** o loop — não substitui `context-guard`, `debugging-strategies` nem `token-saving-toolkit`.
+Answer in PT-BR, objective (global AGENTS.md). The harness already does ReAct “raw”; this skill **disciplines** the loop — it does not replace `context-guard`, `debugging-strategies` nor `token-saving-toolkit`.
 
 ## Use this skill when
 
-- Tarefa com 3+ passos ou várias tool calls até concluir.
-- Hipótese precisa ser testada com evidência (código, log, doc, comando).
-- Risco de loop: mesma Action repetida sem progresso.
-- Usuário pede ReAct, scratchpad estruturado ou “pense → aja → observe”.
+- Task with 3+ steps or several tool calls until it closes.
+- Hypothesis needs to be tested with evidence (code, log, doc, command).
+- Risk of loop: same Action repeated without progress.
+- User asks for ReAct, structured scratchpad or “think → act → observe”.
 
 ## Do not use this skill when
 
-- Tarefa curta e direta (1–2 passos, resposta óbvia).
-- Só falta carregar skill de domínio (`backend`, `architecture`, etc.) — carregue essa, não este protocolo.
-- Problema é saúde da janela/drift → `context-guard`.
-- Bug com playbook de debug → carregue também `debugging-strategies`.
+- Short and direct task (1–2 steps, obvious answer).
+- Only missing loading a domain skill (`backend`, `architecture`, etc.) — load that one, not this protocol.
+- Problem is window health/drift → `context-guard`.
+- Bug with a debug playbook → also load `debugging-strategies`.
 
-## Ciclo (obrigatório)
+## Cycle (mandatory)
 
-Em cada iteração, nesta ordem:
+In each iteration, in this order:
 
-1. **Thought** — 1–3 linhas: objetivo do ciclo, hipótese atual (marcada como não comprovada), o que já foi refutado.
-2. **Action** — **uma** tool call que **valida ou refuta** a hipótese (ou batch paralelo só se independentes).
-3. **Observation** — registrar o fato retornado (não o que você esperava).
-4. **Update** — promover a fato (com evidência), manter pendente, ou **descartar**. Hipótese refutada **não** volta sem evidência nova.
+1. **Thought** — 1–3 lines: goal of the cycle, current hypothesis (marked as unproven), what was already refuted.
+2. **Action** — **one** tool call that **validates or refutes** the hypothesis (or a parallel batch only if independent).
+3. **Observation** — record the fact returned (not what you expected).
+4. **Update** — promote to fact (with evidence), keep pending, or **discard**. A refuted hypothesis **does not** come back without new evidence.
 
-Não escreva monólogo longo no Thought. Não chame tool “só para ver” sem hipótese.
+Do not write a long monologue in Thought. Do not call a tool “just to see” without a hypothesis.
 
-## Hipótese ≠ fato (contrato obrigatório)
+## Hypothesis ≠ fact (mandatory contract)
 
-Hipótese **pode** existir (“acredito que X”), mas **nunca** circula como conclusão até Observation positiva.
+A hypothesis **may** exist (“I believe that X”), but **never** circulates as a conclusion until a positive Observation.
 
-Toda hipótese ativa exige um **plano de validação** no mesmo turno:
+Every active hypothesis requires a **validation plan** in the same turn:
 
-| Quem valida | Quando | Como comunicar |
+| Who validates | When | How to communicate |
 | --- | --- | --- |
-| **Agente** | Tem tool/acesso (código, comando, doc, log) | Formule a hipótese → execute a Action → só então conclua |
-| **Usuário** | Falta ambiente, credencial, UI, produção, dado só dele | “Hipótese: … Para validar, rode/confirme: …” — **pare** e espere |
+| **Agent** | Has tool/access (code, command, doc, log) | Formulate the hypothesis → execute the Action → only then conclude |
+| **User** | Missing environment, credential, UI, production, data that only they have | “Hypothesis: … To validate, run/confirm: …” — **stop** and wait |
 
-Regras:
+Rules:
 
-- Proibido empilhar “provavelmente A → logo B → logo C” sem validar A.
-- Proibido seguir implementação/refator com base só em hipótese não validada.
-- Na resposta ao usuário, rotule: **verificado** vs **hipótese (pendente de validação)**.
-- Se não puder validar agora, diga o que falta — não preencha com certeza fingida.
+- Prohibited to stack “probably A → therefore B → therefore C” without validating A.
+- Prohibited to proceed with implementation/refactor based only on an unvalidated hypothesis.
+- In the response to the user, label: **verified** vs **hypothesis (pending validation)**.
+- If you cannot validate it now, say what is missing — do not fill it in with fake certainty.
 
 ## Anti-loop
 
-- Mesma Action (mesmos args relevantes) + mesmo resultado → **proibido** repetir. Mude hipótese ou Action.
-- Hipótese refutada → liste em “descartadas” e não reteste sem dado novo.
-- Após **3 ciclos sem progresso** (sem fato novo útil) → pare, resuma o que sabe/não sabe e pergunte ou mude de estratégia (outra skill, delegação, handoff).
+- Same Action (same relevant args) + same result → **prohibited** to repeat. Change the hypothesis or the Action.
+- Refuted hypothesis → list it under “discarded” and do not retest without new data.
+- After **3 cycles without progress** (without a useful new fact) → stop, summarize what you know/do not know and ask or change strategy (another skill, delegation, handoff).
 
 ## Budget
 
-| Sinal | Ação |
+| Signal | Action |
 | --- | --- |
-| ~8–12 tool calls na mesma subtarefa sem fechar | Checkpoint curto + reavaliar objetivo |
-| ~15+ tools ou zona amarela do `context-guard` | Carregar `context-guard`, atualizar `STATE.md` |
-| Sem progresso claro | Parar e comunicar bloqueio — não “mais uma tentativa” |
+| ~8–12 tool calls in the same subtask without closing it | Short checkpoint + re-evaluate the goal |
+| ~15+ tools or yellow zone of `context-guard` | Load `context-guard`, update `STATE.md` |
+| No clear progress | Stop and communicate the block — not “one more attempt” |
 
-## Evidência
+## Evidence
 
-- Cite fonte verificada: `path:line`, saída de comando, trecho de doc.
-- Proibido afirmar comportamento de código/API sem ter lido/rodado nesta sessão (regra anti-alucinação global).
-- Prefira `ast-outline` / leituras parciais / `docs-fetch` a despejar arquivo inteiro (`token-saving-toolkit`).
+- Cite a verified source: `path:line`, command output, doc excerpt.
+- Prohibited to state code/API behavior without having read/run it in this session (global anti-hallucination rule).
+- Prefer `ast-outline` / partial reads / `docs-fetch` over dumping the whole file (`token-saving-toolkit`).
 
-## Scratchpad (opcional, curto)
+## Scratchpad (optional, short)
 
-Use só se ajudar a não perder o fio — não cole na resposta final ao usuário:
+Use it only if it helps not to lose the thread — do not paste it in the final response to the user:
 
 ```text
 Goal: …
-Hypotheses: [ativas + como validar] / [descartadas + motivo]
+Hypotheses: [active + how to validate] / [discarded + reason]
 Verified: …
 Last: Thought → Action → Observation
-Next validate: (eu: tool…) | (user: comando/ação…)
+Next validate: (me: tool…) | (user: command/action…)
 ```
 
-## Integração com outras skills
+## Integration with other skills
 
-| Situação | Skill |
+| Situation | Skill |
 | --- | --- |
-| Sessão longa / drift / compaction | `context-guard` + `STATE.md` |
+| Long session / drift / compaction | `context-guard` + `STATE.md` |
 | Bug / root cause | `debugging-strategies` |
-| Reduzir tokens na inspeção | `token-saving-toolkit` |
-| Delegar a outro CLI/modelo | `agent-delegate` |
-| Arquitetura / DDD / padrões | `architecture` |
+| Reduce tokens during inspection | `token-saving-toolkit` |
+| Delegate to another CLI/model | `agent-delegate` |
+| Architecture / DDD / patterns | `architecture` |
 
-## Fechamento
+## Closure
 
-Antes de declarar pronto: evidência bate com a conclusão; nenhuma hipótese pendente foi vendida como fato; hipóteses descartadas não foram reintroduzidas; nada de Action órfã sem Observation usada.
+Before declaring it done: the evidence matches the conclusion; no pending hypothesis was sold as fact; discarded hypotheses were not reintroduced; no orphan Action without a used Observation.
 
-## Lembrete automático (hook)
+## Automatic reminder (hook)
 
-- Se aparecer mensagem começando com `[agent-sync]` cobrando validação de hipótese / `agent-react`, ela vem do hook `hooks/agent-react-nudge*` (ou plugin OpenCode), a cada N tool calls (padrão 15, `AGENT_SYNC_REACT_NUDGE_THRESHOLD`) — não é o usuário. Aja: valide a hipótese ativa ou peça o passo ao usuário; não precisa recitar o protocolo inteiro.
+- If a message appears starting with `[agent-sync]` demanding hypothesis validation / `agent-react`, it comes from the `hooks/agent-react-nudge*` hook (or OpenCode plugin), every N tool calls (default 15, `AGENT_SYNC_REACT_NUDGE_THRESHOLD`) — it is not the user. Act: validate the active hypothesis or ask the user for the step; there is no need to recite the whole protocol.
 
 ## Additional resources
 
-- Exemplos de ciclo bom vs ruim: [reference.md](reference.md)
+- Good vs bad cycle examples: [reference.md](reference.md)

@@ -1,46 +1,46 @@
-# Agent ReAct — referência
+# Agent ReAct — reference
 
-## Ciclo bom (exemplo)
+## Good cycle (example)
 
-**Goal:** achar por que `syncSkills` não cria symlink no Cursor.
+**Goal:** find out why `syncSkills` does not create a symlink in Cursor.
 
 ```text
-Thought: Hipótese (não comprovada) — destino ~/.cursor/skills-cursor está protegido e o sync pula. Validar: Grep isProtectedSkillsDir.
-Action: Grep isProtectedSkillsDir em cmd/agent-sync/
-Observation: path_test.go marca skills-cursor como protegido; SkillsDir do Cursor é ~/.cursor/skills.
-Update: Verificado que skills-cursor é protegido. Hipótese “apply pula Cursor” ainda pendente → validar com agent-sync -status / log do apply.
+Thought: Hypothesis (unproven) — destination ~/.cursor/skills-cursor is protected and the sync skips it. Validate: Grep isProtectedSkillsDir.
+Action: Grep isProtectedSkillsDir in cmd/agent-sync/
+Observation: path_test.go marks skills-cursor as protected; Cursor's SkillsDir is ~/.cursor/skills.
+Update: Verified that skills-cursor is protected. Hypothesis “apply skips Cursor” still pending → validate with agent-sync -status / apply log.
 ```
 
-## Hipótese com validação (bom vs ruim)
+## Hypothesis with validation (good vs bad)
 
-**Bom (agente valida):**
-> Hipótese: o binário em `~/.local/bin` é antigo e não tem alvo Cursor. Vou checar com `agent-sync -status` e a data do binário.
+**Good (agent validates):**
+> Hypothesis: the binary in `~/.local/bin` is old and has no Cursor target. I will check with `agent-sync -status` and the binary date.
 
-**Bom (usuário valida):**
-> Hipótese: o deploy em produção ainda aponta para a imagem antiga. Não tenho acesso ao cluster daí. Para validar, rode: `kubectl get deploy … -o jsonpath='{.spec.template.spec.containers[0].image}'` e cole a saída.
+**Good (user validates):**
+> Hypothesis: the production deploy still points to the old image. I have no access to the cluster from here. To validate, run: `kubectl get deploy … -o jsonpath='{.spec.template.spec.containers[0].image}'` and paste the output.
 
-**Ruim:**
-> O problema é o binário antigo no PATH — por isso o Cursor não sincroniza. (afirmado como fato, sem Action nem pedido ao user)
+**Bad:**
+> The problem is the old binary in PATH — that is why Cursor does not sync. (stated as fact, without an Action nor a request to the user)
 
-## Ciclo ruim (anti-padrões)
+## Bad cycle (anti-patterns)
 
-| Anti-padrão | Por quê |
+| Anti-pattern | Why |
 | --- | --- |
-| Thought de 20 linhas + 5 tools de uma vez | Mistura hipóteses; Observation fica ambígua |
-| Repetir `Read` do mesmo arquivo “para confirmar” | Loop; se já leu, cite `path:line` |
-| “Provavelmente é X” sem Action nem pedido ao user | Hipótese vendida como fato; falta Observation |
-| Cadeia A→B→C sem validar A | Empilhamento de suposições |
-| Implementar com base só em hipótese | Corrige o problema errado |
-| Reabrir hipótese descartada sem fato novo | Desperdício de budget |
-| Continuar após 3 ciclos sem progresso | Escalada cega; deve parar e perguntar |
+| 20-line Thought + 5 tools at once | Mixes hypotheses; Observation becomes ambiguous |
+| Repeating the `Read` of the same file “to confirm” | Loop; if you already read it, cite `path:line` |
+| “It is probably X” without an Action nor a request to the user | Hypothesis sold as fact; missing Observation |
+| Chain A→B→C without validating A | Stacking of assumptions |
+| Implementing based only on a hypothesis | Fixes the wrong problem |
+| Reopening a discarded hypothesis without a new fact | Waste of budget |
+| Continuing after 3 cycles without progress | Blind escalation; it must stop and ask |
 
-## Quando paralelizar Actions
+## When to parallelize Actions
 
-OK em paralelo só se forem **independentes** (ex.: `git status` + `git log` + `git diff` no início de um commit).
+OK in parallel only if they are **independent** (e.g.: `git status` + `git log` + `git diff` at the start of a commit).
 
-Não paralelize se B depende do resultado de A (ex.: achar arquivo → ler arquivo).
+Do not parallelize if B depends on the result of A (e.g.: find file → read file).
 
-## Checkpoint mínimo (alinhar com STATE.md)
+## Minimum checkpoint (align with STATE.md)
 
 ```text
 Subtask: …
@@ -50,4 +50,4 @@ Blocked: …
 Next action: …
 ```
 
-Grave no `STATE.md` / `memory-mcp` quando a tarefa já for multi-etapa ou o budget estiver alto — não a cada ciclo curto.
+Write it in `STATE.md` / `memory-mcp` when the task is already multi-step or the budget is high — not on every short cycle.
