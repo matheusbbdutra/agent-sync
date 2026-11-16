@@ -59,6 +59,9 @@
     { "id": "cli-mr-review", "domain": "backend-quality" },
     { "id": "visual-design-system", "domain": "frontend-design", "bundleRef": "core-dev" },
     { "id": "repo-auditor", "domain": "agent-discipline", "bundleRef": "agent-core" },
-    { "id": "agent-learn", "domain": "agent-discipline", "bundleRef": "agent-core" }
+    { "id": "agent-learn", "domain": "agent-discipline", "bundleRef": "agent-core" },
+    { "id": "product-brainstorming", "domain": "product", "source": { "repository": "https://github.com/anthropics/knowledge-work-plugins", "commit": "e91a134584eb798bac7fb0379358006a2b63b965", "license": "Apache-2.0", "skillsDir": "product-management/skills" } },
+    { "id": "gtp", "domain": "product", "source": { "repository": "https://github.com/kevlar10x/gtp", "commit": "35bea378158bd3dbf95cb3c9ddff249a9ff41756", "license": "MIT", "skillsDir": "skills" } },
+    { "id": "exploratory-testing", "domain": "testing", "source": { "repository": "https://github.com/petrkindlmann/qa-skills", "commit": "5087a3461d49da76b1e794d9b0bfbd23f38dc75b", "license": "MIT", "skillsDir": "skills" } }
   ]
 }

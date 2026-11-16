@@ -196,8 +196,8 @@ func TestRunSkillsIndexRealManifest(t *testing.T) {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 
-	const expectedTotal = 54
-	const expectedInstalled = 54
+	const expectedTotal = 57
+	const expectedInstalled = 57
 	if r.Total != expectedTotal {
 		t.Errorf("Total=%d, esperado %d (cobertura total)", r.Total, expectedTotal)
 	}

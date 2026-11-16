@@ -7,9 +7,11 @@ import (
 )
 
 // SkillEntry descreve uma entrada de skill no manifest.json.
+// Source é opcional: quando ausente, vale o Source global do Manifest.
 type SkillEntry struct {
-	ID     string `json:"id"`
-	Domain string `json:"domain"`
+	ID     string          `json:"id"`
+	Domain string          `json:"domain"`
+	Source *ManifestSource `json:"source,omitempty"`
 }
 
 // ManifestSource descreve os metadados de origem do manifest de skills.

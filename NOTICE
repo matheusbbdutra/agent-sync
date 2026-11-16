@@ -11,3 +11,33 @@ Este repositório inclui skills de terceiros vendorizadas em `skills/`.
 - Skills importadas e seus metadados ficam registrados em `skills/manifest.json`.
 
 O texto integral da licença MIT original está disponível no repositório de origem.
+
+## anthropics/knowledge-work-plugins
+
+- Fonte: https://github.com/anthropics/knowledge-work-plugins
+- Licença: Apache-2.0 (texto integral em `LICENSE` na raiz do repositório de origem; a skill vem do plugin `product-management`, que traz cópia própria em `product-management/LICENSE`)
+- Copyright: o `LICENSE` do repositório não preenche o titular — contém o placeholder `Copyright [yyyy] [name of copyright owner]`. O autor declarado em `product-management/.claude-plugin/plugin.json` é `Anthropic`.
+- Commit de referência do catálogo: e91a134584eb798bac7fb0379358006a2b63b965
+- Skill importada: `skills/product-brainstorming/` (origem: `product-management/skills/product-brainstorming/`)
+
+Alterações em arquivos sob Apache-2.0 devem ser sinalizadas; esta vendorização não modificou o conteúdo da skill.
+
+## kevlar10x/gtp
+
+- Fonte: https://github.com/kevlar10x/gtp
+- Licença: MIT
+- Copyright (c) 2026 kevlar10x
+- Commit de referência do catálogo: 35bea378158bd3dbf95cb3c9ddff249a9ff41756
+- Skill importada: `skills/gtp/` (origem: `skills/gtp/`)
+
+O texto integral da licença MIT original está disponível no repositório de origem.
+
+## petrkindlmann/qa-skills
+
+- Fonte: https://github.com/petrkindlmann/qa-skills
+- Licença: MIT
+- Copyright (c) 2026 Petr Kindlmann
+- Commit de referência do catálogo: 5087a3461d49da76b1e794d9b0bfbd23f38dc75b
+- Skill importada: `skills/exploratory-testing/` (origem: `skills/exploratory-testing/`)
+
+O texto integral da licença MIT original está disponível no repositório de origem.
