@@ -24,6 +24,8 @@ Without a declared direction, the result is the model's default — which is pre
 
 **Screen structure:** [reference/product-archetypes.md](reference/product-archetypes.md) brings the optional catalog of archetypes (overview, feed, object management, analytics, creation) to decide the hierarchy of each tab. Optional because prescribing the same skeleton on every screen is precisely the §2 syndrome.
 
+**Icons, prototyping and authorship:** [reference/iconography.md](reference/iconography.md) fixes the icon family, the 24×24 / 2 px grid, sizes 16/20/24/32, contrast and touch target. [reference/prototype-fidelity.md](reference/prototype-fidelity.md) is the fidelity ladder — paper, wireframe, hand-drawn, interactive — with what each level can and cannot answer. [reference/human-craft.md](reference/human-craft.md) is the positive side of §2: how a screen looks authored instead of generated, and the "would a template have this?" test used in §11.
+
 ### 1.1 Retrofit Mode (existing screen)
 
 Adjusting what already exists is different from creating: the cost of error is higher because the screen is already in use. Five steps, in this order:
